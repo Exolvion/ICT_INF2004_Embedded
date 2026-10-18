@@ -1,0 +1,35 @@
+Please be reminded that Tribunal 1 will take place during our Week 8 lecture on October 19th. The core objective of this exercise is to assess your engineering reasoning and see how your team responds to a sudden change in embedded system requirements.
+
+Please review the following steps to ensure your group is prepared:
+
+1. Before the Lecture (Preparation)
+
+Your team must submit the Pre-Tribunal document before 11:00 AM (1100 hrs) on October 19th.
+
+Ensure your file follows the strict naming convention: [Your Group ID]_Pre-Tribunal1 in either .doc or .pdf format.
+
+2. During the Lecture (Starts at 11:00 AM Sharp)
+
+Join the main lecture Zoom session exactly at 1100 hrs.
+
+The session will begin with a brief (approx. 15-minute) presentation detailing the specific change in your project's requirements.
+
+Following the briefing, you will leave the main room and break out into your own 90-minute group discussion.
+
+3. During Your Team Discussion
+
+Recording Requirement: You must video record your entire 90-minute group session
+
+Discussion Expectations: This is a technical discussion, not just a coding session. You must discuss the engineering impact of the new requirement on your system's resources, memory, processing time, hardware constraints, and module dependencies.
+
+Participation: Every team member must actively explain how the requirement change affects their specific sub-module.
+
+Update your working template with the details of your live discussion.
+
+4. Post-Discussion Submissions
+
+Submit your Immediate After Tribunal 1 document by 12:10 PM (1210 hrs) on October 19th.
+
+Upload your group's video recording to the portal as soon as possible. Penalties will be applied for missing recordings.
+
+You will have a few days to finalize and submit your Post-Tribunal document, which is due by October 23rd at 2359 hrs

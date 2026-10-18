@@ -1,0 +1,20 @@
+IS29
+This design is unusually rigorous, with leased motion requests, wrap-safe freshness checks, a single PWM owner, unknown range treated as never clear, and honest limitations. However, it leans too heavily towards faulting rather than completing the mission, and several core behaviours (finish state, a sub-10 s bypass, lateral search, reverse-and-reattempt) are unfinished and should be resolved early.
+- The pin map is sound: encoders on Grove 3/4, IMU on I2C1, IR sensors on GP26–GP28 using one contact per Grove cable, VBAT jumper open, and the HC-SR04 on 5 V via servo headers 3/4 (GP14/GP15) with an ECHO divider. Note that servo-header V+ follows the input supply, not a regulated 5 V; update the pin table to show the divider and rail.
+- The single GPIO ISR (counting encoder edges, timing ECHO) and single-core PRIMASK copies are appropriate. However, three 2 ms tasks self-timed with tk_dly_tsk drift and need a finer tick than the template's 10 ms default. In the template, the kernel's USB (3) and Wi-Fi (4) service tasks sit above application tasks, so map P1–P9 to real µT-Kernel numbers and confirm where lwIP/CYW43 calls actually run.
+- Single-core load is not quantified: Safety, Line and Scan every 2 ms, Motion and Comm every 5 ms, plus IMU I2C busy-waits of up to ~8 ms. Give a WCET and CPU-load table and show the lowest-priority radio task keeps the MQTT session alive. A 2 ms Scan task is far faster than the ~60 ms HC-SR04 cycle; justify or lengthen it.
+- Too many faults latch until reboot (collision on one 10 ms sample, tilt > 0.60 rad, stall, lease expiry, a second code before Vehicle takes the first, stale owner), and lost line or RANGE_WAIT timeout also end the run. Build a fault table by severity and allow in-mission recovery for non-safety faults.
+- Bypass is estimated at 31–36 s against the < 10 s band, and REACQUIRE drives ≤ 0.6 m straight with no lateral search, so 1–2° heading error can miss the line. Prototype the bypass geometry and a search pattern now (T-50/T-52).
+- FR12 (finish) is unresolved and the codebook is empty. Choose a provisional finish rule and codebook so the statechart has a complete path from START to completion.
+- Accelerometer-only tilt and collision may be tripped by hump crests, braking and pivots; run the T-33 false-alarm trials before using them as hard faults, and plan a correction for the Σ Δs·sin(pitch) two-contact bias.
+- A3 assumes 0.08 m/s while FR4 allows ≤ 0.15 m/s. Fix the operating speed and validate barcode resolution with the actual encoder counts per mm (A2 is still open on single- versus two-channel).
+- Remote STOP is best-effort (QoS 0, lowest-priority radio task). Document its expected latency and keep GP20 as the guaranteed stop, subject to A1.
+- Split bundled requirements (FR7, FR8, FR9) into individually testable statements, and make FR1's "minor lighting, track and speed variation" measurable.
+Key Risks to Validate Early
+1. Bypass time and line reacquisition without lateral search (currently 31–36 s).
+2. False hard faults from accelerometer-only tilt and collision detection.
+3. Single-core CPU load with three 2 ms tasks, I2C busy-waits and the radio at the lowest priority.
+4. Barcode decoding at the chosen speed with the actual encoder resolution.
+5. A provisional finish rule and codebook so a full mission can run end to end.
+
+The engineering discipline is excellent; now put the same effort into making the robot complete the course, not only stop safely.

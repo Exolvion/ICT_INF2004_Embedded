@@ -1,0 +1,58 @@
+# ---- generated dependency checkouts, toolchains and build products ----
+# scripts/setup.sh keeps these outside the repository by default
+# (~/inf2004-deps); ignore them here too in case someone points --deps inside.
+/deps/
+/inf2004-deps/
+/build-target/
+firmware/build-host/
+firmware/build-apphost/
+firmware/validation/local/
+firmware/validation/ci/
+robot_build_evidence/
+robot_install_manifest.json
+
+# Firmware images are CI artifacts or local build products, never committed.
+# Old images must not be mistaken for the current revision.
+*.uf2
+*.elf
+*.map
+*.o
+*.d
+*.su
+*.a
+
+# ---- real credentials and local configuration (keep the .example.h files) ----
+/local/*
+!/local/README.md
+!/local/*.example.h
+wifi_credentials.h
+net_mqtt_config.h
+!net_mqtt_config.example.h
+!wifi_credentials.example.h
+.env
+*.env
+*.pem
+*.key
+*.p12
+secrets.*
+
+# ---- tooling noise ----
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/c_cpp_properties.json
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*.docx

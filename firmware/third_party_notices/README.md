@@ -1,0 +1,3 @@
+# Dependency notices
+
+These reference license texts accompany the pinned dependencies recorded by `firmware/scripts/install_project.py` and `firmware/scripts/verify_install.py`. The dependency source is fetched from its original repositories by the documented setup steps; it is not bundled here. Preserve every original per-file notice and the port’s LICENSES directory when distributing dependency source or a derived firmware build. The professor port has mixed notices (T-License, Apache and BSD-derived files); a single top-level label is insufficient. CYW43 and radio firmware have hardware-specific terms. No original project report, test evidence or AI-assisted application is attributed to the professor or Barr Group.

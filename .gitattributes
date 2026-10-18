@@ -1,0 +1,24 @@
+# Normalise to LF everywhere. The style checker and the Linux build scripts
+# reject carriage returns, and Windows checkouts default to CRLF otherwise.
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.csv text eol=lf
+*.dot text eol=lf
+*.svg text eol=lf
+*.ld text eol=lf
+*.mk text eol=lf
+
+# Binary content
+*.png binary
+*.jpg binary
+*.pdf binary
+*.docx binary
+*.zip binary
+*.uf2 binary
+*.elf binary

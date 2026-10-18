@@ -1,0 +1,866 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:27.900
+me during labs feel free to ask me uh in the discussion forum i'll do my best to answer them okay um that's it uh i will still go through the lecture on real-time operating system now for the next one hour followed by uh i will i won't brief pertaining the project but i will highlight important things which i expect to see but at least we have something to something that you can hear from me and not
+
+00:00:27.900 --> 00:00:57.570
+read from me and if you have any questions later on you can feel free to ask me okay so let's continue on on the real-time operating system so i know i mentioned embedded operating system then here i'm putting a real-time operating system okay what's the difference embedded operating system is a superset meaning that it is it can encompass anything any operating system that can run on embedded systems real-time operating systems as the name implies
+
+00:00:57.570 --> 00:01:26.660
+is that those operating systems that can work at real time. Then some of you, the sharp ones, will be asking, Prof, you say real time, it depends on the deadline. So then how? If the project or the requirements of the project requires one microsecond, then will all RTOS be able to handle it? Truth be told, no, actually. But what happens is that you need to pick the right real-time operating system.
+
+00:01:26.660 --> 00:01:57.580
+coupled with the right hardware to solve your problem but what is important is that this real-time operating system they have mechanisms in built into the os that will to the best of the ability attempt to meet the deadline of your project so in the end you still need to choose the right real-time os and the right uh hardware but the correct combination depends on your
+
+00:01:57.580 --> 00:02:21.920
+on your requirements. If your requirements are very stringent, then your hardware choices and your OS choices will also be more stringent also. For example, FreeRTOS works well for everything generic. But when you want to have more determined timing consideration, then FreeRTOS might not be the way to go.
+
+00:02:21.920 --> 00:02:51.440
+So something a bit more commercial could be like ThreadX and many others could be something, or Zephyr could be something that you might want to consider. Then some of you might be thinking, Prof, why don't you teach Zephyr? The reason why I didn't teach Zephyr is because Zephyr, though it is a real-time operating system, they tend to be more what's Linux. Their codes are very complicated, very complex.
+
+00:02:51.440 --> 00:03:15.090
+I feel that real-time computing systems should be something lean and something easy to understand. So during my time, we had this real-time OS called Micro-C OS 2. But in your time, that is not a very popular OS. FreeRTOS is there, but FreeRTOS, the way they build it, might not be a genuine real-time OS. That's why I picked...
+
+00:03:15.090 --> 00:03:46.980
+Micro-T kernel. We'll have a few examples there. Micro-T kernel is actually very popular in Japan. I've been working with it for the past 20 years. It's been well established. Prior to that, they have a version before that.
+
+00:03:46.980 --> 00:04:16.450
+So sorry about that. That surprised me. Yeah, please mute yourself. So there was a lot of consideration when choosing the OS itself. Let's jump into it. So the agenda is very simple. Why did we choose RTOS? Mainly it's because of the timing consideration and the synchronization tool. Then we'll talk a little bit on MicroT kernel API. This is just an example. So the example that you see in a MicroT kernel, they will...
+
+00:04:16.450 --> 00:04:45.840
+you'll be able to find equivalent in a FreeRTOS, in a Zephyr, and other things. So most of the time, there'll be a common set of APIs. But of course, each RTOS will have their own secret tools at play. And if you need those kind of APIs, then unfortunately, you will have to find those specific real-time operating systems. Then we will also touch on what are the common mistakes people make when developing
+
+00:04:45.840 --> 00:05:08.800
+applications on real-time operating system then i'll show one simple example of a application on a real-time os okay so again let me recap real time is equal to predictability and not as fast as possible remember so real time is the ability for you to service a request before the deadline
+
+00:05:08.800 --> 00:05:36.510
+When is the deadline? It depends on the request itself. It depends on the service that you're requesting for. So in a nuclear power plant, it could be microseconds. In a braking of a car, when you want to brake the car, you don't want to wait seconds or minutes. You want to be also microseconds or milliseconds at best. So it is depending on the service that you are requesting for.
+
+00:05:36.510 --> 00:06:06.930
+But it also means predictability, meaning that you know that in the worst case, if I say that I need this service within one microsecond, meaning that within one microsecond, in the worst case, this thing will be solved or will be serviced. And that is predictability. So I know in the worst case, one microsecond, this can be serviced. But not only that, real-time operating system shouldn't be wishy-washy also.
+
+00:06:06.930 --> 00:06:35.790
+Meaning that it shouldn't be, this time I service you in one microsecond. Tomorrow, it is half microsecond. The day after tomorrow, it's also one microsecond. Then before that was 0.1 microsecond, assuming that it can handle that kind of servicing. So it is not, it shouldn't be that way. Meaning that 99% of the time, it should always be one microsecond or plus minus, you know, 0.1 microsecond, something like that. So it should be predictable.
+
+00:06:35.790 --> 00:07:03.070
+So the modality meaning that majority of the time it is within a certain bound and we can verify it. And that is what real time means. So we are going to a more strict definition of real time now. Something which is predictable. Why? Because it is important. Again, you don't want your car brakes to sometimes work, sometimes don't work. You want it to always work and always be the same.
+
+00:07:03.070 --> 00:07:33.070
+You don't want your car brakes, when you press today, it slows down. But tomorrow, when you press the same amount, it will suddenly do a jam break. You don't want that. You want it to be consistent all the time. Predictable. Correct? So the correctness depends on what you're trying to compute and when it is delivered. There's two things. The computed results and the delivery. And again, we mentioned that real time, it depends on the deadline. It can be hard. It can be soft. It can be no deadline at all.
+
+00:07:33.070 --> 00:08:02.660
+So it depends. And the consequences of the lateness differs for each one of them. So then what we're looking at is, like I mentioned, the one microsecond example, worst case latency. So in the worst case, what would be the time? So that would be the deadline itself. And the thing is, the worst case latency shouldn't be, it should be something that you, in a real-time OS, it is something that they are very concerned about.
+
+00:08:02.660 --> 00:08:31.940
+They don't care about average throughput. Average throughput meaning that you add it up together and say, oh, this thing can be serviced in one microsecond. But sometimes it is 0.1, sometimes it is 1. That is bad. So the worst-case latency is something that is bounded, something that is clear. One example is like FreeRTOS and OneWork, which I did recently. I did a benchmark between a FreeRTOS and a micro-T kernel.
+
+00:08:31.940 --> 00:09:00.610
+So in terms of bounded latency, the average time for free RTOS is slightly better. But the modality is worse. Meaning that it can fluctuate quite badly. And in a solution that you want predictability, fluctuation is a bad thing. Even though on average it will work most of the time. But you don't want that.
+
+00:09:00.610 --> 00:09:22.420
+But free RTOS gives you that predictability. So the time is always constant. On average, maybe slightly above free RTOS, but they are always constant. So it depends on your use case. If your use case is a soft real time, then free RTOS might probably work for you. But if your use case is a bit more stringent, then most probably...
+
+00:09:22.420 --> 00:09:52.510
+Micro-T kernel or even other platform might be more important for you. Zephyr also does very well in hard real-time system. Okay? So, again, RTOS will provide the mechanism to ensure that the deadlines are met. I know the worst-case latency are bounded and things like that. But in the end, it is up to you guys, the application designer, to prove that the timing assumptions are met. Okay? Remember, in real-time OS,
+
+00:09:52.510 --> 00:10:22.620
+What we want is the latest acceptable response, not the average response. So if you tell me, on average, it works fine, then immediately for a real-time OS person, an embedded systems guy, that's a red flag. What do you mean by average response? Most of the time, where is the number residing? Within which bound? So again, we are not looking at average. We are looking at something more predictable. Okay? So...
+
+00:10:22.620 --> 00:10:51.310
+What does RTOS do to help with this concurrency and timing? So the RTOS makes things simple, even for application development, in the sense that it splits things in tasks. What does tasks do? You can put it in a very layman's term, you can put one task as one functionality, not one function, but functionality. So rather than polling, you actually wait, meaning that each task...
+
+00:10:51.310 --> 00:11:20.160
+will wait and it will go to sleep when it's waiting for something, waiting for a resource, waiting for its time to be serviced, waiting for something. So it doesn't use CPU time. It doesn't need to be checked upon. The RTOS knows that, okay, this task doesn't need to be serviced now. I'll put him to sleep. And I won't check on him until the next round. Okay? So that's what it does, actually. Then...
+
+00:11:20.160 --> 00:11:50.770
+the artist also protects shared resources also because um most of the time tasks will talk to each other and they will work on a particular resource and it's a shared resource obviously across the task then it has to be protected because if you don't protect the resource a shared resource you will have uh you know race conditions others and that's something that i will show you an example a very simple example it's on but for those of you who did operating system
+
+00:11:50.770 --> 00:12:16.720
+It is the same risk condition you have learned there. So a lot of the concepts that you learn in basic operating system will apply in real-time OS. A lot of them. It's just that some of the definitions are more strict, more stringent as compared to OS. Because in a real-time operating, unlike a general-purpose operating system like Linux and stuff, they will do best effort.
+
+00:12:17.070 --> 00:12:42.000
+And unlike real-time OS, you can't do best effort. You need to be able to meet the deadlines before the deadlines dissolve. Then other things that the RTOS offers is like kernel messaging, meaning that it allows multiple tasks to talk to each other, to communicate with each other. So you can assume each task as one person.
+
+00:12:42.260 --> 00:13:08.590
+when multiple tasks, they will have to talk to each other. Sometimes they exchange information. Sometimes they just say, hey, it's your turn now. Sometimes they just say that, oh, I'm waiting for you, you know, something like that. So this signaling or messaging is done through the kernel functionalities of the APIs itself. For example, mutexes, semaphores, and things like that. So when you talk about real-time OS,
+
+00:13:08.590 --> 00:13:37.300
+We always talk about shared resources. We always talk about messaging. We talk about multiple tasks. And how do you control timing? So they will have an API that allows you to do delays, timers, and things like that. And it is abstracted up to the API level. Meaning that the OS itself will control the timer. It will control the clock. It will control the when do you...
+
+00:13:37.300 --> 00:14:07.470
+call this guy when you call the other guy. So it controls the timing of the whole entire platform. So there are six critical kernels generally in a real-time operating system or embedded operating system. You have task management. So the idea is that how do you manage all the tasks so that it seems as though you have all the tasks running in parallel. In actual fact, majority of the time, for the longest time ever, embedded systems have been single core.
+
+00:14:07.470 --> 00:14:36.020
+Though real-time OS has been around for forever actually. So the idea is that even though when you run it, you look, it seems as though all the tasks are running at the same time. But in actual fact, they are actually scheduling it to make sure that, you know, only one task is running on one core at any point of time. But they just keep switching between tasks. Now you have multiple cores actually. So like the Pico that you're using, Pico 1, Pico 2 or ESP, they are mostly dual core.
+
+00:14:36.020 --> 00:15:05.360
+And it's reasonably a new thing, actually. But still, task management is also still very important. So how do you manage a task so that only two tasks can run concurrently at any one point of time? Which two tasks are allowed to run to make sure that the two tasks are not interdependent to each other and things like that? Next would be the device IO. You have many components, many resources on the microcontroller.
+
+00:15:05.360 --> 00:15:35.940
+How do you ensure that these devices, these IOs are being managed? So there will be one subsystem that will handle it. Then you have interrupts. So the kernel itself is able to handle ISR, interrupt service routine, and the task itself also, which is under task management. So it will be able to handle how the interrupt occurs, hardware interrupts, software interrupts, and things like that. So it will manage those interrupts. I think we...
+
+00:15:35.940 --> 00:16:02.430
+did that in one of the labs, I think. So like the timer, the timer interrupt that you guys called, those are also part and which comes to the next point. Okay, not next point, but timer interrupt will come later. Then talk about task synchronization. When the task running by itself is fine, you know, if one task and if it controls only one thing, that is fine. But what if one task can affect another task that's running? How do you tell the other tasks that, hey,
+
+00:16:02.430 --> 00:16:29.100
+it's time to switch over, or hey, it's time to stop, things like that. So this is where the task synchronization occurs. And that's where communication occurs between tasks. And they do this by mutexes, by semaphores. Some of them, they call it a rendezvous. So sometimes they have these different terms. But most of the time, it's semaphores, message buffers, and mutexes.
+
+00:16:31.980 --> 00:16:58.530
+Yeah, then also you have queues also and message buffers to allow you to communicate, to send information across each other. Then you have memory management. How do you ensure that you can... Remember, embedded systems, we don't like malloc. We don't like the use of malloc. But sometimes we need to have a block on memory and stuff like that. So this is where the RTOS will offer APIs that allow you to...
+
+00:16:58.530 --> 00:17:29.330
+to put aside a block of memory that you can be used. And the RTOS will be the one managing it to prevent memory leakage and other issues, fragmentation and stuff. So the RTOS itself can manage these blocks of memory through the APIs. And finally, we have timer management. Like real-time clock, like I said, timers, delays, they're all under the kernel itself. And it manages the timers,
+
+00:17:29.330 --> 00:17:57.500
+time based apis that you can use again you have to be very mindful how they implement it because you have to be careful because if the hardware itself only have one timer then the os might seem to have multiple timers but chances are you they will in a porting guide if you look at this you can only use one timer at a time you have to choose between the two of them or you cannot use both timer concurrently
+
+00:17:57.500 --> 00:18:22.670
+Or there might be some skew that happened in between, things like that. So be a bit mindful. Or sometimes they share one timer, but they use it to inform multiple people. Meaning that if you use as a simple timer, you can use multiple of them. But if you want to use those clock up or clock down timer explicitly, then you can't. Because they only have one physical timer.
+
+00:18:22.670 --> 00:18:50.130
+Software-wise, they manage it, they mask it and make it seem as though they have multiple timers. So how do you know? You have to look at the OS guide itself for that particular hardware. So the OS might support three, four, five timers. But if the hardware only offers one, they can only offer one. But some porting, some ways of porting allows you to change it a little bit. Case in point.
+
+00:18:50.130 --> 00:19:19.650
+for my part for the micro t kernel on esp32 uh the way i manage uh the dual core is by having a global lock like uh gkl actually global kernel lock but there are many other ways to to um to implement it you can have per core per core locking mechanism to lock each uh you know scheduling per core itself but i chose not today because i want to keep it simple for the time being so
+
+00:19:19.650 --> 00:19:48.610
+That choice can affect how I run my application or how my application behaves. And you need to be very mindful of that also. So when you're using kernel, don't assume, oh, the kernel says it has two timers. Check for that particular OS on that particular hardware. Just verify that. Those are mistakes that I've made before during my younger days, which I've come back to bite me. So learn from my mistakes. So let's look at a simple example.
+
+00:19:48.610 --> 00:20:17.070
+so in a micro t kernel api you have multiple tasks and each task can be just be a function call itself okay um just to digress a little bit uh take note that in uh uh in the labs we won't be talking about micro t kernel the example i have is a free r toss the reason why i did not change to the micro t kernel is because one part of the project is to learn about micro t kernel in itself so by
+
+00:20:17.070 --> 00:20:41.650
+learning about free RTOS and then seeing how you can apply that knowledge onto the micro T kernel itself is part of the process of learning. Of course, if you're stuck, we are here to guide you. But this project will allow you to apply the knowledge of OS onto various RTOS itself.
+
+00:20:41.650 --> 00:21:10.780
+Going out, you see that, oh yes, I've learned FreeRTOS, but I also know how to implement it on the micro T-Kernel. And in the future, if you want to implement it in Zephyr, to you, it will be quite straightforward. Actually, migration from FreeRTOS to micro T-Kernel to Zephyr will be very simple, as long as the APIs are similar. Okay, so coming back. So each task are typically one function. Typically. It can be multiple functions, but most of the time, it's one big function, and it can be broken into smaller functions.
+
+00:21:10.780 --> 00:21:36.320
+That's a different story. But one task, one functionality. Let's put it that way. Okay. So then we have things like, sorry, this one came out too early. So then you'll be sitting on top of the OS itself. And the OS, what does it offer? It offers the scheduler that will schedule the task when does this run, when does this run, when does this run. It handles the syncing, you know.
+
+00:21:36.320 --> 00:22:06.940
+oh this run first you know followed by filtering you know followed by a logger task then the inter-process communication when you want to send data from sensor to filter filter to logger you know when does it do it and where does it store it so all these things are handled by the os itself okay the os then sits on top of this boot support package actually bsp ultimately it's just a software that allows the os to tie it to the hardware itself
+
+00:22:06.940 --> 00:22:35.700
+which is at the bottom, the microcontroller itself. The device drivers, there are two levels. One is a low level, one is a high level. The low level would be, how do I even write to the I2C or the SPI or the UART? That's the low level. The higher level is, for example, I now have the I2C driver, but then I need to write the driver for the IMU.
+
+00:22:35.700 --> 00:23:04.770
+The GY511 that uses the I2C. So I need to send a command to request for data. Then once I get the data, what kind of data am I getting back? So all those APIs are higher level device drivers. So you have the low level device drivers, which is the basic foundational stuff like I2C, SPI and whatnot. And we have the high level that uses these low level drivers. So drivers have multiple layers. And sometimes they even have...
+
+00:23:04.770 --> 00:23:32.780
+even higher level drivers, like for Wi-Fi, you have the drivers to run the Ethernet or the Wi-Fi component itself. Then you have the stack, which is the middle level driver. Then you have the higher level stack, which is the TCP IP stack itself. So you have multiple layers of the device drivers itself. Then you come over middleware. A middleware is actually, which I forgot to put here, is actually a library that uses drivers that does something.
+
+00:23:32.780 --> 00:24:01.260
+that can be used by multiple application itself so things like uh the printf that is a library in itself to be able to print something out to the uarts to the serial port itself or you want to have a library that can write things to the micro sd card so those are libraries in itself okay so why am i using this example micro t kernel like i mentioned earlier
+
+00:24:01.260 --> 00:24:29.890
+micro t-kernel was built for embedded systems ioth system they're meant to be very small in terms of kilobytes in size not megabytes by kilobytes it is portable across multiple platform and one thing nice about this is that this micro t-kernel obviously this is version 3 but version 3 version 2 version 1 have the same api even though version 2 version 1 has been optimized
+
+00:24:29.890 --> 00:24:56.590
+and if there's improvement behind the the hood but as long as your application is ieee compliant to 2050 2018 then you can just use version 2 or version 1 or version 3 or maybe in the future version 4 comes out as long as your application is compliant to this you are able to use it so what they ensure is that the api doesn't change across time
+
+00:24:57.170 --> 00:25:27.680
+Okay. Then you have the official API, which is, so this Micro-T kernel is an open source. Though it's used by 80 to 90% of embedded systems in Japan, they are open source. So you can look at it, you can make changes to it also. If you feel like it is not optimal enough, you can optimize it for your own particular platform, but you keep it. But for them, is that you can use it. They have their own licensing. They call it the T-License. You can use it.
+
+00:25:27.680 --> 00:25:58.060
+But any changes you make, don't publicize it. Because if you publicize your APIs, then people use your APIs, then it won't become 2050, 2018 compliant. You will be dependent on the API. Okay? So the example that we will talk about today will be these few things. If you notice that the way they call it is TK, as in T kernel, underscore the operation, underscore the object.
+
+00:26:00.270 --> 00:26:24.020
+Okay, somebody's asking me, what's the difference between kernel and OS? In every OS, there'll be a kernel. The kernel itself is the core mechanism of what it does. So for example, the basic of a kernel, like I mentioned, just now the sixth example, somebody was asking me. Okay, sorry. So these are the basic services of a kernel, the minimum requirements.
+
+00:26:24.240 --> 00:26:55.390
+If you notice, I don't talk about file system. I don't talk about other things. So all those things are add-ons. They are part of an OS. So if you talk about an OS that doesn't have a file system, you will never use it, correct? So an OS can have the basic kernel functionality and more. Somebody's asking me, do they need to go back to computer architecture? Again, I will only test what's in the lecture notes itself.
+
+00:26:55.390 --> 00:27:23.460
+But the knowledge you require from the lecture requires you to revise back then, so be it. Somebody is asking me, is there any specific reason why we are learning and using micro T-Kernel? For my initial research documentation, not in Japanese, it's quite sparse. There are actually a lot of English documentation. Again, the reason why I chose micro T-Kernel is because I've been working on it for a very long time.
+
+00:27:23.460 --> 00:27:54.300
+But more importantly, it's because FreeRTOS is a very well-known kernel. And I think you can get a lot of resources online. But I felt that using a kernel that you're not comfortable with will take you out of your comfort zone and let you really learn what an OS is about. Truth be told, the knowledge is transferable, actually. So the API they use for FreeRTOS, they are equivalent in Micro-T kernel.
+
+00:27:54.300 --> 00:28:22.050
+So by running it on MicroTikernel, you are actually saying that you are running an industry-ready OS that can work on any platform. And MicroTikernel has been approved for medical devices and automotive, unlike FreeRTOS, which is not. So by learning about how FreeRTOS works, even though it's similar, you are actually working on a platform which has been...
+
+00:28:22.050 --> 00:28:51.260
+uh you know rubber stamp for automotive and for uh what they call that uh medical uh devices also okay and also again you don't need that uh the the the aps itself are quite straightforward actually um i will try to find uh what they call that the documentation in english they are documentation english somebody just need to remind me about that and we will
+
+00:28:51.260 --> 00:29:19.620
+i will share it with you guys okay so what is a task okay so we've been talking about tasks and function so what is a task so a task uh is is actually in essence is just a functionality so if you look at this diagram here so this is one task in itself and what the task does is it runs one function and it will loop back and then but it will not run the process in indefinitely actually
+
+00:29:19.620 --> 00:29:47.700
+unless it gets an event so when it gets an event there's actually this blocking signal will be unblocked and allow you to run it so as long as this event keeps coming in this process will run it but if this event doesn't come in or this condition is not met then this process will not run so in a way a function a task is actually a function that is being controlled by an event what is the event it can be anything under
+
+00:29:47.700 --> 00:30:15.950
+it can be nearly anything under the sun it can be a timer event it can be a message that comes in it could be an interrupt that comes in so it can be anything that uh blocks this guy most of the time is a timer meaning that you see that okay every five seconds you run this process meaning that uh this guy will be blocked for five seconds when the five seconds is up that event will come in and say okay the five seconds are up you can run this function
+
+00:30:15.950 --> 00:30:46.110
+once or twice it depends on what the function is then it loops back again or it could be blocked by a semaphore you see that okay as long as somebody is using this semaphore don't i mean somebody's using it so i can't go in i need to wait until the semaphore is released then i can go in so this process itself could be processing a shared resource itself so i can't go in until the shared resource has been released by another task then i can go in so that is what
+
+00:30:46.110 --> 00:31:13.740
+a task is it's ultimately a function being blocked by by something okay the tasks run independently meaning that they will run again and again so typically this is a typical flow of a task and when it is blocked here it will then idle it will just be waiting down there so then some of you will be thinking who checks this guy who is pulling this block signal
+
+00:31:13.740 --> 00:31:42.700
+to check whether it's time for it to run. That's where the scheduler comes in. So the scheduler will actually be the one checking all the tasks every one millisecond or lesser, depending on how you want to run it. It will check all the tasks, say, okay, who is ready to run? Oh, there are five people ready to run. Then I check the priority. Who has the highest priority? Then I check, are any of them waiting for a particular resource or not? So I say, okay, all of them are met.
+
+00:31:42.700 --> 00:32:11.620
+Then I take the highest priority. Then I put it into the running queue. Then I let it run. So that is handled by the scheduler. The scheduler is the one who will decide which task will be allowed to run. Again, the event is the one that makes the task ready to run again. So the event will tell the scheduler, hey, this task is ready to run. He's in a ready queue. He's ready to go. You can put him into the running state anytime you want.
+
+00:32:11.620 --> 00:32:44.320
+Okay, but the final decision is being made by the schedule itself. Okay, so this task state and this is something that I will talk about state machines in the pre-recorded video. So one example of a state machine is this task state itself. So each task can go into this 1, 2, 3, 4, 4 states. When it's in the ready queue or ready, meaning that it's ready to run. Okay, is it running? No, it's not yet running. Only one task can run at any one point.
+
+00:32:44.320 --> 00:33:09.920
+point of time because if you're talking about a single call but if you're talking about a dual call then of course two tasks can run concurrently okay so a ready queue doesn't mean it's running it's just that it is ready it has the resources the resources that he wants to use is available he can use it he's in the queue he's ready to go okay what happens if he's in a ready queue it's just a process
+
+00:33:09.920 --> 00:33:37.900
+You can think of a task as just a process. There are times where you can put it that way. Yes, you can. So somebody is asking me, is a task just a process? Kind of. There are times where the word is interchangeably used, but typically in an embedded system, we tend to use the word task and not process because process has other implications to it. Process means there's MMU to it, meaning that there's a way to protect the data, the memory itself.
+
+00:33:38.350 --> 00:34:06.160
+Now, in some definitions, so it is good to use the word task, but you can treat it, the idea, as a process. Nothing wrong with that. So then you're in a ready queue, then when nothing else is running and you're at the highest priority, you'll be allowed to run itself. But then a higher priority task comes into play, then you get preempted, then you get pushed back into the ready queue, and the higher priority task will be running.
+
+00:34:06.260 --> 00:34:35.520
+So that's where the preemption comes in. It will push you back into the ready queue. Sometimes you are going to the block. When do you go into the block? So the block will happen when you are in a timer. So you say, oh, I sleep for five seconds. Then I run again. So when you sleep for five seconds, you'll be running, you will be blocked, you'll go into the block state, and you will stay there for the next five seconds. Then after the five seconds is over, the schedule will say, hey, your five seconds is up.
+
+00:34:35.520 --> 00:35:04.640
+I'll push you back into the ready queue. You're ready to run at any point of time. So the next instance when the core or the CPU is available, it will allow you to run. Okay? So these are the three states. Then the last one is terminated, which is a very rare thing. Truth be told, in my whole entire life, I've only used task exit, I think about three or four times only in my life, which is a very rare thing because normally tasks will run.
+
+00:35:04.640 --> 00:35:30.260
+infinitely forever. They are always waiting for something. You rarely terminate a task and create it again. Task creation typically happens once and that's it. And you don't terminate it until you want to shut down the device itself. But there are circumstances where you need to delete a task or exit a task. And that's where it comes into run.
+
+00:35:30.260 --> 00:36:00.240
+Sometimes you can actually go into the block state, then certain conditions allow you to delete it. Or when the task exits, you can go terminated. So the example here, this task will never exit because it runs infinitely. So you will never have a task exit here. If you do, then this whole task will crash. Or not crash, it will continue, but if other tasks depend on it, it will crash. So if you notice, from all states, you can go into the terminated.
+
+00:36:01.390 --> 00:36:32.500
+From ready to terminated, running to terminated, block to terminated. So it depends on the circumstances itself. So then comes the next point. What is preemptive scheduling? So preemptive scheduling, like we mentioned earlier, is when a higher priority task comes in to preempt a lower priority task. Why is it important for embedded systems? It is vital because if you don't allow a higher priority task to run, it means...
+
+00:36:32.500 --> 00:37:02.800
+the higher priority task will have to wait for a lower priority task. It's kind of like akin to your boss coming in and you ask your boss, you wait, let me finish my food first, then you can use the table later on. So it's akin to that. Obviously, you're not going to do that because it won't last very long. So when a higher priority task comes in, you accede to it. Then in this case here, the task 3 is even a higher priority task, then task 2 will have to accede to priority 3.
+
+00:37:03.020 --> 00:37:34.910
+then you'll be asking me, sir, what happens to priority task 1? So a priority task 1 will then have to wait until 3 finishes. So for example, if the task 1 hasn't finished yet, and let's say task 2 hasn't finished yet, so when task 3 finishes, then task 2 will continue running. Then only after task 2 finishes running, then task 1 can continue on to finish up. So this is what happens. Meaning that task 1 will have to wait a very long time to finish if higher priority task keeps
+
+00:37:34.910 --> 00:38:04.510
+pre-empting them meaning for a simple example will you put a wi-fi driver that waits from a message in task one obviously not because when a message come in or my sensor data comes in it has to be serviced quickly so you would tend to put sensor data as a high priority task but that's why you need to make sure that the task doesn't run very long you keep it short and lean okay so you don't want to have higher priority tasks lungs
+
+00:38:04.510 --> 00:38:34.880
+run too long. If you do that, what will happen is that the lower priority task will have to wait indefinitely. Then things will get laggy. So most of the time, things don't work well because not only do you choose the wrong priority for the wrong task, but you also make the higher priority longer. So what you could do is you can actually break the task up. The part which is very important, if you make it as concise as possible,
+
+00:38:34.880 --> 00:39:03.730
+but make it higher priority but short. When it's less important, you can make it a slightly lower priority. Meaning that you give higher priority tasks a chance to run, but at the same time, you don't let task 1 wait indefinitely. Then somebody might be thinking, Prof, what happens if both tasks are equally important? Can I put the same priority to the same task?
+
+00:39:03.950 --> 00:39:31.730
+That's actually a very good question, actually. It depends on the real-time OS. Some real-time OS will allow it, some will not. Okay, so you have to, when you're picking your priorities, your OS also, you need to pick the right one. For micro-tickernels, yes, they allow multiple tasks at the same time. Multiple tasks have the same priority at the same time. Then what will happen? Who will run? Just say that task 1 and task 2 are the same priority. Who will run? When they have the same priority,
+
+00:39:31.730 --> 00:40:02.420
+they will uh what will happen is that between the two tasks they will run robin meaning that they will have a time slice that will let task one run for x amount of time and task two then task one so they will share that that priority space okay so which means that for example let me just uh sketch here just say that just ignore this task one here just say that task one is the same level as task two so task one and task two will time slice so
+
+00:40:02.420 --> 00:40:39.890
+So probably it will be task 1, task 2, then task 1 again. Then once task 3 finish, again, task 3 is higher priority. It will preempt the two of them. But when finished, then it will continue back again. Task 2, task 1, until the task finish running. My chat screen is frozen. Which screen do you see now? Just want to check. Somebody's telling me that my screen is frozen. Oh, yeah. Here you go.
+
+00:40:40.240 --> 00:41:24.690
+Do you see my screen now? Slide 7. Where is slide 7, actually? I don't know which is slide 7. Okay, I just want to double-check. Can you guys see the pre-empty scheduling slide? Is it okay now? Okay, good. Okay, somebody's asking me if it's the same priority. If it didn't first come, first serve, no, it's not. Actually, let me correct myself. It depends on the OS itself. But majority of the time, when it's the same priority, it will be round robin.
+
+00:41:24.690 --> 00:41:45.730
+free RTOS and micro T-Kernel both will revert to round robin when it's the same priority. Okay? So that's what pre-emptive is. So the purpose of pre-emptive is to make sure that a high priority task has a chance to run when it comes in. So the question is, how do you choose the right priority? That is something...
+
+00:41:45.730 --> 00:42:14.800
+It's based on experience itself. Of course, if you know that that task needs to be serviced quickly, then of course you give it a higher priority. But if that task keeps running so frequently, what will happen? It will starve the other two tasks. That's where task starvation occurs. Remember your OS concepts? So that's something that you need to be very mindful of. If suddenly your task 1 is your printf, and your task 1 always doesn't print out anything at all, then you don't know what's happening. There's a chance that where your...
+
+00:42:14.800 --> 00:42:45.090
+Task 1 is being what they call staff because Task 2 and Task 3 keep running, taking turns, and Task 1 will have to delay indefinitely. You don't want that to happen. So when that happens, what do you do? The simplest way. You just put a printf in all your tasks to see whether all three tasks are running at the same time. And the good thing about real-time OS is that you can easily disable a task. I can just disable Task 3 to see whether Task 1 and Task 2 is still running or not. And to disable Task 3 is literally just commenting off.
+
+00:42:45.090 --> 00:43:12.160
+or disabling the task creation itself. Or you can create the task, but you don't start the task. So what happens is that your code, you just need to comment off one line of code and immediately task 3 won't run. Task 1 and task 2 will be scheduled and it will run. And you see it working perfectly fine, then you know task 3 is starving 1 and 2. That's one of the benefits of using real-time OS. Debugging it is a lot easier.
+
+00:43:12.160 --> 00:43:43.150
+You can identify which task is causing the problem. If you feel that task 2 is causing the problem, you can disable task 2. Then 1 and 3 will be running. That makes things a lot easier to debug. So take advantage of this ability of enabling or disabling tasks. Or you can change the priorities itself. But don't do both at the same time. You do one at a time. So each one of them, when you change something, you think about what's going to happen. What do you expect to see?
+
+00:43:43.410 --> 00:44:17.060
+Okay? So what happens when you change tasks itself? When you change tasks, there's a contact switch that occurs. What is the contact switch? Because remember, you're running on one CPU. How can you have multiple tasks running on one CPU? Because the CPU is using the same registers, correct? Remember computer architecture? The registers are shared. So what happens if I have some registers which are important? So when you switch between task 1 and task 2,
+
+00:44:17.060 --> 00:44:45.890
+Task 0 and Task 1, what will happen? When Task 0 is running, then Task 1 comes in, it will be preempted or it will switch over to Task 1. So this interrupt will occur. It will save the context of this task first. Then it will load back the context of this task into the registers and memory. Then it will execute this task.
+
+00:44:45.890 --> 00:45:15.950
+And when this task either finish or is being interrupted or preempted again, it will save the context of this task 1, whatever the context is at this point of time. It will reload the task 0 again, the context. Then it will continue executing task 0 as though it never stopped. So this time when task 0 cannot run, right, the task 0 doesn't know it stopped here for a while. It knows that it run, run, run, run, run, then it finishes.
+
+00:45:15.950 --> 00:45:45.040
+it doesn't know you stopped because the the context here whatever memory it was in the register is taught in the whatever data is in the register is taught in the memory and before he is asked to continue back again it'll be restored back so in between which is this guy here all the datas could have been changed but because we save the context before they leave and restore it before they continue plus zero is none the wiser and if you notice one more thing
+
+00:45:45.040 --> 00:46:15.660
+If you notice, he stop here, correct? Agak-agak here. But task 1 start here. So from here to here, what is happening? This context saving and restore. Same thing here. He stop here, but he only continue here, correct? If you notice, this part here is nothing useful. You are not running anything useful. You are just saving and restoring context. So this part here,
+
+00:46:15.660 --> 00:46:44.370
+It's actually an overhead, actually. What is useful is the blue part. That is your actual function that you're running yourself, correct? But whatever is happening here is just a means to an end, to save your context. And this is something that you need to be mindful about Arthos. When you say Arthos has an overhead, this is what it means. By switching your tasks frequently, when you do task switching frequently, this saving and restoring is a big problem.
+
+00:46:44.980 --> 00:47:12.530
+Okay. And the longer this guy takes here, number one, and this one, this contact, the longer it takes here, the more expensive this RTOS is. So this switching here is called contact switching. And it is one of the things which people look out for when you're talking about, you know, a task that keeps switching between each other. Okay. So be mindful about that, about this contact switching.
+
+00:47:14.900 --> 00:47:41.330
+Okay, so some architectures does better than others. Like the ARM architecture, they do context switching on hardware. Meaning they do it very fast as compared to a RISC-V platform. So a RISC-V platform, you have to do it in software. It takes a little bit longer. But by doing it in software, the thing is you can choose how much you want to save. Maybe you know that by default you don't need to save all the registers.
+
+00:47:41.330 --> 00:48:11.900
+There's a pros and cons. So whether ARM is better than RISC-V depends on your use case, your scenarios, and your application itself. Okay? So then next thing come is the shared variable. So the shared variable you can have, for example, like this. You can have task A reading from zero, then task B read from zero. But then because it's a shared variable and you never lock or never protect the shared resource, your outcome might be...
+
+00:48:11.900 --> 00:48:42.160
+wrong, actually. By right, you're supposed to have expected results of 2, you actually get a result of 1, because when you read it, you didn't lock the resources. So, task A and task B read it as 0, they will increment by 1, and they write a 1 in the end. But, in actual fact, task 1 increased by 1, task B increased by 1, it should be a 2 at the end. But because you did not lock the resource itself, task B didn't know it,
+
+00:48:42.160 --> 00:49:09.040
+and he will just read it as zero itself. So this is a problem. And it is not an OS problem. It is the programmer's problem, meaning that the programmer did not protect the shared resource itself. And this is something which is very important. You need to be able to protect the shared resource and ensure that when you are changing a shared resource, nobody else can manipulate it.
+
+00:49:09.740 --> 00:49:39.140
+Another thing that you need to be a bit mindful of is when you want to lock a resource, you need to make sure that this critical section should be as short as possible. Why? Because if you make this guy long, when you lock this guy and you do a lot of things in it, during this critical section, nothing else can run because it's critical section. Nobody else can do anything inside it. And worst case, some implementation of critical section will disable all interrupts.
+
+00:49:39.140 --> 00:50:08.590
+meaning nothing happens the whole world stops or the whole embedded world stops at least so you want to keep critical section as low as well again this is os concept it applies here in embedded systems is even more important actually okay so do not block allocate or log or perform slow io while you are in a critical section critical section should only be used for something very quick very simple to log or unlock something it should be something very fast again same idea as isr
+
+00:50:08.590 --> 00:50:37.300
+Keep it short, keep it simple. Don't take too long inside it. Okay? Then another tool that is in the disposal in real-time OS is semaphores. So what is a semaphore? So a semaphore is actually a counter, actually. It allows you to count how many resources that you have, actually. So then some of you might be thinking semaphores and mutexes. We'll come to that later. But ultimately, they are...
+
+00:50:37.580 --> 00:51:08.190
+Some people use it interchangeably, but they actually have two different use cases. So the semaphore allows you to tell you how many resources there are. It's like a counter. So you say that, okay, there's two resources that people can use. Then you say, okay, I can use the semaphore and you wait on the semaphore. So if there's two semaphores and one person has used it, then you still have one more to give out. But if both are being used,
+
+00:51:08.190 --> 00:51:37.390
+then the guy who is waiting for the semaphore will not be able to go in. Then he'll have to wait there indefinitely. And they have mechanisms at play. Whether the timeout is indefinite, meaning you wait there forever, or your timeout means you say that, okay, you try to get the semaphore, or I can't get the semaphore, means the two resources are being used. I'll do something else and try again later on. So this timeout here allows you to decide whether you want to wait indefinitely or come back later.
+
+00:51:37.620 --> 00:52:05.310
+okay what's this one here the one here will tell you whether you want to take one uh one resource or two resource there are certain times for whatever reason uh you want to use both the resource concurrently sometimes you want to use one so it depends so sometimes when you have two resources you say that okay uh you want to use both at the same time and if one of them is being used then you have to wait then you'll be thinking so what upon if one of them
+
+00:52:05.310 --> 00:52:34.860
+requires two semaphores, the other one only requires one. Who will have a chance first? So, if the one who's asking for one, he will get a chance to run first, even though he's a lower priority, because the higher priority one is asking for two semaphores, actually. Okay? But then there's this mechanism we call priority inheritance, priority inversion, that will attempt to unlock this semaphore. We'll talk about that a little bit later, but ultimately,
+
+00:52:34.860 --> 00:53:04.880
+once you are finished using it when you come out you signal it to tell it okay i've released this uh this resource anybody else can can use it okay so remember semaphore is not ownership of the device it is just saying that i'm using x amount of resources it's not that this this resource belongs to me or things like that so it's not ownership it's just saying that i'm using one or two or three depending on how many resources that i want to use okay
+
+00:53:06.380 --> 00:53:36.510
+So another use case of Semaphore is to allow you to put the consumer in a sleep state. So this is a consumer producer. You can do a wait here because he wants to consume, but there's no item to consume. So he's being blocked. So then until the producer has produced the item, then he signal, then the consumer can process the item itself. Okay? So there's no polling here, no wasted processor time.
+
+00:53:36.510 --> 00:54:05.230
+it's just that the consumer will be blocked here and he will wait and go to sleep while until the producer has produced the item then he signal then the consumer say hey there's one resource available for me to use i'll process it now when is this useful this is very useful for when you're using uh sensors when the sensor is ready you put the data in or when the interrupt is ready you produce a data here you process it then you let the consumer
+
+00:54:05.230 --> 00:54:35.220
+process the the data in the buffer itself so there's one use cases here okay then come to mutexes what is mutex so it's mutual exclusion this has ownership meaning that you you acquire a particular resource actually okay so you have a shared state that you want to lock a resource to make sure that nobody else has access to it mutexes is akin to
+
+00:54:35.220 --> 00:55:02.260
+semaphore of one. Some of you are thinking, sir, a semaphore of one, isn't it a mutex? Kind of. Some people use it interchangeably, but you have to be very careful, actually, because sometimes the way you implement semaphores might not be mutual exclusion, you know, compliant, let's put it that way. So, if some real-time OS doesn't have mutex,
+
+00:55:02.260 --> 00:55:30.670
+And they say that if you want mutex, you can use semaphore, but you have to be careful how they implement the semaphore. So you have to read the manual to find out how the semaphore is being implemented and whether they can be used in lieu of a mutex. A mutex has a count of one, meaning that once I take mutex for this shared resource, and this mutex is specifically for this particular shared resource.
+
+00:55:31.570 --> 00:56:00.780
+Which means that this mutex protects this particular shared resource itself. So there's ownership there, actually. So when this mutex is taken, nobody else can touch this resource until I release this mutex itself. So in a way, it's like a key for this particular drawer. And the key can only open this drawer only. And only this drawer. Okay? So that's the context. So you have the mutex that can lock and unlock that particular shared resource itself.
+
+00:56:00.780 --> 00:56:24.880
+Again, when a higher priority task is waiting for the mutex, there are mechanisms at play that will allow the lower priority task to let go or finish up the process quickly so that it can release the state so that the higher priority task can run and use the shared resources itself.
+
+00:56:25.200 --> 00:56:50.290
+How do they implement it? It depends on implementation itself. So when you want to use mutex, you should use it on a shared resource because only mutex is being managed for priority inversion, meaning that you want to make sure that when you have a high priority task, asking for a shared resource that a low priority task is using.
+
+00:56:50.290 --> 00:57:21.260
+the OS itself will know how to manage it. If you use the semaphore, they won't be able to manage it. Okay, let me repeat one more time. If you use a mutex on an OS that can handle priority inversion, then when a higher priority task requires that shared resource that is used or handled by a lower priority task, it knows how to manage it so that the higher priority task can have access to that shared resource as soon as possible.
+
+00:57:21.650 --> 00:57:53.540
+But if you use a semaphore, then the OS itself cannot help you on that part. You have to figure it out on your own. Okay? So keep that in mind at least. So mutex is the ownership of that shared resource. Of course, they have occlusion and they have the waiting queue. So a mutex is a special kind of semaphore that allows most OS, most real-time OS to be able to...
+
+00:57:53.540 --> 00:58:22.860
+prevent priority inversion. Okay? So, what does priority inversion... You know, what's priority inversion? I won't talk about it, but how to solve it, they use priority inheritance. And this has also been taught to you guys in OS also. So, ultimately, what you do is the lower priority task will temporarily inherit the higher priority... The low priority task will inherit the priority of the higher priority.
+
+00:58:22.860 --> 00:58:53.940
+so that he can finish quickly, then he can release it, so that the higher priority can use the resources. Okay, so that's what priority inheritance is about. So it allows the lower priority to inherit the higher priority, the higher priority, so that he can finish it quickly, then he can release it, so that the higher priority task can take the shared resource to continue on. That is what priority inheritance is about. Okay?
+
+00:58:58.860 --> 00:59:26.640
+Oh my god, I'm a bit behind time. Let me try to quickly run through again. So then we have event flags. So event flags ultimately allows you to notify you when events occur, a combination of it. So again, not all real-time OS supports this. MicroTikernel does. So it allows you to say that, okay, when a combination of flags occur,
+
+00:59:26.700 --> 00:59:50.880
+then, or when a pattern, a particular pattern occurs, then, like an interrupt occurs, or you inform him that, hey, only when B1 and B3 and B6 is a 1, then you let me know. If it's B1 only, don't bother letting me know. I don't want to know. Okay? So it allows you to have a combination of events that happens.
+
+00:59:50.880 --> 01:00:19.340
+How do you set which one of them? You can set it. You can set the flags. You can enable that bit using the APIs to allow it to occur actually. So this allows you to have variability of weight conditions depending on the different permutations of events to occur before you allow the task to run. So it allows you to have only when certain conditions are met.
+
+01:00:19.340 --> 01:00:50.510
+then this runs. But if other conditions are semi-met, you can run something else. So these event flags allow you to do that, actually. Okay? So again, this is best for state condition notification not to carry payload because it doesn't carry any information. It just says whether a flag has been set or not. That's it. Again, this will be very useful later on when you want to use it for your state machines, the pre-recorded lecture. Okay? Then what about message? What about if I have...
+
+01:00:50.510 --> 01:01:19.780
+payload to send what about i have a message that i need to send you so i need to tell you that okay something has occurred and this is the message itself not that something has occurred that is it but there's a message i need to send to you and that's where message buffers comes in so in a way it is uh not a notification is the notification plus the actual message itself so the sending message can send an actual message uh within the kernel buffer itself of course then
+
+01:01:19.780 --> 01:01:49.300
+a receiver task can receive it. So this is a sending message buffer. This is a receiving message buffer. So this receiving message buffer can be waiting here indefinitely until a message comes in, then it does something. So this would be a block condition that you have inside your task. You see that when I receive a message buffer, until I receive a message buffer, I'll wait down here indefinitely. I will not let the process run. Remember the task itself that we had? So it can wait here indefinitely.
+
+01:01:50.000 --> 01:02:35.280
+And until the task is met, meaning until the message is sent, then he will continue on. What happened? Okay. My keyboard died on me. Give me a second. Okay. I apologize. My keyboard battery died on me. So again, this message buffer allows you to copy the payload itself. And again, for this message buffer in MicroTikana, they have a variable message sizes. You can send one byte to multiple bytes.
+
+01:02:35.280 --> 01:03:04.500
+Of course, you need to allocate what is the size of the buffer. So when you're using message buffers, you have to tell them, oh, I'm going to use how many messages. So you get like the mailbox, you can have 10 mails maximum. So at most, you can have only 10 mails coming in. Anything more than that will be lost sometimes. Then you say each mail can be one byte, two bytes, three bytes. So you can set how many mails you're going to receive and each mail, how big is it?
+
+01:03:05.100 --> 01:03:34.860
+And we can also set as in blocking, meaning that the condition here, do you wait here forever until you receive the message or you check? If there's no message, you do something else. Then you come back again somehow. How you come back is the part where the developer have to code it. Because the API will just run, say that, oh, you want me to check? There's no messages. And you say, don't wait here indefinitely. So I'll do something else. And I'll continue on with my code. I don't wait down here indefinitely.
+
+01:03:34.860 --> 01:04:04.560
+Same as a sender. So the sender is it I will send and if the message buffer is full It's already five messages that this is the sixth one. Do I wait here until it's empty or do I just Dump this number six you can choose if you say block meaning that I will wait here until the message until the buffer one message is being read then I'll put in the the new one, but if you say unblock meaning that I'll say oh, it's full really I will just
+
+01:04:04.560 --> 01:04:38.720
+chuck away the six packet, then you figure it out later on. So, how do you want the behavior of the message buffer to be depends on you. Then you have mailboxes. Mailboxes is kind of similar to message buffers, but they are fixed. So, it is just a special type of message buffers. They tend to be fixed. You just have
+
+01:04:38.720 --> 01:05:10.160
+a pointer and then the so what happens that the kernel itself doesn't copy the payload from here to here he just store it in a particular address and he just send the address over to this guy he will then you know uh take the address and find out where the message is in the buffer itself unlike sorry message buffers where the actual content itself is being copied from here to the buffer to the task
+
+01:05:10.480 --> 01:05:39.820
+For mailboxes, you don't copy the whole payload. You put the payload into a particular address. You take the address as a pointer and you pass it on to the receiver task. So this guy here, this queue here is a lot more compact because it's just a list of addresses, not a long list of buffers, messages. What is the message? The receiver task will have to go to that.
+
+01:05:39.820 --> 01:06:09.420
+address and figure it out on its own. So it is something that is pre-agreed upon between the two. When do you use this? When this data at this pointer here is very, very large. Or it is something that you cannot copy-copy anyhow. So you put it at one location and you just tell the task, hey, the message is here, it is at this location, you figure it out on your own. That's what mailboxes is. It just points to you where the data is.
+
+01:06:09.420 --> 01:06:45.820
+and just informs you that the data is there, you figure it out. Okay? One of the things that you need to make sure that the message must outlive the queue. Meaning that before this guy receives the pointer, you need to make sure that the message don't die in that address. Somebody don't accidentally clear the message in that address. So it's up to the developer to... So the producer-consumer must agree to release as a memory. So zero copies. Okay?
+
+01:06:45.820 --> 01:07:15.360
+So this is a summary of the different primitives that you can use. These are not a comprehensive list. It is just the common ones that is out there actually. So we have semaphores, mutexes, event flags, message buffers, mailboxes and memory pool that most real-time operating system or those good ones will offer. So if you look at FreeRTOS or if you look at MicroTik Kernel or Zephyr, they will all
+
+01:07:15.360 --> 01:07:46.540
+have all these basic ones, actually. If you look at some of those obscure ones, then probably one or two might not be there, but they might have others, actually. But these are the basic primitives that are available there. And how do you use them? To put it in a nutshell. Okay? So then comes about timing. What do you use? So remember, we have time management in OS also, correct? So one of them is the delay task, which we all use quite frequently, actually. So when...
+
+01:07:46.540 --> 01:08:14.670
+When you use the delay task, it's actually an API that allows you to wait. So it will run, then it will wait for this X amount of time, then it will come back to be in a ready state again. So the task will be in a run state. When you do a TK delay task, let's say 1 millisecond, it will wait for 1 millisecond, then the task will be back in the ready queue. It won't be put in a run queue. Remember, the run is what?
+
+01:08:14.670 --> 01:08:42.910
+Only one task is running on one call at any point of time. It will be put in the ready queue. Then it's up to the scheduler to decide whether this ready should be put back into the run queue again. If there's nothing else running, then this ready will immediately switch over to the run. A cyclic is very similar to what we have done for the timer in the lab, where it can periodically run the thing again and again.
+
+01:08:42.910 --> 01:09:11.819
+So these are very useful if you want to do kind of like polling. You say, okay, each time I've got to check, check, check, check. When you use this, one hint for the default project for PID. For PID, you need to run this thing, you need to run the PID quite frequently, correct? At a very specific time. That's why you use cyclic timers. Is it the only way to solve it?
+
+01:09:11.819 --> 01:09:40.609
+i've definitely not there are many other ways but cyclic could be one way for you to use them okay another one is alarm is as the name implies is alarm so you set it up and when the uh when the time is is complete it will tell you hey run this or hey do this something happens so these are the basic timer services that you have and you can choose depending what you wanna so if you just want to delay one time
+
+01:09:40.609 --> 01:10:12.850
+You do a delay task. If you want it to, you know, trigger this task again and again, you use cyclic. If you want it to be a one-off alarm, you use an alarm here. Okay. What else? So keep the interrupt. Again, interrupt handler should always be short. So remember your ISR that take the data from your driver should always be fast and quick. So your device driver get the data.
+
+01:10:12.850 --> 01:10:45.330
+you will call that isr correct remember your isr your slowest isr is still faster than your okay let me correct myself the lowest priority isr is still higher than your highest priority task okay let me put it out in writing first this is very important your isr in terms of priority
+
+01:10:46.830 --> 01:11:17.630
+into a priority your isr will always be a higher priority so even the the just say that this is isr xr the lowest priority isr will still be higher than your task which has the highest priority one here this guy will always run first before the highest priority task a task the the highest priority task will still defer to an isr
+
+01:11:17.630 --> 01:11:48.510
+And that is why your ISR must always be short and concise. Because if your ISR is very long, your highest priority task will never have a chance to run. Let me repeat one last time. The lowest priority ISR, the lowest priority interrupt, will always be higher priority than the highest priority task. So this task here, task 1, assuming it has the highest priority,
+
+01:11:48.510 --> 01:12:16.560
+will always be lower priority than a lowest priority interrupt. Keep that in mind. Okay? That is a very important concept to remember. So, again, because of that, keep your interrupts short and sweet. Interrupt happens. Oh, ISR acknowledge, store the data into a buffer. Then after that, it will inform the task.
+
+01:12:16.560 --> 01:12:47.410
+When the task is ready to run it, it will run it. But the message is already in the buffer. So it's up to the task to figure out when to run it, when to use it. Okay? So the ISR will just put it into a buffer and inform the task itself. Let the task on time, on target to handle it. If it's a very important task, give it a higher priority. If it's a lower priority, you can put it as a lower priority task. When does it work? For example,
+
+01:12:47.410 --> 01:13:18.640
+uh your printf logs which is less important you can put it as a lower task priority while your wi-fi task message should be higher priority because when it comes you want to process it as fast as possible okay so keep that in mind so in the isr clear the course capture minimum data and wake up the task that is the job of isr do not block do blocking do not do a delay in the isr oh please never do blocking
+
+01:13:18.640 --> 01:13:48.580
+in an ISR. Never do long loops in an ISR. And never do unbounded works in an ISR. Unbounded means you don't know how long it will take. Again, my advice in an ISR, go in, take the data that you get from the sensor, put it into the buffer. Do not process it. Just put it into the buffer and clear the interrupt and get out of there. Simple as that. Then inform, of course, inform the task that needs to process it. Hey, there's a data there. When you're free,
+
+01:13:48.580 --> 01:14:20.930
+process it uh on time on target you know so that's what the asr do clear the course make clear the interrupt capture minimum data and wake up the task that's it don't do anything else okay uh fixed pool okay fixable is that you uh you have blocks of memory that you want to use that you want to you know it's ultimately your ability to have a block of memory for whatever purposes you have so
+
+01:14:20.930 --> 01:14:53.300
+The APS has this ability for you to create fixed memory blocks that the RTOS will handle and you can use it anytime you want. So they have these mechanisms at play. So use it when you need to. But they are fixed memory blocks, actually. 8x64 blocks. 64 bytes of blocks. Again, they are not big memory blocks. If you need big ones, unfortunately, you have to manage it yourself.
+
+01:14:53.300 --> 01:15:23.630
+These are 64 bytes of blocks. In an embedded world, it's quite large actually. So this is an example of how you can use RTOS to get data from a sensor. So an interrupt occurs from the ADC. It will be called by an ISR that we did in the lab. Then inside the ISR, you set an event flag.
+
+01:15:23.630 --> 01:15:51.360
+then after that it will acquire the data they will send a message buffer into the filter itself so these are all tasks actually so actually the acquiring part you can also do it in the isr then we just send it out to a task that does filtering then you can after filtering we can this from one task we can send it to the next task which do a mailbox and the mailbox you can do a fixed pool because it's a filter data it's quite small then after that
+
+01:15:51.360 --> 01:16:19.620
+you can from the control you want to update a log you can actually use a semaphore to inform uh to write into a common uh you know a logger itself then after that you know so what happened is that if the you can do it on a regular basis meaning that every one millisecond you grab the data acquire it filter it go to the control and log it and in each step if you notice they are using different mechanisms at play
+
+01:16:19.620 --> 01:16:51.470
+from here to here using message buffer from here to here using mailbox from here to here using semaphores so how you use them is up to your design but this is just an example of how you can use them okay so this this thing here is happening every one millisecond that's how fast this whole process flow can can go through okay so uh this is the second last slide uh so uh how do you make waiting and ownership explicit
+
+01:16:51.470 --> 01:17:19.140
+First, you know, you can use semaphore or mutexes. Then you need to decide whether you want to copy the data or just a pointer. Remember, mailboxes or message buffers. When do you use them? Actually, again, it depends on you. If the message is changing or you're very worried that your message is short and sweet, then message buffers will work fine. But if the message is reasonably large,
+
+01:17:19.140 --> 01:17:47.760
+then you might want to just put it as a mailbox and just send a pointer over. Obviously, sending a mailbox is much faster than a message buffer because a message buffer, you have to copy the data from one memory location to the next memory location. Well, a mailbox, you just queue the pointer, which is ridiculously much faster. So if there's a lot of copying and the data is small, maybe you might want to switch over to mailboxes.
+
+01:17:47.760 --> 01:18:17.540
+But if the data comes once in a while, not that frequent, and the data is small, then message buffer will work just as fine. So it depends on your use case. Again, how do you use a timer? It depends on whether you want to do it in a cyclic manner, like a polling, or is it a one-off as an alarm? So it depends. And remember, ISR should always come in to get the data, then let the task do the deferred work.
+
+01:18:17.540 --> 01:18:46.940
+Then for every object, you need to define the invariant, meaning that you need to know who needs to run, who's the owner, what is the size, how long the timeout, and the worst case blocking. So these are the things that you need to think about when you are creating a task, creating an object, creating a shared resource. Who will manipulate this shared resource? Which tasks? Are all them high priority tasks? Or some are high, some are low?
+
+01:18:46.940 --> 01:19:16.240
+You know, is the data very large? How frequent is this data coming in? If the data is coming in very frequent, maybe we use a mailbox. We just put a pointer to it and we just send a mailbox. So then they just need to exchange pointers. Is it one resource or multiple resources? Is the resource something that needs to have ownership? Then maybe it's a mutex. So that higher priority tasks will have a chance if there's a priority inversion that happens.
+
+01:19:16.400 --> 01:19:43.330
+Because we don't know when priority inversion will occur. So by using mutex, you can be assured that if there's a priority inversion, the OS will handle it and it won't cause a deadlock. Okay. So the final slide we are talking about is just a few APIs that is for the micro T kernel. Again, this is not a comprehensive list. It's just the most common one.
+
+01:19:43.330 --> 01:20:09.060
+So the create task is to create the task. This is task management. Now you can start the task. So you can actually create your task, but don't start it. If you want to do debugging, you can create all your tasks, but only start the task that you want it to start. Don't start all the tasks. And if your gut feeling tells you that, okay, this task might be the cause of all my problems, I can comment off the start task for that particular task.
+
+01:20:09.060 --> 01:20:39.120
+then the other task will still run and you can test whether it's still working or not. If it works, then you know that that particular task is a problem, then you need to go to the next step to figure out what is the cause of it. Is it because it is a higher priority? Is it because it's a deadlock? Is it because, you know, some other conditions that come into play? Then you can also, the task can also have a sleep. A custom ISR doesn't, okay, ISR, you use interrupts, meaning that you create
+
+01:20:39.120 --> 01:21:06.880
+an interrupt as you normally do in your code itself. So by creating an interrupt that you do in your lab, that is an ISR. Okay? So there's no API to create a custom ISR. You use the normal mechanism that you use to creating an interrupt to create your ISR. That you've been doing in the lab itself. Okay?
+
+01:21:06.880 --> 01:21:35.300
+So then you have the, because somebody is asking me, how do I create a custom ISR or an ISR? What you've been doing in the lab, you're building a custom ISR. And OS is just on top of that, that allows you to abstract the task, your application into its own version of blocks that you can switch over anytime you want. So in a layman's term, a real-time OS is just a way to
+
+01:21:35.300 --> 01:21:58.960
+chop your application into small functions and you can you know you can manipulate the sequence of the these functions depending on the events that comes at player okay then we have the syncing api things like create some of for the weight the signal the mutex you know the lock and unlock mutexes so how do you handle all that
+
+01:21:59.180 --> 01:22:25.700
+Then you have the time memory management APIs, like the flags, message buffers, mailboxes, the cyclic timers, the alarms, and the fixed memory pool. So these are the basic APIs that we use. And I would like to believe that I don't think you will use anything more than this, actually. This will probably be...
+
+01:22:25.700 --> 01:22:54.640
+80-90% of the API that you'll be using in your project. If there are any, probably it'll be one or two more besides this. But the majority of them will most probably be within this block itself. Everything else will probably be C functions themselves. So that's all for this particular lecture. Like I said earlier,
+
+01:22:54.830 --> 01:23:24.420
+state machines will be discussed in the pre-recorded lecture which I've already put online together with the slides. So please take a look at them. And if you genuinely are lost, then I can come back to it in week 9. Because week 5 and week 6, we'll be talking about a little bit of SDLC for embedded systems, which will be covered by Mr. Au. He is an SDLC expert. He'll be talking about, you know,
+
+01:23:24.420 --> 01:23:52.540
+the aspects of SELC for embedded systems in the next two weeks, which will be very beneficial for you for your project. Then week seven will be your break. Week eight will be your tribunal. So week nine and week 10 will be a lecture. And if you guys need help for me to touch again any of the lectures, especially the video lectures, I'd be more than happy to revisit them again.
+
+01:23:52.540 --> 01:24:22.420
+Though there are some topics that I've allocated to them, but I've only allocated for one hour. So there's a second hour which I left blank purposely to make sure that if there's any queries or any topics that you guys need me to revisit, I'll be more than happy to revisit them during those time slots. Which is week 9 and week 10, if I remember correctly. Week 11 is public holiday, so it is a video lecture again. Then week 12 will be a quiz.
+
+01:24:22.450 --> 01:24:50.610
+with that let me open up this guy here let me share oh i'm already sharing the screen already okay so what the next thing i want to talk about is actually the project itself and this is where i'm opening up the question to everyone here so now you tell me
+
+01:24:50.610 --> 01:25:18.400
+what is so important, any questions you have pertaining the project, this is the best time to ask. And it probably is the only time for you to ask me in an interactive manner. Else, probably it will be either in the lab or in the discussion forum. So if you have any questions, feel free to unmute or spam it in the discussion in the chat and I will answer it now. But in the meantime, let me explain what week six...
+
+01:25:18.400 --> 01:25:48.060
+uh is about so week six we need to submit this document i've already uploaded the template online and uh ultimately it's quite quite straightforward actually uh it is hurdle meaning that you must submit it but it is not uh marked okay you definitely need this for your wicked tribunal and it's actually beneficial for you to fill it up properly because the remember that in the tribunal i will change one of the requirements
+
+01:25:48.060 --> 01:26:16.670
+i will either add a requirement or change the requirement and it depends on what you you put in here actually so the less information you have here then the harder you become will you be in that yeah so yeah i'll be in the lab uh this week um except for two more set uh so uh so the first thing is put in your group id here correctly number one number two uh this is for the default project you put in what is the student id for each one of the buddies
+
+01:26:16.670 --> 01:26:47.740
+Okay. And then, what is the responsibility? So, for example, for the default project, I can put there, I'm working on the motor controller, you know, part. Or I'm working on the Wi-Fi part, things like that. So, if it's the non-default project, then you write down, I'm working on the LCD part. Or I'm working on the inverse kinematic part or something like that. So, I think we've been discussing about it. So, make sure that you fill up this part. So, here, I just need the student ID who's going to work on it. What does it mean?
+
+01:26:47.740 --> 01:27:14.100
+I will look at this report at the end of the trimester and say, okay, this project, the inverse kinetic part was done very, very well. I will look, who are doing it? Oh, buddy number two did it. So that will affect his mark. Then I say, oh, the one who did the LCD, it was too simple. He didn't put much effort into it. Then I look, oh, buddy number one is the one who did the LCD.
+
+01:27:14.100 --> 01:27:45.120
+Then you can be assured that the buddy number one will get lower marks than buddy number two. In addition to peer review, that is how I will look at your project. I will look at your project and find out what each buddy does. Then I will assess each subsystem and see how it will be like in addition to the peer review. So the peer review will tell me that, oh, okay, you know, buddy number one didn't do much work. Buddy number two pick up the slack and did what buddy number one did.
+
+01:27:45.120 --> 01:28:15.020
+So those are the things that I need to find out also. So please, in the peer evaluation, tell me what you did. If you helped buddy number one to do the work, you better put it in in the peer evaluation so that you will get better marks, which is fair also. If you choose to be equal, meaning that even though you do all the work, you carry the whole team, but you say, no, no, I'm a benevolent person and I will say it was equal contribution, then there's no way for me to find out. Then I will give equal contribution.
+
+01:28:15.020 --> 01:28:45.490
+I'll leave it to you. But if you genuinely did more work, please declare it accordingly. But let me know by proof. If a person really didn't do any work, have proof of it, actually. In addition to that, I forgot to mention, one of the requirements is for you to submit, create a project in a GitHub repo, a public GitHub repo, and the link must be shared with me.
+
+01:28:45.490 --> 01:29:23.250
+It should be somewhere here, actually. Did I put it here? I might have forgotten. Okay, I will update this document some later on. But I remember that I will be requesting... Oh, this will be the tribunal week 8. But again, I think I will update this week 6 thing here. I should put it here. You need to put the GitHub repo link here. Okay? I will upload this document after this. So, again...
+
+01:29:23.250 --> 01:29:55.040
+put at the GitHub repo link. Why? Because I will check who updates the project frequently. Who does the commits? Who does the updates? How frequent do you update? Or you only work in the last one week only. So those are the things that I will look at. How big is the contribution? It depends actually. It's very hard for me to say. So that is one thing. Another thing is you need to have the basic thing, the functional requirements and non-functional requirements.
+
+01:29:55.040 --> 01:30:23.620
+For those of you who have never learned this before, don't worry. Mr. R will go through that. We'll touch on it. He won't go through it in detail, but we'll touch on it. What is a good functional requirement? What is not good functional requirements? This is just a simple example here. I just put it here, but you need to be very clear on what these requirements are, actually. Okay? So, be very explicit on your functional requirements and non-functional requirements.
+
+01:30:23.620 --> 01:30:58.140
+How many should that be? I put here five only. Does it mean I only need five? Enough to explain your project. Okay? It needs to be clear. It needs to be concise. You shouldn't be wishy-washy. Your step two. What is step two? Somebody is asking me, I'm stuck on step two of the document. Where is step two? Which topic? Here. Ah, is it this one? Hardware integration. Okay. So, this part here is quite clear. You need to know.
+
+01:30:58.140 --> 01:31:29.010
+It doesn't mean I'm only looking for five entries. It should be sufficient. How much is sufficient? I'll leave it to you to decide. Again, I'm not going to grade this, but I will comment on it, actually, whether it is clear or not. There have been times where people don't use that many functional requirements, but they were very clear. But there are times where they had a long list of functional requirements and yet it was not clear also. So it's very hard to say. But the idea that each functional requirement needs to be
+
+01:31:29.010 --> 01:32:04.720
+clear and concise and precise it can be testable and this is something that mr howell will touch with you guys in week five and week six okay this number two here some one person is asking me sir i don't know what is this remember i asked for some of you and i'm gonna be clear i want to know how the pico or the esp32 is going to be connected to your your other peripherals your sensors your actuators and whatnot this is how i want you to plan it out meaning that you say that okay
+
+01:32:04.720 --> 01:32:34.770
+like the Pico GPIO, which GPIO you're going to use, you're going to connect it to which sensor. So for example, I use a temperature sensor. It is a sensor, for example. Then you say, what is the signal type? Meaning that you just tell me like, is it a ADC output or GPIO output or, you know, what label they have there. Maybe it's just, you know, some, it might not have a label. Then you can just put that dash. It's fine by me.
+
+01:32:34.770 --> 01:33:05.390
+But what is the sensor label that you see on the sensor itself? And what is the Pico? What is the purpose of this? The purpose of this is to make sure that debugging later on is easy. Yes, it is difficult to come up with the table initially. I agree. But what is harder is later on, once we have a few 20 or 30 wires connected from your Pico to your sensors, it is very hard for you to know which cable go where.
+
+01:33:05.390 --> 01:33:34.540
+I've seen for many years, students struggle with that. They say, oh, then you ask your friend, which pin is this one? Which go to? I don't know. I don't know. It's your part of your project. So by having this pin layout, not only do you know that, oh, pin 26 goes to the temperature sensor at the AO. Very clear cut. And if the wire is not connected properly, that's where your problem is. You didn't connect it properly. That's reason number one. Reason number two,
+
+01:33:34.540 --> 01:34:04.020
+which is actually more important to me is i need to know how you're going to connect these devices and you need to submit this to me before you connect them because you i'm afraid that you might connect a gpio to a moto directly that will kill your pico or esp32 so how you connect them is very important to me so that i know how is it connected then you say sir can i do it in a diagram formula you can but
+
+01:34:04.020 --> 01:34:33.570
+you will have a lot of diagrams there and the diagram can be quite messy. The lines might be crossing each other. So putting it in a table might make it easier for you to trace it and to verify and to test it also. The naming convention, just follow the name. If the label on the sensor, if there's a label in, just put that in there. The signal name is actually more of a description. If you know that the in is actually a
+
+01:34:33.570 --> 01:35:02.500
+analog signal or whatever, just put there. It's an analog signal, something like that. So this one can be, this one can change depending on what. And if you don't know, just put dash there. It's fine by me. But you should at least know whether this is a sensor or actuator or display or something. And what is the device itself? Is it a GY511 or is it the HCSR04? This is what the device module is. What type is it?
+
+01:35:02.500 --> 01:35:32.350
+Maybe you put there sensor slash ultrasonic. Signal name, it depends. Maybe it's like the trigger, TRG. Then the sensor label, maybe also the same, TRG also. Or maybe the signal name you put there, this is the trigger pin. Sensor label, TRG. Pico, I connect it to GP26, for example. What time by interface? This is the interface for the Pico. This is the EDC interface. So, sorry, I think I should have put it like that.
+
+01:35:32.350 --> 01:36:02.220
+Let me change the color here. Yeah, like that. It'll be better. So, the interface here refers to this Pico here. You are using GP26, yes. But remember, you can convert it to ADC, to I2C, to SPI, to UART. So, which one are you configuring it? If it's GPIO, just put GPIO input. If it's the output, then put GPIO output. Okay? Then, after that, the nodes will be... The nodes shouldn't be this color. The nodes should be something else.
+
+01:36:02.900 --> 01:36:32.240
+then you can be whatever you want to put here that will help you you know to info say oh i'm gonna sample this every x amount of time or something like that so this one here is not a binding thing but it's meant to help you if you have additional information that you want to put in here either the temporary purpose or for you know or something that is not captured anywhere else and you need to put it somewhere these are additional notes that you can put it in
+
+01:36:32.240 --> 01:37:03.060
+you see or maybe you can put there or this is sampled by isr or this is sampled by a task or if we have two tasks one that does the the data uh filtering then the isr that does the data capturing you know something like that so at least you are reminded of what this pin represents or where where will this pin be used you know something like that so so that is this part here number two which is very important i need this part here
+
+01:37:03.380 --> 01:37:33.820
+Okay? Not only I need, you all need it also later on. But I need this to verify that your connections are correct. Because if you do not have this, then if you burn your chip or burn your sensors, that is on you. Okay? If you give me this thing, I check, I say, okay, go ahead. And you still burn it, then it is on me. If you connect it correctly, of course. If you connect it correctly and I okay it, it shouldn't be any issue. You understand the difference? So make sure that it's connected properly.
+
+01:37:33.820 --> 01:38:12.320
+uh you you map this and then i okay okay then what else okay then the arthur starts itself then i need you to start thinking because remember this project you must use micro t kernel again let me repeat uh okay somebody asking you must approve the layout first before you connect any wires uh yes if you don't want if unless you are willing to uh to replace your own components yourself so without my approval and you connect and you burn it
+
+01:38:12.320 --> 01:38:43.630
+then you replace it on your own cost. If you send this to me, I approve it, I'm okay with it, that is fine. So, which means that even though this is week 6, you can send it to me earlier, I will look at it, I will approve it, if it's okay. Okay? Can? That is something I need to be... Remember, it might not be Pico directly, it could be, remember, it could also be going through the robot Pico board itself. So...
+
+01:38:43.630 --> 01:39:15.390
+be clear. So that's where the notes will come in actually. And the signal name might come in also. So if you are very confident in yourself and you know that you can connect it properly, so be it. But if anything, if the components get burned, the onus is on you. Okay? Just keep that in mind. So it's better to just put up this thing and just get submitted earlier if you want to. And you can replace it as nearing to the week 6 once you have the other parts filled up.
+
+01:39:15.390 --> 01:39:41.760
+Okay? So, RTOS task table, you need to start thinking about the tasks that you need to create, you know, the different functions that you want to create and how does it work. So, you need to start thinking of it in an RTOS sense. Then you say, sir, this is my first time writing an RTOS application. How in heaven do I need to do this? Okay, the good question is, or the good part is that week five? Week six?
+
+01:39:41.760 --> 01:40:11.300
+I think week five, you will have a lab that uses free RTOS that I will teach you how to create a different task. But this is free RTOS, not micro-T kernel. But like I said earlier, the knowledge is transferable. So one part of the project is to learn how to use micro-T kernel once you have a little bit of practice in free RTOS. Then some of you might be thinking, sir, I try, try, try, I give up, I flip table. What will happen? Contact me. But of course, if you want to...
+
+01:40:11.300 --> 01:40:41.650
+if you're not using micro T-Kernel, there'll be some penalty to it. So you must be able to use micro T-Kernel. Again, I am allowing you guys to use the AI tools. So again, use the AI tools to your advantage to as much as possible. If there's any issue with the AI tools itself, let me know. I will try to figure out something. I cannot give you a subscription, but I can work with scope. I can do a class eight to access. So if,
+
+01:40:41.650 --> 01:41:10.100
+you guys need class 8 to be able to do a little bit of design and development, then let me know. Then I can quickly speed it up to let you guys work with it. Okay? So again, we are not grading you for this part. And this is the part where you design it, you ask the AI, you discuss with your teammates to come up with the design. And that's where I will go in and I will take a look. And if it's generally okay,
+
+01:41:10.100 --> 01:41:40.780
+then i'll keep quiet about it but if it's a bad design then i will flag it up quickly and say hey this is a bad design uh you might want to reconsider this or look at it again you know something like that then uh then you can do the task interaction diagram so how does the task talk to each other each box is one task and now this thing is actually uh what they call it like cues it could be a mailbox it could be a message buffer and remember we talked about it it could be a semaphore
+
+01:41:40.780 --> 01:42:10.100
+It could be mutex or things like that. So how does the task talk to each other? How do they interact with each other? Then you can also put the priorities and stuff like that. This diagram doesn't need to be drawn in PC. It can be drawn on paper. You can scan it, take a picture of it, plonk it there. It's fine by me. But the idea is that I want to see all the tasks. How do they interact with each other? Why is it important?
+
+01:42:10.100 --> 01:42:39.230
+As much as it's important for me to see whether your thinking process is correct, it is vital for you guys because you can visually see how your code will flow. How does it interact with each other? And if one task has a problem, you know what are the other tasks that are affected by it. So debugging will be a lot easier. So you tell me, sir, my Wi-Fi task is not working. You show me the diagram. I can tell you which task to look at. Or I can tell you, maybe disable the Wi-Fi task.
+
+01:42:39.230 --> 01:43:11.840
+uh then see what happens to the other tasks something like that so those are the things that will help you so by drawing this uh task interaction diagram uh completely you will help me with your debugging and give you clarity on how you're going to write your design your your application itself okay then you have this system level state charts so um uh this one i think would be
+
+01:43:11.840 --> 01:43:41.470
+covered a little bit on week 5 and week 6 how do you come up with a state chart you know in a way it's like a I dare not say it's like a state machine but it is a sequence of events what's going to happen you know some power to initialization to ready preheating you know in this case here and what events will cause it to you know go back and things like that so it is kind of like a state machine but not exactly one but it
+
+01:43:41.470 --> 01:44:08.210
+goes through one state to another. Remember, we're not talking about one task to another. One state to the next state, actually. And I think I mentioned in the pre-recorded lecture for state machines that if you use the state machine well and the default project can be implemented using state machine very easily, then drawing this will make it a lot easier for you to debug the whole process again.
+
+01:44:08.460 --> 01:44:40.990
+There is a possibility where one task is equal to one state. Maybe. But personally, I think that's a terrible way of writing your task, actually. I should be told. But it can be done. So you palette accordingly, okay? Then you have the subsystem, meaning that for each one of these state or block, what is the subcomponent with it? So for example, the one working on...
+
+01:44:40.990 --> 01:45:09.980
+okay this one here i would rather have uh see if you notice one subsystem name one student entry meaning that i should for a group of five i should see five subsystems meaning that the project is broken down to five uh subsystems right one subsystem of course within a subsystem itself they have many many functions and the way they interact internally will be uh will be unique to each other correct so how does the the maybe
+
+01:45:09.980 --> 01:45:42.990
+I'm working on the Wi-Fi. I have five tasks that one takes in the data and cleans up the data. The other one will split it between commands or logging data. Another one informs all the different parts. So I split the tasks differently. And how do we talk to each other? So I want to know for your subsystem, how does it work? Okay.
+
+01:45:43.310 --> 01:46:14.990
+Which means that it should link back to the student himself. There should be five subsystems for five team projects. Then you have assumptions. Assumptions is like there are certain things that you can do or cannot do or you cannot make a decision until certain assumptions are being made.
+
+01:46:15.890 --> 01:46:45.520
+So for example, the oven temperature sensor gives table reading when sampled every 100 milliseconds. So this is your assumption. But what happens if you're wrong? So there's a possibility risk if it is wrong. And how do you validate it? And who owns that problem? And whether it is an open problem or the closed problem? So these are assumptions that you need to put. And then later you test it, whether it is correct or wrong. Okay? You need to validate it.
+
+01:46:45.520 --> 01:47:16.190
+whether your assumptions are correct or wrong so so these are the parts where you list our assumptions and again it will grow as it goes along so then the last part here if i'm not the last part i think this is the last part is again like i said i i allow or yeah i encourage the use of ai for uh for the design part also but that doesn't mean you just take this this report uh go ask the ai to fill it up for you and you submit it
+
+01:47:16.190 --> 01:47:45.650
+Again, if you do that, then your marks will be, you get marks accordingly. Then what I would want to see is how do you use the AI? What are the prompts you use? Whether the suggestion was good or not? Whether it was unrealistic or not? If it's good, why is it good? If it's bad, why is it bad? Again, there's something that you need to make a decision.
+
+01:47:45.650 --> 01:48:17.470
+I think for those of you who have done USI module before, it is something similar to that. You can use the AI, but you need to either accept what they give you or reject. And you need to justify why you accept or reject. Again, doesn't mean one per... It's not graded. Yeah, but somebody is asking me, Prof, I thought this document is not graded. Of course, it's not graded. But it is your design process because this will go into your...
+
+01:48:17.470 --> 01:48:44.860
+tribunal later on, Tribunal 8. And if you don't do this correctly, your tribunal will map onto this very closely. And the tribunal is graded, and that is where your marks will be affected. So, you're right. Let me be clear. I will not mark this document. Week 6 will not be graded. But if you do not do a proper job with Week 6, your Week 8 tribunal will be a mess.
+
+01:48:44.860 --> 01:49:13.120
+Put in your effort. And week six, the main point is, the reason why I don't agree is because I'm giving you a chance to make mistakes. And if I have the time, I will go through it and I will give pointers. If it's very bad, if it's a small, small thing, then I will leave it to you to figure out later on. But if it's a major flag, then I will tell you, hey, this is too little, too much. This design is not clear enough.
+
+01:49:13.120 --> 01:49:41.040
+So please put in effort and time into it. So you're right. Week 6 is... I will not give feedback for every report. I don't think I have the capabilities of doing that. But definitely those which is red flag, I will give feedback. Those which is small, small matter, I might just give one or two comments actually. Okay? So I will try my best to give comments to you guys before week 8.
+
+01:49:41.230 --> 01:50:11.070
+No feedback, meaning it is okay. Okay, somebody's telling me, no feedback, is it good? No feedback means okay. If it's good, I will comment. Very good, well done. Please proceed. So if it's very good also, I will give a comment also. If no comments, meaning it is okay. Please proceed. But if you see a comment, please take it seriously. Meaning that something is bad. Something is not enough. Or I'm concerned that you don't have enough clarity to go into week 8. Because when you go into week 8,
+
+01:50:11.070 --> 01:50:39.810
+Let's quickly finish this part here before we talk about week 8. The ultimate aim is that you use the AI to vet your ideas and then you just map everything out onto paper. What I want to see is your thought process when you use the AI. You don't say, AI, fill up this report for me, then you submit it to me. Then it's useless for me. What I want is...
+
+01:50:39.810 --> 01:51:09.010
+AI, I want to design this code. How do I go about it? Then they give you one design. You say, why is this design good? I mean, what makes it so good? If I want to be optimal for speed, what do I need to consider? Then he will say, oh, you need to change this and that. Or if I want to be optimal for power, what do I need to consider? Oh, you need to change this and that. So you interact with the AI to find out whether the design is good for different things.
+
+01:51:09.330 --> 01:51:44.640
+That's the learning process. I don't want you to say, okay, this is the design, it will work, full stop. Then, what happens in week 8, when I give you the change requirement, you won't know how to make the changes. So, after this one finishes, the thing is, I'm a bit split on whether I want to show you the week 8 template or not at this point of time. Somebody asked me a very good point.
+
+01:51:44.640 --> 01:52:12.500
+How do I know whether the AI is reliable? Because we have not done this before. Agreed. That's a very valid thing. It's as good as saying, if I'm asking a professor or an instructor, whether he's giving me the right knowledge or not. Because if I instruct this, we have more experience. But I would say 80% of the time, the AI will be correct if you give the right prompts.
+
+01:52:12.500 --> 01:52:39.780
+The 20% is because you did not tell them what exactly you want. So this is where working in a group is good. You have five different people having five different, probably slightly different tools, asking slightly different questions. And that's where you can validate with each other. Meaning that maybe work in a buddy system. You say that, okay, I do this, I did an analysis. Maybe you share your part and you exchange with another member to see.
+
+01:52:39.780 --> 01:53:07.200
+whether your subsystem design makes sense or not. So you work in a pair, in a buddy system. You exchange with another buddy to check whether his design is correct and you let your design being vetted by somebody else using a slightly different tool or slightly different prompts. So you don't tell him what is your prompt yet, but let him try to design the thing on his own. You get my point?
+
+01:53:07.200 --> 01:53:38.210
+So you work in a team. That's what the purpose of the team is. If not, it will be an individual work. Number one. Number two, if two people come up with two different things and maybe you find a third person to vet it and then you've got three different designs and you don't know which is correct, that's where we come in. You come in, prof, I search for this design, I get A. He search, he get B. He search, he get C. I presume I will get D, E, F, G if we continue on. Fair enough.
+
+01:53:38.210 --> 01:54:05.100
+then you then you you explain to me prof or any of the instructors this is uh what we prompted uh this is what we get you know which one makes sense preferably you tell me this one seems to make more sense uh but we are not too sure because of aey xyz so that's where you you learn from actually and that's where you learn the best from you make a mistake and it's where we come in
+
+01:54:05.100 --> 01:54:33.260
+to correct you or we say okay actually it is the middle part between all of them or maybe your your question was not explicit enough or your prompt wasn't clear enough you didn't give enough context or something like that so uh it is a fair thing your ai might not be reliable and that's why i want you to fill up this form because we don't know when the ai uh so i want to know what exactly you ask and what you get that will
+
+01:54:33.260 --> 01:54:57.280
+let me know whether you're asking the right questions or not. If I see you're asking the wrong questions and your design is wrong, then I will flag up as one of the red flags. Again, I will not mark you, just that the red flags comes in because if you continue on this path, week 8 will be a struggle to you. So what will happen in week 8? By the time you reach week 8, you should have...
+
+01:54:57.280 --> 01:55:26.860
+each one of which would have already designed your part very clearly. Whether you quote or not, I leave it up to you. Some of you probably have finished your quote by week eight for your part only, which is fine by me. But then week eight comes in and some of you, some group might be a bit, you know, preemptive and would have already started integrating already. You know, you design it, you integrated it. You say, okay, this is how it works, which is good. You know, then I come in and say, okay.
+
+01:55:26.860 --> 01:55:54.800
+let's change this requirement. I'm going to change this requirement. Who will be affected by it? Then immediately, everybody will take the requirement and say, okay, how does it affect me? For example, the simplest example I can give is, we're going to change the RTOS from micro T-Kernel to free RTOS. Just say for example. Then immediately you say, oh.
+
+01:55:54.900 --> 01:56:24.820
+Okay, all of us will be affected because we need to move our APIs from this OS to the next OS, for example. Then you say, oh, but I'm affected because some of the functions I use in MicroT kernel is not available in FreeRTOS. So there are certain functionality I have to build. Then some of the APIs which I offered to, then that's the first part. How does the change in requirement affect your design? Then the second part will be,
+
+01:56:24.820 --> 01:56:54.980
+How does it affect each other? Meaning that maybe my part is not affected at all. But your part is affected. But because your part is affected and my part interacts with your part, how does it affect me now? Second stage. Change in requirements. So, how does his change affect mine? If you are lucky, none at all. And you explain, none at all. Why? I want to know why also. You don't tell me,
+
+01:56:54.980 --> 01:57:23.790
+No change at all. Because my part is my part, his part is his part. You put it like that, you don't get the marks. I need to know exactly what you mean, no change or there is change. If there is any change, obviously you will tell me why. But if there is no change, why? Why is it independent of each other? And that's where week 6 comes in. I will take a look at your week 6 report. Of course, your week 6 report can change and it can evolve until week 8, which is good. But I want to see that latest version of it.
+
+01:57:23.790 --> 01:57:56.320
+of the report and how it affects your tribunal itself in week eight the change in requirements again you you can use the ai to to make an analysis of it and a tribunal there's three parts and i will release the template for the tribunal uh immediately after the deadline of week six so that you have two weeks to take a look at it two weeks maybe one week or something like that the reason why i don't want to release it earlier because i'm afraid that
+
+01:57:56.320 --> 01:58:27.230
+it might affect the way you you start thinking of your design again uh you will you might or might not receive the feedback for week six report i will use it as a means to uh that's why it's not graded because within that one one and a half weeks i might not be able to go through all hundred reports but i will go through it quickly and if there's bad i will flag it quickly so that you have time to work on it if it's not bad then hopefully uh
+
+01:58:27.230 --> 01:58:56.260
+I can tell you a bit later. Okay? But I will do my best to flag it earlier. But if you can submit it earlier, even better still. Then I have, we have a bit more runway to give you feedback. Okay? So, when you receive, you might not receive anything at all. And if you don't receive anything until week 8, then there's a good chance it's okay. Meaning that no major problem. So, there's only two
+
+01:58:56.260 --> 01:59:25.790
+probably you will receive a detailed feedback. One is, you did an outstanding job. Very well done. Good job. Please continue on. If you don't hear anything from me, you're okay. Not outstanding. Not terrible. Pass. But if you receive a very long story from me, you better drop everything and re-look at week 6 again. And I won't tell you exactly what needs to be changed. I will tell you what are the...
+
+01:59:25.790 --> 01:59:55.150
+the major pain point. And go through it again. If you're still stuck, again, approach us. We will do our best to give you better guidance. Okay? So, I will release the tribunal reports, the templates, immediately after the week 6 deadline. It is so that you guys have time to work on it. Unless...
+
+01:59:55.150 --> 02:00:24.380
+everybody would have submitted a week six report much earlier uh then i'd be more than happy to release the tribunal uh template earlier so that it doesn't affect your way of thinking uh then the tribunal has three parts actually the first part is it is within the same template itself there's three sections first section you will uh there's a few questions i'm asking you you have to go through them and you have to do it
+
+02:00:24.380 --> 02:00:55.460
+before week eight itself, before the tribunal itself. Then we have week six. The second part will be when you're doing the tribunal itself, you need to make changes. Remember the change in requirement? Then during the tribunal, there's the changes. Then you have to tell me whether the changes is affected or not. What changes? Then you can use the AI, of course, during that one and a half hours to know what are the changes that you made.
+
+02:00:55.460 --> 02:01:23.810
+Capture it in a report. And the last part, after the tribunal finished, you save, you upload the second version of the report. You say that, okay, I will give you one week to use AI to make sure is there anything else you missed or not. Whether there's something that you did not have time to do within one and a half hours. Say, oh, okay, we have covered everything. No misses. Or say, oh, there are certain things that we missed out.
+
+02:01:23.810 --> 02:01:53.760
+after reviewing it with the AI or reviewing it with the team, we realized there are a few things that we missed out. These are the things that we missed out. That would be the third submission. So all that three together will be graded as one tribunal. So the analysis of how your whole code comes together before that, during the tribunal, the change in requirement and what you need to change and the last part is to do a
+
+02:01:53.760 --> 02:02:24.830
+a comprehensive review of the changes that you need to make and make the changes accordingly. Okay? You don't have time to prepare. The requirement change will come during the tribunal itself and you have one and a half hours to think through it of what are the requirements. So, which means that by week eight, you need to own your part of your project. You need to understand how your subsystem works. You don't have to write a code.
+
+02:02:24.830 --> 02:02:53.140
+But you need to know how it works. You need to understand how your design works. So when there's a change in requirement, that change in requirement, you know how it will affect your part of the code. Then you need to interact with your other teammates to know how your part will affect theirs actually. So you will not know in advance what is the change in requirement until the start of the tribunal itself.
+
+02:02:53.390 --> 02:03:28.980
+Okay, so you have one and a half hours to figure out what it is. And again, I'm letting you use whatever tools which is out there. I'm not stopping you guys. So the question is, how do you use this tool to be able to make a decision and change your requirements? Okay? Is that okay? Again, like I said, now with the AI tools, writing code is hard to grade people writing code. But designing and testing is still very...
+
+02:03:28.980 --> 02:03:58.540
+Very, very important. So what I'm testing you guys is the ability for you to design. Then you own the design. Then when there's a change in requirement, how do you make changes to the design? Not make changes to the design. How do you know the impact to the change in requirement to your design itself? And that is a very important thing to be able to learn. You know there's a change in requirement. What affects it? Why is it affecting you?
+
+02:03:58.540 --> 02:04:29.340
+What are the changes that you will need to make? You don't need to make the changes during the one and a half hours, but you need to know to highlight, oh, I need to change the data structure. Oh, I need to change the API. Oh, I need to make changes to the priority. Oh, I need to figure out something else. Or maybe it's a list of things in a particular sequence. You write it down. So what I want to know is your thought process. What are you thinking? And if you are stuck, I don't know what to do.
+
+02:04:29.340 --> 02:04:58.850
+Use the AI. The AI makes suggestions. And again, when you use the AI, oh yes, this is something I forgot to mention. I mean, I'm running a bit of late. The whole thing, when you do the thing, you need to record the session itself. So you'll be on breakout rooms, which I'm supposed to test today, but I'm a bit behind time. So you need to record the sessions individually and upload the video session, the one and a half hour video session online as proof so that when I want to check whether you actually
+
+02:04:58.850 --> 02:05:27.410
+did it properly or not i can have i can refer back to the video to see oh i open up this website i type in the com the you know the list and all these are things that are generated so i know that it is your effort together with the ai which is fine by me actually but the thing is how do you interact with the ai to to make full use of it that is what i want to see your thought process your thinking process on refining your design until you get what you want okay
+
+02:05:28.020 --> 02:05:58.660
+So that's what I will be grading you guys for. The design aspects and the design for embedded systems to be more precise. And then the last part will be the tribunal tool testing a little bit and also a slight change in design. But whatever change in requirement in week 8 have to be implemented. Meaning that in week 13 must include the change in requirements also. So with that, I think I better stop here.
+
+02:05:58.660 --> 02:06:24.240
+uh if anybody has any questions i'll be hanging around for the next 10 minutes for to want me to answer but if you need to go off please go off i'm so sorry i didn't realize the time we are exceeded okay uh somebody was asking me whether i'll be in the lab today yes i'll be in the lab today but for tomorrow i'll not be in the lab so for the ai group i apologize uh i got some urgent matters and also i'm not scheduled for tomorrow actually it's actually under mr
+
+02:06:24.240 --> 02:06:54.240
+But he's around, definitely. So please come if you have any questions. But if you're supposed to collect components from me, then I'll meet you either on Wednesday or Thursday. So if you are from the AI group and supposed to meet me, please drop me a discussion in the discussion forum to arrange a time to meet you on Wednesday or Thursday. Okay? I will not be around tomorrow. But today I'll be around from 4 to 6. So I need to rush to school.
+
+02:06:54.240 --> 02:07:23.090
+Will we just dump the new change in requirement and our current design in the AI chat and blurt out the suggestion? Somebody's asking me whether you'll be penalized if you just dump the new change in the requirement and our current design process in the AI chat and blurt out the suggestion during the tribunal. I mean, I expect everybody to use that as a start. Nothing wrong with that. But if you're going to accept everything that the AI gives you, that's where the problem lies.
+
+02:07:23.090 --> 02:07:50.740
+So you need to tell me whether the AI is giving you things that make sense or not. Then some of you might be asking, how do I know whether the AI is making sense or not? And that's where you need to follow up the questions. You need to say, what are the requirements? What is the detail? What are the things I need to do? So you can start with just dumb the requirements to the AI and it will vomit out all the changes. But are you going to accept all of them?
+
+02:07:50.770 --> 02:08:20.670
+Are they reasonable suggestions or not? So that's where you need to think about. Then you'll be thinking whether it makes sense or not. Then you say, I don't know. If you don't know, there's nothing wrong with that. You ask. You follow up the question. We are looking at it in what context? Embedded systems, in our case. We are using an RTOS, in our case. A micro T-kernel like that. They might not know what a micro T-kernel is, but it's a real-time operating system.
+
+02:08:20.670 --> 02:08:48.160
+on a Raspberry Pi Pico or ESP32 or that. So, the more you give them the context, the better. Then you say that this was the original design. These are the five subsystems. So, what I would, I foresee each person will say that, okay, this is a changing requirement. How does it affect my part first? Okay, then it will come out. Okay, my part, not much changes. Oh, hang on. Lucky.
+
+02:08:48.160 --> 02:09:26.540
+Then everybody, some of them will be cursing your team members. Ah, means he has to change a lot. What change do you have to do? Then he'll start telling you what are the changes. Then you say, how does it affect you? Is this change going to affect you or not? Then you say, oh, it might affect me. Then you need to reassess again. How will it affect you? Then will your changes affect somebody else or not? So you need to discuss all these things within that one and a half hours. Okay? So,
+
+02:09:26.540 --> 02:09:58.480
+Yes, for the Tribunal No. 8, whatever change in requirement must be implemented. So if you finish your code by Week 8, you have to make the changes. But of course, the demo will be in Week 13. But the changes have to be made immediately. I mean, the design aspects have to be discussed during the one and a half hours, but the code needs to be changed before Week 13. Hi Prof, not about the project, but what will be the practice quiz about?
+
+02:09:58.610 --> 02:10:28.020
+The practical quiz will be a bit about the debug questions. How do you understand code and the debugging questions? The practical quiz. How would we be graded during it as well? I presume this is the tribunal. So the tribunal will be a few things. I want to see the report to see whether each member, what are the changes that he needs to make and why he needs to make them. I want to see that captured in the submission.
+
+02:10:28.210 --> 02:10:55.700
+how will the other body's changes affect your part? Maybe there is, maybe there isn't. So that part needs to be articulated. And that's what I want to see. Then after that, of course, you see, use the AI to make sure that whether there's any other changes that you might have missed or not. And if you say, oh, no changes at all, which is unlikely, then they say, okay, these are the changes that we missed during the one and a half hour discussion, but we identified.
+
+02:10:55.700 --> 02:11:26.140
+and we have fleshed it out and you explained it. So then at least I said, okay, you might have missed out something during the discussion, but you identified later on. So then that tells me how well your discussion was, but at least you can still make it up later on. So what I want to see is the discussion on how your design will be affected based on the change in requirements. And your design is something that you have sinked in for the last two weeks. So if you have coded the project,
+
+02:11:26.140 --> 02:11:51.040
+That makes it better, actually, in the sense that you know exactly how it will affect. Of course, you will hate me, but at least you know your discussion will be very on point. You know what exactly will be affected. You know how you will be affected. Or if it's not affected at all, you can explain to it very clearly. Again, when you're explaining it, again, that's why I want it to be recorded.
+
+02:11:51.040 --> 02:12:20.820
+Show me your screen. Oh, this part of the code will change if you have a code. If you don't have code, this part of the flowchart or this part of the task diagram will be changed. You can explain it. You can describe it. And I want to see it. And you don't describe it to me. You describe it to your team members. That's what I want to see. Because it's within the team members themselves. So if the whole video is all of you being very quiet, then I'll be like, that's a very weird discussion. So you need to discuss. There needs to be...
+
+02:12:20.820 --> 02:12:42.190
+interaction every member need to say something at least you know whether there is something or no change at all if no change why is it no change if there's a change why is it as a change everybody needs to talk for you know take turns to talk depending on how much change it is that's what i want to see in the project in that tribunal one and a half hours
+
+02:12:44.400 --> 02:13:15.280
+Prof, not related to the project, but have you awarded any student marks for discovering bugs, vulnerability, and microbe? Yes, I have. I have not given the marks, but I'm in discussion with one person now. I found a vulnerability and we are in discussion on how is the impact of the vulnerability and how do you solve that vulnerability. Yes, there is a student who has identified it. So if you have, you better tell me and I want to see if it's the same, then...
+
+02:13:15.340 --> 02:13:47.860
+The next question will be, I will ask the same question which I asked the other students. To what extent and what is your solution? But if it's something different, then we can have a more direct conversation. Everybody need to share their screen at some point? Yes, I presume so. If you have something to show, then you have to share. Unless it is a...
+
+02:13:47.860 --> 02:14:11.780
+you you're you're you're you based the discussion on the week six report or the documentation then you just need to you know turn on your camera and say oh okay you know can you go to scroll to page two okay no that is a shared document then you say okay let's make changes here you know the idea is that every member needs to talk then if you say oh i did some
+
+02:14:11.780 --> 02:14:42.910
+uh search to for this then you can probably share your screen up for a while to say okay i did a search here and this is what they tell me this part here makes sense this part here doesn't make sense you know that somebody said oh maybe you might want to refine your your your prompts so something around the line so yes so i what i want to see is an interaction between the member on to discuss how does this change your requirement will affect the project
+
+02:14:42.910 --> 02:15:18.000
+What are the changes that you probably need to do? How does it affect individual members and how does it affect the whole project as a whole? Of course, with justification. Just say, no, it will affect a lot or affect a little. It won't be enough. You need to be very pointed to what will be affected. How will we be affected? What are the considerations I need to think about? And how will be the possible solutions to it? Okay? So, the more you plan your design, you thought about your design,
+
+02:15:18.130 --> 02:15:45.780
+the easier it is to identify the thing. So how well you identify the change in, what affects the change in requirement, the better your marks will be. The more involved the discussion is, the better it is. When I say the more involved is, the more value, like technical discussion, not say, oh, you got a lot of work to do, oh, it's just empty talk, then of course you get empty marks.
+
+02:15:46.420 --> 02:16:18.100
+So it must have value to the whole discussion. Truth be told, this is my first time doing this. So there might be some hiccups here and there, but I feel that this is the best way to learn about maximizing the use of AI for your software development. Because if I just grade you on software, on programming, then everybody will get full marks, I feel.
+
+02:16:18.100 --> 02:16:46.940
+Those who can afford Fable will get higher marks. Those who can't afford Fable will get lower marks. A bit pointless, right? But in this case here, any of the AI will work. Even the free one will be able to guide you well, actually, on what to do, what to look out for, actually. Because it's based on design. It's not based on actual code itself. But of course, if you have written the code, you will definitely be able to manage it well.
+
+02:16:46.940 --> 02:17:17.860
+your discussion will be very pointed, very clear, very concise. I think there'll be more value added to that. So, by writing code, or maybe you have a first version of the whole project out and ready, that will make things a lot easier for you guys. Okay? So, when will we get to know the score for Tribunal? Because I need to go through, personally, I'll be grading everyone's report.
+
+02:17:17.860 --> 02:17:47.250
+All three versions of it. Before, during and after. And I might need to go through the videos. So it will take a little bit of a time. To go through them. And based on past experience. Putting a first version of the marks. Then reviewing it later on. Going up or down. Doesn't seem to work. So I will probably wait until I fully graded all. And then I will submit it. But I have no issue submitting it. Once I have the final marks. So I would say.
+
+02:17:47.250 --> 02:18:16.639
+before week 13 for the week 8 tribunal. But the earlier, the better. So I hope I can submit it earlier so that everybody knows their marks. But it's not knowing their marks which is more important. I think it is more on the feedback of their discussion. I think that is something that I want to emphasize. And if I see a lot of people's discussion is in the wrong direction,
+
+02:18:16.639 --> 02:18:45.120
+I might not give individual feedback, but I will just, during lectures, during the week 9 lecture, I will just put aside that one hour to correct the mistake that majority have. I think that's more important than the marks, in my opinion. I understand marks is important for you guys, but to correct your misunderstanding is more important than the marks that you will get. So, I think that is more important for me.
+
+02:18:45.120 --> 02:19:14.559
+the reason why i want to go through the tribunal so that uh i know where you guys thinking process are going wrong then i can nip it at the butt quickly say hey don't do it this way start thinking in a different way you know or you might want to consider this other way to do things then then it will benefit majority of the the cohort then if there's something a bit more specific i would do my best to to to go individually yeah so so that's the purpose of this tribunal to
+
+02:19:14.559 --> 02:19:47.730
+identify where most people get it wrong so that i can correct them at one go yeah anything else that you need me to to to tackle if not uh again if you have any questions feel free to ask me during a discussion forum uh in the discussion forum then i will do my best to to to answer it if we really need to have a separate session to discuss this further uh i won't be able to do during the lecture
+
+02:19:47.730 --> 02:20:18.000
+But most probably we can do it during a certain time. Probably it will be at night. Then those who can come in can come in. That's the best that we could do. Great. Thanks, bro. Will we get to know the score for a tribunal? Yes, you will get to know the score for your tribunal. But how soon you will get to know the score is, I can't tell for certain. It should be before week 13 for the tribunal number one. But that's it.
+
+02:20:18.000 --> 02:20:46.290
+I can't tell how much sooner. I mean, if everybody does well, they do a good discussion, I don't have to go through every single video, then of course the marks will be reduced much earlier. But if I look at the report and the report is very skimpy, which means I need to go through the videos, that is 120 videos of one and a half hours that I need to go through. That's quite an amount.
+
+02:20:46.290 --> 02:21:19.460
+I might not be able to get back to everyone by week 13 or so. So it depends. So the better job you guys do, the easier it is for me. Let's put it that way. Is that the case then? Let's stop here. Then anything, I'll see you guys during the laps. At least for the...
+
+02:21:19.460 --> 02:21:40.240
+IS, SE, and the CSE students. For the AEI students, of course, Mr. Au will be there to guide you guys. But if you have any questions and you cannot find me, put it in the discussion forum. And for those of you non-default project, the AEI group, please schedule with me on Wednesday or Thursday to find me. Thank you very much.
+

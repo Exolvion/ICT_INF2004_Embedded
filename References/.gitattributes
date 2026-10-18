@@ -1,0 +1,5 @@
+# A preserved original transcript must remain byte-identical after checkout.
+*.vtt -text
+# Course device guides keep the hashes recorded in Device_Guides/README.md.
+Device_Guides/*.html -text
+Device_Guides/*.pptx binary
