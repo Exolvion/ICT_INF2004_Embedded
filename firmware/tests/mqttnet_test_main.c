@@ -5,6 +5,7 @@
  * NOTE: Mock symbol names must match external APIs (BARR-C 6.1.i deviation).
  */
 #include "mqttnet_test_main.h"
+#include "mqttcmd.h"
 #include "net_mqtt.h"
 #include "net_mqtt_ipc.h"
 #include "net_mqtt_config.h"
@@ -29,22 +30,27 @@ static uint32_t disconnects;
 static uint32_t subscribes;
 static uint32_t publications;
 static uint32_t commands;
+static bool b_rx_full;
 static err_t publish_result = ERR_OK;
-static char last_publication[NET_MQTT_IPC_TX_MAX + 1U];
+static uint8_t last_publication[NET_MQTT_IPC_TX_MAX];
+static uint32_t last_publication_length;
+static uint8_t last_presence;
 static uint32_t checks;
 static uint32_t failures;
 #define MQTTNET_TEST_TX_DEPTH 4U
-static char tx_messages[MQTTNET_TEST_TX_DEPTH][NET_MQTT_IPC_TX_MAX + 1U];
+static uint8_t tx_messages[MQTTNET_TEST_TX_DEPTH][NET_MQTT_IPC_TX_MAX];
 static uint32_t tx_lengths[MQTTNET_TEST_TX_DEPTH];
 static uint32_t tx_head;
 static uint32_t tx_count;
-static char last_command[NET_MQTT_IPC_RX_MAX + 1U];
+static uint8_t last_command;
 static mqtt_connection_cb_t connection_callback;
 static mqtt_request_cb_t subscription_callback;
 static mqtt_incoming_publish_cb_t publication_callback;
 static mqtt_incoming_data_cb_t fragment_callback;
 
 static void mqttnet_test_check (bool b_result, const char * p_label);
+static bool mqttnet_test_published (const uint8_t * p_frame,
+                                    uint32_t length);
 static void mqttnet_test_join (struct netif * p_interface);
 static void mqttnet_test_commands (void);
 static void mqttnet_test_frame_triple (struct netif * p_interface);
@@ -57,12 +63,17 @@ static void mqttnet_test_suback_timeout (struct netif * p_interface);
 int main (void)
 {
     struct netif interface = {0};
+    const uint8_t frame[17] = {0xD1U, 0x17U};
     int result;
 
     mqttnet_test_check(net_mqtt_start(), "queues initialized");
     mqttnet_test_check(!net_mqtt_send(NULL, 1U), "NULL send rejected");
-    mqttnet_test_check(!net_mqtt_send("x", SIZE_MAX), "huge send rejected");
-    mqttnet_test_check(net_mqtt_send("{\"seq\":1}", 9U), "telemetry queued");
+    mqttnet_test_check(!net_mqtt_send(frame, SIZE_MAX),
+                        "huge send rejected");
+    mqttnet_test_check(!net_mqtt_send(frame, NET_MQTT_IPC_TX_MAX + 1U),
+                        "frame above the IPC maximum rejected");
+    mqttnet_test_check(net_mqtt_send(frame, sizeof(frame)),
+                        "17-byte status frame queued");
     mqttnet_test_join(&interface);
     mqttnet_test_commands();
     mqttnet_test_frame_triple(&interface);
@@ -188,11 +199,19 @@ err_t mqtt_publish (mqtt_client_t * p_client, const char * p_topic,
                         (0U == qos) && (0U == retain),
                         "bounded non-retained QoS0 publication");
     publications++;
+    mqttnet_test_check(length <= NET_MQTT_IPC_TX_MAX,
+                        "binary payload within the IPC maximum");
     if ((ERR_OK == publish_result) &&
-        (0 == strcmp(p_topic, NET_MQTT_TELEMETRY_TOPIC)))
+        (0 == strcmp(p_topic, NET_MQTT_TELEMETRY_TOPIC)) &&
+        (length <= NET_MQTT_IPC_TX_MAX))
     {
         memcpy(last_publication, p_payload, length);
-        last_publication[length] = '\0';
+        last_publication_length = length;
+    }
+    if (0 == strcmp(p_topic, NET_MQTT_STATUS_TOPIC))
+    {
+        mqttnet_test_check(1U == length, "presence is one byte");
+        last_presence = *(const uint8_t *)p_payload;
     }
     return publish_result;
 }
@@ -213,34 +232,33 @@ bool net_mqtt_ipc_start (void)
 }
 
 /** @brief A bounded FIFO models ordered status/perception producer pairs. */
-bool net_mqtt_ipc_send (const char * p_text, uint32_t length)
+bool net_mqtt_ipc_send (const uint8_t * p_frame, uint32_t length)
 {
     uint32_t tail;
 
-    if ((NULL == p_text) || (0U == length) ||
+    if ((NULL == p_frame) || (0U == length) ||
         (length > NET_MQTT_IPC_TX_MAX) ||
         (tx_count >= MQTTNET_TEST_TX_DEPTH))
     {
         return false;
     }
     tail = (tx_head + tx_count) % MQTTNET_TEST_TX_DEPTH;
-    memcpy(tx_messages[tail], p_text, length);
+    memcpy(tx_messages[tail], p_frame, length);
     tx_lengths[tail] = length;
     tx_count++;
     return true;
 }
 
 /** @brief Supply no user-consumer input; parser enqueue is observed below. */
-uint32_t net_mqtt_ipc_receive (char * p_text, uint32_t capacity)
+bool net_mqtt_ipc_receive (uint8_t * p_command)
 {
     /* Receive behavior is exercised separately at the kernel boundary. */
-    (void)p_text;
-    (void)capacity;
-    return 0U;
+    (void)p_command;
+    return false;
 }
 
 /** @brief Return one FIFO sample and consume it exactly once. */
-uint32_t net_mqtt_ipc_take_tx (char * p_text, uint32_t capacity)
+uint32_t net_mqtt_ipc_take_tx (uint8_t * p_frame, uint32_t capacity)
 {
     uint32_t length;
 
@@ -249,22 +267,24 @@ uint32_t net_mqtt_ipc_take_tx (char * p_text, uint32_t capacity)
         return 0U;
     }
     length = tx_lengths[tx_head];
-    if ((NULL == p_text) || (capacity <= length))
+    if ((NULL == p_frame) || (capacity < NET_MQTT_IPC_TX_MAX))
     {
         return 0U;
     }
-    memcpy(p_text, tx_messages[tx_head], length);
-    p_text[length] = '\0';
+    memcpy(p_frame, tx_messages[tx_head], length);
     tx_head = (tx_head + 1U) % MQTTNET_TEST_TX_DEPTH;
     tx_count--;
     return length;
 }
 
-/** @brief Save validated commands; queue scheduling is outside this test. */
-bool net_mqtt_ipc_put_rx (const char * p_text, uint32_t length)
+/** @brief Save validated commands; b_rx_full models a full 4-deep queue. */
+bool net_mqtt_ipc_put_rx (uint8_t command)
 {
-    memcpy(last_command, p_text, length);
-    last_command[length] = '\0';
+    if (b_rx_full)
+    {
+        return false;
+    }
+    last_command = command;
     commands++;
     return true;
 }
@@ -282,6 +302,14 @@ static void mqttnet_test_check (bool b_result, const char * p_label)
         /* Failure remains recorded if diagnostics cannot be written. */
         (void)result;
     }
+}
+
+/** @brief The last telemetry publication equals this frame byte for byte. */
+static bool mqttnet_test_published (const uint8_t * p_frame,
+                                    uint32_t length)
+{
+    return (length == last_publication_length) &&
+           (0 == memcmp(last_publication, p_frame, length));
 }
 
 /** @brief Joining is not link-up; verify timeout and bounded retry wait. */
@@ -310,52 +338,77 @@ static void mqttnet_test_join (struct netif * p_interface)
     mqttnet_test_check(1U == connects, "MQTT starts after actual link/IP");
     connection_callback(&mqtt_client, NULL, MQTT_CONNECT_ACCEPTED);
     mqttnet_test_check(1U == subscribes, "CONNACK triggers subscribe");
+    mqttnet_test_check(!net_mqtt_online(), "no session before SUBACK");
     clock_ms = 32100U;
     net_mqtt_poll(p_interface);
     mqttnet_test_check(0U == publications, "wait for successful SUBACK");
     subscription_callback(NULL, ERR_OK);
+    mqttnet_test_check(net_mqtt_online(), "SUBACK opens the session");
     clock_ms = 32200U;
     net_mqtt_poll(p_interface);
     mqttnet_test_check(2U == publications, "online status and telemetry");
+    mqttnet_test_check(((uint8_t)'1' == last_presence) &&
+                        (17U == last_publication_length),
+                        "one-byte presence and a 17-byte frame");
 }
 
-/** @brief Reject retained and wrong-topic data; assemble one valid token. */
+/** @brief Reject retained, wrong-topic, text and invalid bytes; assemble
+ * one valid command byte delivered after an empty fragment.
+ */
 static void mqttnet_test_commands (void)
 {
-    const uint8_t stop[] = {'S', 'T', 'O', 'P'};
-    const uint8_t start[] = {'S', 'T', 'A', 'R', 'T'};
+    const uint8_t stop = MQTTCMD_STOP_BYTE;
+    const uint8_t start = 0xAAU;
+    const uint8_t text_stop[] = {'S', 'T', 'O', 'P'};
+    const uint8_t invalid = 0x29U;
 
     mqtt_client.rx_buffer[0] = 0x31U;
-    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 4U);
-    fragment_callback(NULL, stop, 4U, MQTT_DATA_FLAG_LAST);
+    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 1U);
+    fragment_callback(NULL, &stop, 1U, MQTT_DATA_FLAG_LAST);
     mqttnet_test_check(0U == commands, "retained STOP rejected");
     mqtt_client.rx_buffer[0] = 0x30U;
-    publication_callback(NULL, "wrong/topic", 4U);
-    fragment_callback(NULL, stop, 4U, MQTT_DATA_FLAG_LAST);
+    publication_callback(NULL, "wrong/topic", 1U);
+    fragment_callback(NULL, &stop, 1U, MQTT_DATA_FLAG_LAST);
     mqttnet_test_check(0U == commands, "wrong topic rejected");
-    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 5U);
-    fragment_callback(NULL, start, 2U, 0U);
-    mqttnet_test_check(0U == commands, "fragment alone cannot issue command");
-    fragment_callback(NULL, &start[2], 3U, MQTT_DATA_FLAG_LAST);
-    mqttnet_test_check((1U == commands) &&
-                        (0 == strcmp(last_command, "START")),
-                        "valid fragmented command queued once");
+    mqttnet_test_check(0U == net_mqtt_rejected(),
+                        "retained and wrong-topic data are not counted");
+    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 4U);
+    fragment_callback(NULL, text_stop, 4U, MQTT_DATA_FLAG_LAST);
+    mqttnet_test_check((0U == commands) && (1U == net_mqtt_rejected()),
+                        "old text STOP rejected and counted");
+    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 1U);
+    fragment_callback(NULL, &invalid, 1U, MQTT_DATA_FLAG_LAST);
+    mqttnet_test_check((0U == commands) && (2U == net_mqtt_rejected()),
+                        "byte without the pattern rejected and counted");
+    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 1U);
+    fragment_callback(NULL, NULL, 0U, 0U);
+    mqttnet_test_check(0U == commands, "empty fragment cannot issue command");
+    fragment_callback(NULL, &start, 1U, MQTT_DATA_FLAG_LAST);
+    mqttnet_test_check((1U == commands) && (start == last_command) &&
+                        (2U == net_mqtt_rejected()),
+                        "valid command byte queued once, not counted");
     fragment_callback(NULL, NULL, 0U, MQTT_DATA_FLAG_LAST);
     mqttnet_test_check(1U == commands, "final callback cannot replay");
+    b_rx_full = true;
+    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 1U);
+    fragment_callback(NULL, &start, 1U, MQTT_DATA_FLAG_LAST);
+    b_rx_full = false;
+    mqttnet_test_check((1U == commands) && (3U == net_mqtt_rejected()),
+                        "valid command dropped by a full queue is counted");
 }
 
 /** @brief Three telemetry schemas survive a single producer activation. */
 static void mqttnet_test_frame_triple (struct netif * p_interface)
 {
-    const char status[] = "{\"seq\":2}";
-    const char perception[] = "{\"seq\":2,\"ba\":0}";
-    const char diagnostic[] = "{\"seq\":2,\"fc\":0,\"fm\":0}";
+    const uint8_t status[17] = {0xD1U, 0x02U};
+    const uint8_t perception[16] = {0xD5U, 0x02U};
+    const uint8_t diagnostic[17] = {0xD9U, 0x02U};
 
-    mqttnet_test_check(net_mqtt_send(status, sizeof(status) - 1U),
+    mqttnet_test_check(net_mqtt_send(status, sizeof(status)),
                         "status frame queued");
-    mqttnet_test_check(net_mqtt_send(perception, sizeof(perception) - 1U),
+    mqttnet_test_check(net_mqtt_send(perception, sizeof(perception)),
                         "perception frame queued");
-    mqttnet_test_check(net_mqtt_send(diagnostic, sizeof(diagnostic) - 1U),
+    mqttnet_test_check(net_mqtt_send(diagnostic, sizeof(diagnostic)),
                         "diagnostic frame queued");
     clock_ms = 32300U;
     net_mqtt_poll(p_interface);
@@ -368,7 +421,8 @@ static void mqttnet_test_frame_triple (struct netif * p_interface)
     clock_ms = 32500U;
     net_mqtt_poll(p_interface);
     mqttnet_test_check((5U == publications) && (0U == tx_count) &&
-                        (0 == strcmp(last_publication, diagnostic)),
+                        mqttnet_test_published(diagnostic,
+                                               sizeof(diagnostic)),
                         "third diagnostic frame remains and transmits");
 }
 
@@ -376,18 +430,19 @@ static void mqttnet_test_frame_triple (struct netif * p_interface)
 static void mqttnet_test_reconnect (struct netif * p_interface)
 {
     uint32_t original_commands = commands;
-    const uint8_t stop[] = {'S', 'T', 'O', 'P'};
+    const uint8_t stop = MQTTCMD_STOP_BYTE;
 
     mqtt_client.rx_buffer[0] = 0x30U;
-    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 4U);
-    fragment_callback(NULL, stop, 2U, 0U);
+    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 1U);
+    fragment_callback(NULL, NULL, 0U, 0U);
     clock_ms = 33000U;
     connection_callback(&mqtt_client, NULL, MQTT_CONNECT_DISCONNECTED);
-    fragment_callback(NULL, &stop[2], 2U, MQTT_DATA_FLAG_LAST);
+    mqttnet_test_check(!net_mqtt_online(), "disconnect closes the session");
+    fragment_callback(NULL, &stop, 1U, MQTT_DATA_FLAG_LAST);
     mqttnet_test_check(commands == original_commands,
                         "disconnect discards incomplete command");
-    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 4U);
-    fragment_callback(NULL, stop, 4U, MQTT_DATA_FLAG_LAST);
+    publication_callback(NULL, NET_MQTT_COMMAND_TOPIC, 1U);
+    fragment_callback(NULL, &stop, 1U, MQTT_DATA_FLAG_LAST);
     mqttnet_test_check(commands == original_commands,
                         "disconnected client cannot issue commands");
     clock_ms = 33999U;
@@ -418,10 +473,12 @@ static void mqttnet_test_reconnect (struct netif * p_interface)
 static void mqttnet_test_backpressure (struct netif * p_interface)
 {
     uint32_t original_publications = publications;
+    const uint8_t first[5] = {0xD1U, 1U, 2U, 3U, 4U};
+    const uint8_t second[6] = {0xD1U, 5U, 6U, 7U, 8U, 9U};
 
-    mqttnet_test_check(net_mqtt_send("first", 5U),
+    mqttnet_test_check(net_mqtt_send(first, sizeof(first)),
                         "backpressure first frame queued");
-    mqttnet_test_check(net_mqtt_send("second", 6U),
+    mqttnet_test_check(net_mqtt_send(second, sizeof(second)),
                         "backpressure second frame queued");
     publish_result = ERR_MEM;
     clock_ms = 32600U;
@@ -436,11 +493,11 @@ static void mqttnet_test_backpressure (struct netif * p_interface)
     publish_result = ERR_OK;
     clock_ms = 32700U;
     net_mqtt_poll(p_interface);
-    mqttnet_test_check((0 == strcmp(last_publication, "first")) &&
+    mqttnet_test_check(mqttnet_test_published(first, sizeof(first)) &&
                         (1U == tx_count), "retry transmits original frame");
     clock_ms = 32800U;
     net_mqtt_poll(p_interface);
-    mqttnet_test_check((0 == strcmp(last_publication, "second")) &&
+    mqttnet_test_check(mqttnet_test_published(second, sizeof(second)) &&
                         (0U == tx_count), "next FIFO frame follows retry");
 }
 

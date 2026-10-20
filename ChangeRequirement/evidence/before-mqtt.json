@@ -1,0 +1,1211 @@
+{
+ "label": "before-mqtt",
+ "folder": "baseline commit baa068a, build-target/mqtt, as built (fixture gates as committed)",
+ "elf": "mtk3pico_smp0_uart_wifi_dhcp.elf",
+ "sections": {
+  ".text": 379481,
+  ".data": 2744,
+  ".bss": 56272
+ },
+ "application_ram_bytes": 10750,
+ "application_code_bytes": 46056,
+ "symbols": [
+  {
+   "symbol": "g_barcode_config",
+   "section": "bss",
+   "bytes": 4344,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_scanner",
+   "section": "bss",
+   "bytes": 2720,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_tx_storage",
+   "section": "bss",
+   "bytes": 1040,
+   "object": "net_mqtt_ipc.o"
+  },
+  {
+   "symbol": "g_motion",
+   "section": "bss",
+   "bytes": 592,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_shared",
+   "section": "bss",
+   "bytes": 496,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_barcode",
+   "section": "bss",
+   "bytes": 320,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_pending_tx",
+   "section": "bss",
+   "bytes": 257,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "g_terrain",
+   "section": "bss",
+   "bytes": 248,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_vehicle",
+   "section": "bss",
+   "bytes": 160,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_rx_storage",
+   "section": "bss",
+   "bytes": 144,
+   "object": "net_mqtt_ipc.o"
+  },
+  {
+   "symbol": "g_line_config",
+   "section": "bss",
+   "bytes": 56,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_command",
+   "section": "bss",
+   "bytes": 48,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "g_front_trigger_pose",
+   "section": "bss",
+   "bytes": 32,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_optical_pose",
+   "section": "bss",
+   "bytes": 32,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_route_anchor",
+   "section": "bss",
+   "bytes": 32,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_line",
+   "section": "bss",
+   "bytes": 20,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_imu_path_m",
+   "section": "bss",
+   "bytes": 8,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_imu_speed_mps",
+   "section": "bss",
+   "bytes": 8,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_imu_window_path_m",
+   "section": "bss",
+   "bytes": 8,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_motion_us",
+   "section": "bss",
+   "bytes": 8,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_optical_signed_m",
+   "section": "bss",
+   "bytes": 8,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_stop_storage",
+   "section": "bss",
+   "bytes": 8,
+   "object": "net_mqtt_ipc.o"
+  },
+  {
+   "symbol": "g_trigger_time_us",
+   "section": "bss",
+   "bytes": 8,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_broker_address",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "g_button_since_ms",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_connect_started",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "g_echo_pulse_us",
+   "section": "bss",
+   "bytes": 4,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_edge_errors",
+   "section": "bss",
+   "bytes": 4,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_front_trigger_ms",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_imu_run_id",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_imu_window_ms",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_left_delta",
+   "section": "bss",
+   "bytes": 4,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_left_direction",
+   "section": "bss",
+   "bytes": 4,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_left_stall_ms",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_left_total",
+   "section": "bss",
+   "bytes": 4,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_line_left_total",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_line_right_total",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_motion_version",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_pending_length",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "g_publish_started",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "g_retry_delay",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "g_retry_started",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "g_right_delta",
+   "section": "bss",
+   "bytes": 4,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_right_direction",
+   "section": "bss",
+   "bytes": 4,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_right_stall_ms",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_right_total",
+   "section": "bss",
+   "bytes": 4,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_scan_centred_ms",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_scan_started_ms",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_stationary_since_ms",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_telemetry_sequence",
+   "section": "bss",
+   "bytes": 4,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "g_watchdog_reload",
+   "section": "bss",
+   "bytes": 4,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_wifi_delay",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "g_wifi_started",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "gh_rx_id",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt_ipc.o"
+  },
+  {
+   "symbol": "gh_stop_id",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt_ipc.o"
+  },
+  {
+   "symbol": "gh_tx_id",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt_ipc.o"
+  },
+  {
+   "symbol": "gp_client",
+   "section": "bss",
+   "bytes": 4,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "gp_init_diagnostic",
+   "section": "data",
+   "bytes": 4,
+   "object": "board.o"
+  },
+  {
+   "symbol": "g_echo_state",
+   "section": "bss",
+   "bytes": 1,
+   "object": "board.o"
+  },
+  {
+   "symbol": "gb_button_down",
+   "section": "bss",
+   "bytes": 1,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "gb_button_latched",
+   "section": "bss",
+   "bytes": 1,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "gb_close_pending",
+   "section": "bss",
+   "bytes": 1,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "gb_connected",
+   "section": "bss",
+   "bytes": 1,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "gb_connecting",
+   "section": "bss",
+   "bytes": 1,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "gb_fine_requested",
+   "section": "bss",
+   "bytes": 1,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "gb_front_pending",
+   "section": "bss",
+   "bytes": 1,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "gb_online_pending",
+   "section": "bss",
+   "bytes": 1,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "gb_scan_busy",
+   "section": "bss",
+   "bytes": 1,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "gb_scan_result_ready",
+   "section": "bss",
+   "bytes": 1,
+   "object": "robot_app.o"
+  },
+  {
+   "symbol": "gb_subscribed",
+   "section": "bss",
+   "bytes": 1,
+   "object": "net_mqtt.o"
+  },
+  {
+   "symbol": "gb_wifi_joining",
+   "section": "bss",
+   "bytes": 1,
+   "object": "net_mqtt.o"
+  }
+ ],
+ "functions": {
+  "app_cfg_line": 40,
+  "app_cfg_motion": 212,
+  "app_cfg_scanner": 80,
+  "app_cfg_terrain": 16,
+  "app_cfg_vehicle": 128,
+  "app_main_comm_task": 8,
+  "app_main_delay": 44,
+  "app_main_imu_task": 8,
+  "app_main_line_task": 8,
+  "app_main_lock": 8,
+  "app_main_motion_task": 8,
+  "app_main_safety_task": 8,
+  "app_main_scan_task": 8,
+  "app_main_telemetry_task": 8,
+  "app_main_unlock": 8,
+  "app_main_vehicle_task": 8,
+  "barcode_config_valid": 1336,
+  "barcode_defaults": 312,
+  "barcode_init": 20,
+  "barcode_step": 2384,
+  "board_boot_brake": 192,
+  "board_boot_timebase": 40,
+  "board_encoder_totals": 44,
+  "board_init": 36,
+  "board_init_diagnostic": 12,
+  "board_motor_brake": 40,
+  "board_motor_commit": 52,
+  "board_motor_prepare": 24,
+  "board_read_accel": 4,
+  "board_read_encoders": 68,
+  "board_read_ir": 4,
+  "board_servo_us": 4,
+  "board_start_pressed": 20,
+  "board_stop_pressed": 20,
+  "board_time_us": 20,
+  "board_ultrasonic_result": 100,
+  "board_ultrasonic_service": 88,
+  "board_ultrasonic_trigger": 20,
+  "board_watchdog_feed": 24,
+  "board_watchdog_start": 4,
+  "core_hump_height_increment": 228,
+  "core_odometry_step": 1488,
+  "core_pid_reset": 88,
+  "core_pid_step": 1172,
+  "core_ultrasonic_range": 468,
+  "course_cfg_load": 32,
+  "line_ctrl_config_valid": 464,
+  "line_ctrl_defaults": 100,
+  "line_ctrl_init": 16,
+  "line_ctrl_step": 720,
+  "motion_init": 644,
+  "motion_reset": 136,
+  "motion_step": 2212,
+  "motion_stop": 104,
+  "motion_submit": 1472,
+  "mqttcmd_begin": 48,
+  "mqttcmd_feed": 108,
+  "mqttcmd_valid": 80,
+  "net_mqtt_connection": 80,
+  "net_mqtt_fragment": 36,
+  "net_mqtt_ipc_put_rx": 108,
+  "net_mqtt_ipc_receive": 72,
+  "net_mqtt_ipc_send": 52,
+  "net_mqtt_ipc_start": 192,
+  "net_mqtt_ipc_take_tx": 48,
+  "net_mqtt_poll": 756,
+  "net_mqtt_publication": 80,
+  "net_mqtt_receive": 20,
+  "net_mqtt_retry": 116,
+  "net_mqtt_send": 24,
+  "net_mqtt_start": 8,
+  "net_mqtt_subscribed": 44,
+  "net_mqtt_take_tx": 88,
+  "pid_config_is_valid": 448,
+  "robot_app_comm_step": 100,
+  "robot_app_comm_task": 16,
+  "robot_app_fault": 112,
+  "robot_app_imu_step": 1148,
+  "robot_app_imu_task": 16,
+  "robot_app_init": 764,
+  "robot_app_line_step": 840,
+  "robot_app_line_task": 16,
+  "robot_app_motion_step": 1144,
+  "robot_app_motion_task": 16,
+  "robot_app_periodic": 72,
+  "robot_app_safety_step": 396,
+  "robot_app_safety_task": 16,
+  "robot_app_scan_step": 900,
+  "robot_app_scan_task": 16,
+  "robot_app_telemetry_step": 1844,
+  "robot_app_telemetry_task": 16,
+  "robot_app_vehicle_step": 1464,
+  "robot_app_vehicle_task": 16,
+  "scanner_default_config": 120,
+  "scanner_init": 728,
+  "scanner_start": 140,
+  "scanner_step": 1720,
+  "telemetry_format": 4080,
+  "telemetry_format_diagnostic": 1656,
+  "telemetry_format_perception": 3824,
+  "telemetry_unsigned": 124,
+  "terrain_angles.constprop.0": 304,
+  "terrain_default_config": 184,
+  "terrain_init": 1280,
+  "terrain_reference": 128,
+  "terrain_step": 2328,
+  "usermain": 268,
+  "vehicle_init": 512,
+  "vehicle_navigate": 196,
+  "vehicle_request": 124,
+  "vehicle_step": 2208
+ },
+ "types": {
+  "ATR": 4,
+  "ER": 4,
+  "FP": 4,
+  "ID": 4,
+  "INT": 4,
+  "PRI": 4,
+  "RELTIM": 4,
+  "SZ": 4,
+  "TMO": 4,
+  "T_CMBF": 20,
+  "T_CTSK": 28,
+  "T_DINT": 8,
+  "UB": 1,
+  "UINT": 4,
+  "UW": 4,
+  "W": 4,
+  "_Bool": 1,
+  "_cyw43_ev_scan_result_t": 92,
+  "_cyw43_ll_t": 2128,
+  "_cyw43_t": 2484,
+  "absolute_time_t": 8,
+  "acd": 20,
+  "acd_callback_enum_t": 1,
+  "acd_conflict_callback_t": 4,
+  "acd_state_enum_t": 1,
+  "adc_hw_t": 36,
+  "altcp_accept_fn": 4,
+  "altcp_connected_fn": 4,
+  "altcp_err_fn": 4,
+  "altcp_pcb": 44,
+  "altcp_poll_fn": 4,
+  "altcp_recv_fn": 4,
+  "altcp_sent_fn": 4,
+  "barcode_action_t": 1,
+  "barcode_config_t": 4344,
+  "barcode_event_t": 1,
+  "barcode_output_t": 16,
+  "barcode_reason_t": 1,
+  "barcode_state_t": 320,
+  "barcode_symbol_t": 264,
+  "board_accel_status_t": 1,
+  "board_echo_state_t": 1,
+  "board_motor_command_t": 16,
+  "char": 1,
+  "core_odometry_config_t": 32,
+  "core_odometry_result_t": 64,
+  "core_pid_config_t": 48,
+  "core_pid_state_t": 24,
+  "core_point_t": 16,
+  "core_pose_t": 32,
+  "core_range_sample_t": 16,
+  "core_range_state_t": 1,
+  "core_real_t": 8,
+  "core_status_t": 1,
+  "core_ultrasonic_config_t": 24,
+  "cyw43_ev_scan_result_t": 92,
+  "cyw43_ll_t": 2128,
+  "cyw43_t": 2484,
+  "dhcp": 72,
+  "dhcp_timeout_t": 2,
+  "double": 8,
+  "dreq_num_rp2040": 1,
+  "err_t": 1,
+  "float": 4,
+  "gpio_dir": 1,
+  "gpio_function_rp2040": 1,
+  "gpio_function_t": 1,
+  "i2c_hw_t": 256,
+  "i2c_inst": 8,
+  "i2c_inst_t": 8,
+  "int": 4,
+  "int16_t": 2,
+  "int32_t": 4,
+  "int64_t": 8,
+  "int8_t": 1,
+  "interp_hw_t": 64,
+  "io_bank0_hw_t": 400,
+  "io_bank0_irq_ctrl_hw_t": 48,
+  "io_bank0_status_ctrl_hw_t": 8,
+  "io_ro_32": 4,
+  "io_rw_32": 4,
+  "io_wo_32": 4,
+  "ip4_addr": 4,
+  "ip4_addr_t": 4,
+  "ip_addr_t": 4,
+  "irq_num_rp2040": 1,
+  "line_ctrl_config_t": 56,
+  "line_ctrl_output_t": 48,
+  "line_ctrl_state_t": 20,
+  "line_ctrl_status_t": 1,
+  "long double": 8,
+  "long int": 4,
+  "long long int": 8,
+  "long long unsigned int": 8,
+  "long unsigned int": 4,
+  "lwip_internal_netif_client_data_index": 1,
+  "motion_config_t": 128,
+  "motion_kind_t": 1,
+  "motion_output_t": 88,
+  "motion_request_t": 32,
+  "motion_speed_bucket_t": 24,
+  "motion_speed_window_t": 272,
+  "motion_state_t": 1,
+  "motion_status_t": 1,
+  "motion_t": 592,
+  "mqtt_client_s": 1392,
+  "mqtt_client_t": 1392,
+  "mqtt_connect_client_info_t": 28,
+  "mqtt_connection_cb_t": 4,
+  "mqtt_connection_status_t": 2,
+  "mqtt_incoming_data_cb_t": 4,
+  "mqtt_incoming_publish_cb_t": 4,
+  "mqtt_request_cb_t": 4,
+  "mqtt_request_t": 16,
+  "mqtt_ringbuf_t": 1028,
+  "mqttcmd_t": 48,
+  "netif": 72,
+  "netif_input_fn": 4,
+  "netif_linkoutput_fn": 4,
+  "netif_output_fn": 4,
+  "netif_status_callback_fn": 4,
+  "pbuf": 16,
+  "psm_hw_t": 16,
+  "pwm_chan": 1,
+  "pwm_clkdiv_mode": 1,
+  "pwm_config": 12,
+  "pwm_hw_t": 180,
+  "pwm_irq_ctrl_hw_t": 12,
+  "pwm_slice_hw_t": 20,
+  "reset_num_rp2040": 1,
+  "resets_hw_t": 12,
+  "robot_app_diagnostic_t": 8,
+  "robot_app_fault_t": 1,
+  "robot_app_shared_t": 496,
+  "s8_t": 1,
+  "scanner_config_t": 72,
+  "scanner_echo_t": 8,
+  "scanner_output_t": 12,
+  "scanner_phase_t": 1,
+  "scanner_profile_t": 48,
+  "scanner_result_t": 56,
+  "scanner_sample_t": 32,
+  "scanner_side_t": 1,
+  "scanner_state_t": 2720,
+  "short int": 2,
+  "short unsigned int": 2,
+  "signed char": 1,
+  "sio_hw_t": 384,
+  "size_t": 4,
+  "t_cmbf": 20,
+  "t_ctsk": 28,
+  "t_dint": 8,
+  "telemetry_diagnostic_t": 36,
+  "telemetry_perception_t": 56,
+  "telemetry_status_t": 48,
+  "telemetry_writer_t": 16,
+  "terrain_config_t": 120,
+  "terrain_input_t": 56,
+  "terrain_motion_t": 1,
+  "terrain_output_t": 72,
+  "terrain_state_t": 248,
+  "timer_hw_t": 68,
+  "u16_t": 2,
+  "u32_t": 4,
+  "u8_t": 1,
+  "uint": 4,
+  "uint16_t": 2,
+  "uint32_t": 4,
+  "uint64_t": 8,
+  "uint8_t": 1,
+  "uintptr_t": 4,
+  "unsigned char": 1,
+  "unsigned int": 4,
+  "vehicle_config_t": 72,
+  "vehicle_input_t": 152,
+  "vehicle_nav_t": 1,
+  "vehicle_output_t": 48,
+  "vehicle_scan_t": 1,
+  "vehicle_state_t": 1,
+  "vehicle_t": 160,
+  "watchdog_hw_t": 48
+ },
+ "stack_frames": {
+  "app_cfg_line": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_cfg_motion": {
+   "bytes": 12,
+   "kind": "static"
+  },
+  "app_cfg_scanner": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_cfg_terrain": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_cfg_vehicle": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "app_main_comm_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_main_delay": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_main_gpio_isr": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_main_imu_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_main_install_gpio_irq": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "app_main_line_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_main_lock": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "app_main_motion_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_main_safety_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_main_scan_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_main_telemetry_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "app_main_unlock": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "app_main_vehicle_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "barcode_config_valid": {
+   "bytes": 240,
+   "kind": "static"
+  },
+  "barcode_defaults": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "barcode_init": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "barcode_step": {
+   "bytes": 112,
+   "kind": "static"
+  },
+  "board_boot_brake": {
+   "bytes": 24,
+   "kind": "static"
+  },
+  "board_boot_timebase": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_encoder_totals": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "board_init": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "board_init_diagnostic": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_motor_brake": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "board_motor_commit": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "board_motor_duty": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "board_motor_prepare": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "board_read_accel": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_read_encoders": {
+   "bytes": 24,
+   "kind": "static"
+  },
+  "board_read_ir": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_read_registers": {
+   "bytes": 56,
+   "kind": "static"
+  },
+  "board_servo_us": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_start_pressed": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_stop_pressed": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_time_us": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_ultrasonic_result": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "board_ultrasonic_service": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "board_ultrasonic_trigger": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_watchdog_feed": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_watchdog_rebooted": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "board_watchdog_start": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "core_hump_height_increment": {
+   "bytes": 32,
+   "kind": "static"
+  },
+  "core_odometry_step": {
+   "bytes": 96,
+   "kind": "static"
+  },
+  "core_pid_reset": {
+   "bytes": 24,
+   "kind": "static"
+  },
+  "core_pid_step": {
+   "bytes": 112,
+   "kind": "static"
+  },
+  "core_range_to_point": {
+   "bytes": 32,
+   "kind": "static"
+  },
+  "core_stopping_clearance": {
+   "bytes": 40,
+   "kind": "static"
+  },
+  "core_ultrasonic_range": {
+   "bytes": 56,
+   "kind": "static"
+  },
+  "course_cfg_load": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "line_ctrl_config_valid": {
+   "bytes": 56,
+   "kind": "static"
+  },
+  "line_ctrl_defaults": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "line_ctrl_init": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "line_ctrl_step": {
+   "bytes": 88,
+   "kind": "static"
+  },
+  "motion_init": {
+   "bytes": 160,
+   "kind": "static"
+  },
+  "motion_reset": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "motion_step": {
+   "bytes": 200,
+   "kind": "static"
+  },
+  "motion_stop": {
+   "bytes": 24,
+   "kind": "static"
+  },
+  "motion_submit": {
+   "bytes": 80,
+   "kind": "static"
+  },
+  "mqttcmd_begin": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "mqttcmd_feed": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "mqttcmd_valid": {
+   "bytes": 24,
+   "kind": "static"
+  },
+  "net_mqtt_connection": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "net_mqtt_fragment": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "net_mqtt_ipc_put_rx": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "net_mqtt_ipc_receive": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "net_mqtt_ipc_send": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "net_mqtt_ipc_start": {
+   "bytes": 48,
+   "kind": "static"
+  },
+  "net_mqtt_ipc_take_tx": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "net_mqtt_poll": {
+   "bytes": 48,
+   "kind": "static"
+  },
+  "net_mqtt_publication": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "net_mqtt_receive": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "net_mqtt_retry": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "net_mqtt_send": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "net_mqtt_start": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "net_mqtt_subscribed": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "net_mqtt_take_tx": {
+   "bytes": 288,
+   "kind": "static"
+  },
+  "pid_config_is_valid": {
+   "bytes": 32,
+   "kind": "static"
+  },
+  "robot_app_comm_step": {
+   "bytes": 56,
+   "kind": "static"
+  },
+  "robot_app_comm_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "robot_app_diagnostic": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "robot_app_fault": {
+   "bytes": 32,
+   "kind": "static"
+  },
+  "robot_app_imu_step": {
+   "bytes": 368,
+   "kind": "static"
+  },
+  "robot_app_imu_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "robot_app_init": {
+   "bytes": 336,
+   "kind": "static"
+  },
+  "robot_app_line_step": {
+   "bytes": 216,
+   "kind": "static"
+  },
+  "robot_app_line_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "robot_app_motion_step": {
+   "bytes": 680,
+   "kind": "static"
+  },
+  "robot_app_motion_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "robot_app_periodic": {
+   "bytes": 16,
+   "kind": "static"
+  },
+  "robot_app_safety_step": {
+   "bytes": 72,
+   "kind": "static"
+  },
+  "robot_app_safety_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "robot_app_scan_step": {
+   "bytes": 616,
+   "kind": "static"
+  },
+  "robot_app_scan_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "robot_app_telemetry_step": {
+   "bytes": 808,
+   "kind": "static"
+  },
+  "robot_app_telemetry_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "robot_app_vehicle_step": {
+   "bytes": 872,
+   "kind": "static"
+  },
+  "robot_app_vehicle_task": {
+   "bytes": 8,
+   "kind": "static"
+  },
+  "scanner_default_config": {
+   "bytes": 0,
+   "kind": "static"
+  },
+  "scanner_init": {
+   "bytes": 120,
+   "kind": "static"
+  },
+  "scanner_start": {
+   "bytes": 24,
+   "kind": "static"
+  },
+  "scanner_step": {
+   "bytes": 128,
+   "kind": "static"
+  },
+  "telemetry_format": {
+   "bytes": 64,
+   "kind": "static"
+  },
+  "telemetry_format_diagnostic": {
+   "bytes": 64,
+   "kind": "static"
+  },
+  "telemetry_format_perception": {
+   "bytes": 64,
+   "kind": "static"
+  },
+  "telemetry_unsigned": {
+   "bytes": 40,
+   "kind": "static"
+  },
+  "terrain_default_config": {
+   "bytes": 20,
+   "kind": "static"
+  },
+  "terrain_init": {
+   "bytes": 160,
+   "kind": "static"
+  },
+  "terrain_reference": {
+   "bytes": 56,
+   "kind": "static"
+  },
+  "terrain_step": {
+   "bytes": 144,
+   "kind": "static"
+  },
+  "usermain": {
+   "bytes": 144,
+   "kind": "static"
+  },
+  "vehicle_init": {
+   "bytes": 32,
+   "kind": "static"
+  },
+  "vehicle_navigate": {
+   "bytes": 32,
+   "kind": "static"
+  },
+  "vehicle_request": {
+   "bytes": 24,
+   "kind": "static"
+  },
+  "vehicle_step": {
+   "bytes": 64,
+   "kind": "static"
+  }
+ },
+ "scope": "Static ELF/map/DWARF/-fstack-usage evidence; no runtime high-water mark, timing or hardware measurement."
+}

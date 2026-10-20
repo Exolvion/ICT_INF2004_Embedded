@@ -1,39 +1,44 @@
 /**
  * @file mqttcmd.c
- * @brief Exact ASCII commands; no dynamic allocation or implicit trimming.
+ * @brief One-byte commands checked by pattern and code; no allocation.
  * NOTE: Early error returns preserve shallow validation (BARR-C 6.2.c).
  */
 #include "mqttcmd.h"
 
 #include <string.h>
 
-/** @brief Exact command vocabulary, checked by byte count and byte value. */
-bool mqttcmd_valid (const char * p_text, size_t length)
-{
-    static const char * const commands[] =
-    {
-        "START", "STOP", "RESET", "LEFT", "RIGHT", "STRAIGHT", "UTURN"
-    };
-    size_t index;
-    size_t count = sizeof(commands) / sizeof(commands[0]);
+#define MQTTCMD_CODE_MASK    (0x07U)
 
-    if ((NULL == p_text) || (0U == length) ||
-        (length > MQTTCMD_MAX_LENGTH))
+/** @brief Pattern in bits 3-7, code in bits 0-2. */
+uint8_t mqttcmd_byte (mqttcmd_code_t code)
+{
+    uint32_t value = (uint32_t)code & MQTTCMD_CODE_MASK;
+
+    if (MQTTCMD_NONE == code)
     {
-        return false;
+        return 0U;
     }
-    for (index = 0U; index < count; index++)
-    {
-        if ((length == strlen(commands[index])) &&
-            (0 == memcmp(p_text, commands[index], length)))
-        {
-            return true;
-        }
-    }
-    return false;
+    /* Five pattern bits above three code bits fill exactly one byte. */
+    return (uint8_t)((MQTTCMD_PATTERN << MQTTCMD_CODE_BITS) | value);
 }
 
-/** @brief Clear old bytes so rejected publications cannot reuse state. */
+/** @brief The validity pattern must match before the code is read. */
+mqttcmd_code_t mqttcmd_code (uint8_t command)
+{
+    static const mqttcmd_code_t codes[] =
+    {
+        MQTTCMD_NONE, MQTTCMD_STOP, MQTTCMD_START, MQTTCMD_RESET,
+        MQTTCMD_LEFT, MQTTCMD_RIGHT, MQTTCMD_STRAIGHT, MQTTCMD_UTURN
+    };
+
+    if (MQTTCMD_PATTERN != ((uint32_t)command >> MQTTCMD_CODE_BITS))
+    {
+        return MQTTCMD_NONE;
+    }
+    return codes[(uint32_t)command & MQTTCMD_CODE_MASK];
+}
+
+/** @brief Clear old state so rejected publications cannot reuse a byte. */
 void mqttcmd_begin (mqttcmd_t * p_state, uint32_t length,
                     bool b_topic_matches)
 {
@@ -42,12 +47,10 @@ void mqttcmd_begin (mqttcmd_t * p_state, uint32_t length,
         return;
     }
     memset(p_state, 0, sizeof(*p_state));
-    p_state->expected    = length;
-    p_state->b_accepting = b_topic_matches && (length > 0U) &&
-                           (length <= MQTTCMD_MAX_LENGTH);
+    p_state->b_accepting = b_topic_matches && (MQTTCMD_LENGTH == length);
 }
 
-/** @brief Validate fragment bounds before copying and consuming a command. */
+/** @brief Accept the single byte once, then validate it on the last part. */
 bool mqttcmd_feed (mqttcmd_t * p_state, const uint8_t * p_data,
                    uint32_t length, bool b_last)
 {
@@ -56,28 +59,23 @@ bool mqttcmd_feed (mqttcmd_t * p_state, const uint8_t * p_data,
         return false;
     }
     if (((NULL == p_data) && (length > 0U)) ||
-        (p_state->used > p_state->expected) ||
-        (length > (p_state->expected - p_state->used)))
+        (length > (p_state->b_received ? 0U : MQTTCMD_LENGTH)))
     {
         p_state->b_accepting = false;
         return false;
     }
     if (length > 0U)
     {
-        memcpy(&p_state->text[p_state->used], p_data, length);
-        p_state->used += length;
+        p_state->command = p_data[0];
+        p_state->b_received = true;
     }
     if (!b_last)
     {
         return false;
     }
     p_state->b_accepting = false;
-    if (p_state->used != p_state->expected)
-    {
-        return false;
-    }
-    p_state->text[p_state->used] = '\0';
-    return mqttcmd_valid(p_state->text, p_state->used);
+    return p_state->b_received &&
+           (MQTTCMD_NONE != mqttcmd_code(p_state->command));
 }
 
 /* End of file. */

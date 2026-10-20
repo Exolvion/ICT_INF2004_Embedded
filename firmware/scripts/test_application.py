@@ -54,7 +54,9 @@ SCENARIOS = {
         "right_stall", "line_timeout", "unknown_range", "scan_handoff",
         "scan_unknown_return", "full_bypass", "command_policy", "uart_pins",
         "pitch_fault", "roll_fault", "invalid_tilt_start", "transient_tilt",
-        "fault_diagnostic", "telemetry_budget", "barcode_noise",
+        "fault_diagnostic", "fault_mask", "fault_stress", "encoder_wrap",
+        "encoder_jumps", "boot_counts", "stop_race", "stop_snapshot",
+        "telemetry_budget", "telemetry_wrap", "barcode_noise",
         "barcode_junction", "hump_history", "watchdog_owners",
         "transient_range", "range_obstacle", "range_stop", "sonar_silent",
         "stale_range_pose", "range_start", "barcode_gap",
@@ -253,7 +255,7 @@ def main() -> int:
             options = ["-O2", "-DNDEBUG"]
             if mode == "sanitized":
                 options = ["-O1", "-g", "-fno-omit-frame-pointer",
-                           "-fsanitize=address,undefined",
+                           "-fsanitize=address,undefined,float-cast-overflow",
                            "-fno-sanitize-recover=all"]
             command = [compiler, *FLAGS, *options,
                        f"-DAPPHOST_FIXTURE={int(profile != 'default')}",

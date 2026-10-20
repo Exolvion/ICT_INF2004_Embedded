@@ -422,7 +422,9 @@ def main() -> None:
                                     "trial; ROBOT_LSAN=1 enables it")
         report["negative_controls"] = []
         for mode, extra in [("release", ["-O2"]),
-                            ("sanitize", ["-O1", "-g", "-fsanitize=address,undefined",
+                            ("sanitize", ["-O1", "-g",
+                                          "-fsanitize=address,undefined,"
+                                          "float-cast-overflow",
                                           "-fno-sanitize-recover=all",
                                           "-fno-omit-frame-pointer"])]:
             for profile in (1, 0):

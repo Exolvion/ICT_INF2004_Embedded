@@ -5,12 +5,24 @@
  */
 #include "vehicle.h"
 
+#include "bitpack.h"
+
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
 
+/* Millisecond time limit for configured timeouts, not a command ID bound. */
 #define VEHICLE_SERIAL_HALF (UINT32_C(2147483648))
 #define VEHICLE_BYPASS_PHASES (7U)
+/* Highest command ID; (id mod 255) + 1 runs 1..255 and skips 0. */
+#define VEHICLE_ID_LAST ((UINT32_C(1) << MOTION_ID_BITS) - 1U)
+#define VEHICLE_PHASE_MASK ((UINT32_C(1) << VEHICLE_PHASE_BITS) - 1U)
+#define VEHICLE_SIDE_MASK ((UINT32_C(1) << VEHICLE_SIDE_BITS) - 1U)
+
+/* The phase reaches VEHICLE_BYPASS_PHASES before REACQUIRE resets it. */
+#if (VEHICLE_BYPASS_PHASES > VEHICLE_PHASE_MASK)
+#error "vehicle_t.phase is too narrow for VEHICLE_BYPASS_PHASES"
+#endif
 
 static bool vehicle_config_valid (const vehicle_config_t * p_config);
 static void vehicle_fault (vehicle_t * p_vehicle,
@@ -166,11 +178,9 @@ static void vehicle_request (vehicle_t * p_vehicle, motion_kind_t kind,
 {
     if (!p_vehicle->b_active)
     {
-        p_vehicle->next_id += 1U;
-        if (0U == p_vehicle->next_id)
-        {
-            p_vehicle->next_id = 1U;
-        }
+        /* 1..255 then 1 again: never the reserved 0, and fits uint8_t. */
+        p_vehicle->next_id =
+            (uint8_t) ((p_vehicle->next_id % VEHICLE_ID_LAST) + 1U);
         memset(&p_vehicle->active, 0, sizeof(p_vehicle->active));
         p_vehicle->active.command_id = p_vehicle->next_id;
         p_vehicle->active.kind = kind;
@@ -280,7 +290,8 @@ static void vehicle_navigate (vehicle_t * p_vehicle, uint32_t now_ms,
 
     if (vehicle_completed(p_vehicle, p_input))
     {
-        p_vehicle->phase += 1U;
+        /* At most 2 here; the mask never wraps a reachable phase. */
+        p_vehicle->phase = (p_vehicle->phase + 1U) & VEHICLE_PHASE_MASK;
         p_vehicle->b_active = false;
     }
     if (p_vehicle->phase >= final_phase)
@@ -332,7 +343,10 @@ static void vehicle_scan_step (vehicle_t * p_vehicle, uint32_t now_ms,
         }
         p_vehicle->bypass_offset_m = p_input->bypass_offset_m;
         p_vehicle->bypass_length_m = p_input->bypass_length_m;
-        p_vehicle->bypass_side = p_input->bypass_side;
+        /* Validated as -1 or +1 above: a 2-bit two's complement code. */
+        p_vehicle->bypass_side =
+            bitpack_signed(p_input->bypass_side, VEHICLE_SIDE_BITS) &
+            VEHICLE_SIDE_MASK;
         vehicle_enter(p_vehicle, VEHICLE_BYPASS, now_ms);
     }
     else
@@ -346,12 +360,15 @@ static void vehicle_bypass (vehicle_t * p_vehicle, uint32_t now_ms,
                              const vehicle_input_t * p_input,
                              vehicle_output_t * p_output)
 {
-    core_real_t side = (p_vehicle->bypass_side > 0) ? 1.0 : -1.0;
+    core_real_t side =
+        (bitpack_extend(p_vehicle->bypass_side, VEHICLE_SIDE_BITS) > 0) ?
+        1.0 : -1.0;
     core_real_t quarter_turn = side * (0.5 * CORE_PI);
 
     if (vehicle_completed(p_vehicle, p_input))
     {
-        p_vehicle->phase += 1U;
+        /* At most VEHICLE_BYPASS_PHASES, which the #if above proves fits. */
+        p_vehicle->phase = (p_vehicle->phase + 1U) & VEHICLE_PHASE_MASK;
         p_vehicle->b_active = false;
     }
     if (p_vehicle->phase >= VEHICLE_BYPASS_PHASES)

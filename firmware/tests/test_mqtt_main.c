@@ -1,6 +1,7 @@
 /**
  * @file test_mqtt_main.c
- * @brief Validate complete tokens, fragment boundaries and invalid input.
+ * @brief Validate the one-byte command format, fragment boundaries and
+ * rejection of every byte outside the seven valid commands.
  * NOTE: main is the externally required hosted-C entry point (BARR 6.1.i).
  */
 #include "test_mqtt_main.h"
@@ -14,7 +15,8 @@ static uint32_t checks;
 static uint32_t failures;
 
 static void mqttcmd_test_check (bool b_result, const char * p_label);
-static void mqttcmd_test_tokens (void);
+static void mqttcmd_test_codes (void);
+static void mqttcmd_test_fragments (void);
 static void mqttcmd_test_invalid (void);
 
 /** @brief Return failure if any scenario's contract is violated. */
@@ -22,7 +24,8 @@ int main (void)
 {
     int result;
 
-    mqttcmd_test_tokens();
+    mqttcmd_test_codes();
+    mqttcmd_test_fragments();
     mqttcmd_test_invalid();
     result = printf("mqttcmd: %u checks, %u failures\n", checks, failures);
     if ((result < 0) || (failures > 0U))
@@ -47,99 +50,117 @@ static void mqttcmd_test_check (bool b_result, const char * p_label)
     }
 }
 
-/** @brief Every split of every supported token, including empty fragments. */
-static void mqttcmd_test_tokens (void)
+/** @brief All 256 byte values, each checked: exactly 0xA9..0xAF decode,
+ * each to the code whose byte it is; every other byte is refused.
+ */
+static void mqttcmd_test_codes (void)
 {
-    static const char * const tokens[] =
-    {
-        "START", "STOP", "RESET", "LEFT", "RIGHT", "STRAIGHT", "UTURN"
-    };
-    size_t index;
-    size_t split;
-    size_t count = sizeof(tokens) / sizeof(tokens[0]);
+    uint32_t value;
+    uint32_t valid = 0U;
 
-    for (index = 0U; index < count; index++)
+    for (value = 0U; value <= UINT8_MAX; value++)
     {
-        size_t length = strlen(tokens[index]);
+        /* Loop bound keeps value within the uint8_t range. */
+        mqttcmd_code_t code = mqttcmd_code((uint8_t)value);
+        bool b_expected = (value >= 0xA9U) && (value <= 0xAFU);
 
-        mqttcmd_test_check(mqttcmd_valid(tokens[index], length),
-                            "exact token accepted");
-        for (split = 0U; split <= length; split++)
+        if (MQTTCMD_NONE != code)
         {
-            mqttcmd_t state;
-            bool b_done;
-
-            /* Fixture lengths and split offsets are all at most 8. */
-            mqttcmd_begin(&state, (uint32_t)length, true);
-            b_done = mqttcmd_feed(&state, (const uint8_t *)tokens[index],
-                                   (uint32_t)split, false);
-            mqttcmd_test_check(!b_done, "non-final fragment is incomplete");
-            /* char bytes are read-only through a uint8_t alias; length <=8. */
-            b_done = mqttcmd_feed(&state,
-                                   (const uint8_t *)&tokens[index][split],
-                                   (uint32_t)(length - split), true);
-            mqttcmd_test_check(b_done, "valid final fragment completes");
-            mqttcmd_test_check(0 == strcmp(state.text, tokens[index]),
-                                "assembled bytes equal fixture");
-            b_done = mqttcmd_feed(&state, NULL, 0U, true);
-            mqttcmd_test_check(!b_done, "completed command cannot replay");
+            ++valid;
         }
+        mqttcmd_test_check(b_expected ?
+                           (mqttcmd_byte(code) == (uint8_t)value) :
+                           (MQTTCMD_NONE == code),
+                           "each byte decodes or is refused as specified");
+    }
+    mqttcmd_test_check(7U == valid, "exactly seven valid command bytes");
+    mqttcmd_test_check(MQTTCMD_STOP_BYTE == mqttcmd_byte(MQTTCMD_STOP),
+                       "STOP byte is 0xA9");
+    mqttcmd_test_check(MQTTCMD_STOP == mqttcmd_code(0xA9U), "0xA9 is STOP");
+    mqttcmd_test_check(MQTTCMD_UTURN == mqttcmd_code(0xAFU), "0xAF is UTURN");
+    mqttcmd_test_check(0U == mqttcmd_byte(MQTTCMD_NONE), "NONE has no byte");
+    mqttcmd_test_check(MQTTCMD_NONE == mqttcmd_code(0xA8U),
+                       "pattern with code 0 rejected");
+    mqttcmd_test_check(MQTTCMD_NONE == mqttcmd_code(0x00U), "zero rejected");
+    mqttcmd_test_check(MQTTCMD_NONE == mqttcmd_code(0xFFU),
+                       "all ones rejected");
+    mqttcmd_test_check(MQTTCMD_NONE == mqttcmd_code((uint8_t)'S'),
+                       "first byte of the old text STOP rejected");
+}
+
+/** @brief Every valid byte, with and without empty surrounding fragments. */
+static void mqttcmd_test_fragments (void)
+{
+    uint32_t code;
+    mqttcmd_t state;
+    uint8_t byte;
+    bool b_done;
+
+    for (code = (uint32_t)MQTTCMD_STOP; code <= (uint32_t)MQTTCMD_UTURN;
+         code++)
+    {
+        /* code is 1..7, a declared mqttcmd_code_t enumerator. */
+        byte = mqttcmd_byte((mqttcmd_code_t)code);
+        mqttcmd_begin(&state, 1U, true);
+        mqttcmd_test_check(mqttcmd_feed(&state, &byte, 1U, true) &&
+                           (byte == state.command),
+                           "single fragment completes");
+        mqttcmd_test_check(!mqttcmd_feed(&state, NULL, 0U, true),
+                           "completed command cannot replay");
+        mqttcmd_begin(&state, 1U, true);
+        b_done = mqttcmd_feed(&state, NULL, 0U, false);
+        mqttcmd_test_check(!b_done, "empty leading fragment waits");
+        b_done = mqttcmd_feed(&state, &byte, 1U, false);
+        mqttcmd_test_check(!b_done, "non-final fragment is incomplete");
+        mqttcmd_test_check(mqttcmd_feed(&state, NULL, 0U, true),
+                           "empty final fragment completes");
     }
 }
 
-/** @brief Reject malformed metadata, truncated/oversized and unknown bytes. */
+/** @brief Reject malformed metadata, wrong lengths and invalid bytes. */
 static void mqttcmd_test_invalid (void)
 {
-    static const char * const invalid[] =
-    {
-        "", "start", "STOP ", " STOP", "STOP\n", "STOPX", "GO", "U-TURN"
-    };
+    static const uint8_t stop = MQTTCMD_STOP_BYTE;
+    static const uint8_t text_stop[] = {'S', 'T', 'O', 'P'};
+    static const uint8_t invalid = 0x29U;
     mqttcmd_t state;
-    size_t index;
-    size_t count = sizeof(invalid) / sizeof(invalid[0]);
-    const uint8_t stop[] = {'S', 'T', 'O', 'P'};
-    const uint8_t embedded[] = {'S', 'T', 'O', 'P', 0U};
-    bool b_done;
 
-    for (index = 0U; index < count; index++)
-    {
-        mqttcmd_test_check(!mqttcmd_valid(invalid[index],
-                                         strlen(invalid[index])),
-                            "invalid token rejected");
-    }
-    mqttcmd_test_check(!mqttcmd_valid(NULL, 4U), "NULL token rejected");
-    mqttcmd_test_check(!mqttcmd_valid("STOP", SIZE_MAX),
-                        "huge length rejected before reading");
-    mqttcmd_begin(NULL, 4U, true);
-    mqttcmd_test_check(!mqttcmd_feed(NULL, stop, 4U, true),
-                        "NULL state rejected");
-    mqttcmd_begin(&state, 4U, false);
-    mqttcmd_test_check(!mqttcmd_feed(&state, stop, 4U, true),
-                        "wrong topic/retained metadata rejected");
+    mqttcmd_begin(NULL, 1U, true);
+    mqttcmd_test_check(!mqttcmd_feed(NULL, &stop, 1U, true),
+                       "NULL state rejected");
+    mqttcmd_begin(&state, 1U, false);
+    mqttcmd_test_check(!mqttcmd_feed(&state, &stop, 1U, true),
+                       "wrong topic/retained metadata rejected");
+    mqttcmd_begin(&state, 4U, true);
+    mqttcmd_test_check(!mqttcmd_feed(&state, text_stop, 4U, true),
+                       "old four-byte text STOP rejected");
     mqttcmd_begin(&state, UINT32_MAX, true);
-    mqttcmd_test_check(!mqttcmd_feed(&state, stop, 4U, true),
-                        "oversized declared length rejected");
-    mqttcmd_begin(&state, 4U, true);
-    mqttcmd_test_check(!mqttcmd_feed(&state, NULL, 4U, true),
-                        "NULL nonempty data rejected");
-    mqttcmd_begin(&state, 4U, true);
-    mqttcmd_test_check(!mqttcmd_feed(&state, stop, 3U, true),
-                        "truncated final fragment rejected");
-    mqttcmd_begin(&state, 4U, true);
-    mqttcmd_test_check(!mqttcmd_feed(&state, stop, UINT32_MAX, true),
-                        "oversized fragment rejected before copy");
-    mqttcmd_begin(&state, 5U, true);
-    mqttcmd_test_check(!mqttcmd_feed(&state, embedded, 5U, true),
-                        "embedded NUL rejected");
+    mqttcmd_test_check(!mqttcmd_feed(&state, &stop, 1U, true),
+                       "oversized declared length rejected");
     mqttcmd_begin(&state, 0U, true);
     mqttcmd_test_check(!mqttcmd_feed(&state, NULL, 0U, true),
-                        "empty publication rejected");
-    mqttcmd_begin(&state, 4U, true);
-    b_done = mqttcmd_feed(&state, stop, 2U, false);
-    mqttcmd_test_check(!b_done, "partial old message waits");
-    mqttcmd_begin(&state, 4U, true);
-    mqttcmd_test_check(mqttcmd_feed(&state, stop, 4U, true),
-                        "new publication clears old fragments");
+                       "empty publication rejected");
+    mqttcmd_begin(&state, 1U, true);
+    mqttcmd_test_check(!mqttcmd_feed(&state, NULL, 1U, true),
+                       "NULL nonempty data rejected");
+    mqttcmd_begin(&state, 1U, true);
+    mqttcmd_test_check(!mqttcmd_feed(&state, text_stop, 2U, true),
+                       "fragment longer than the payload rejected");
+    mqttcmd_begin(&state, 1U, true);
+    (void)mqttcmd_feed(&state, &stop, 1U, false);
+    mqttcmd_test_check(!mqttcmd_feed(&state, &stop, 1U, true),
+                       "second byte after the payload rejected");
+    mqttcmd_begin(&state, 1U, true);
+    mqttcmd_test_check(!mqttcmd_feed(&state, NULL, 0U, true),
+                       "missing byte rejected");
+    mqttcmd_begin(&state, 1U, true);
+    mqttcmd_test_check(!mqttcmd_feed(&state, &invalid, 1U, true),
+                       "byte without the pattern rejected");
+    mqttcmd_begin(&state, 1U, true);
+    (void)mqttcmd_feed(&state, &invalid, 1U, false);
+    mqttcmd_begin(&state, 1U, true);
+    mqttcmd_test_check(mqttcmd_feed(&state, &stop, 1U, true),
+                       "new publication clears the old byte");
 }
 
 /* End of file. */

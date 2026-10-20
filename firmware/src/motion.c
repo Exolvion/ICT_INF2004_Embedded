@@ -4,14 +4,27 @@
  */
 #include "motion.h"
 
+#include "bitpack.h"
+
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
 
+/* Millisecond time limit (primitive timeout), not a command ID bound. */
 #define MOTION_SERIAL_HALF (UINT32_C(2147483648))
+#define MOTION_ID_MASK ((UINT32_C(1) << MOTION_ID_BITS) - 1U)
+#define MOTION_ID_HALF (UINT32_C(1) << (MOTION_ID_BITS - 1U))
 #define MOTION_COMPARE_EPS (1.0e-12)
 #define MOTION_SPEED_BUCKET_S (0.005)
 #define MOTION_SPEED_WINDOW_S (0.050)
+#define MOTION_TURN_LIMIT_RAD (2.0 * CORE_PI)
+/* Largest whole milliradian not above 2*pi (6283.185...). */
+#define MOTION_TURN_MAX_MRAD (6283)
+#define MOTION_MILLI (1000.0)
+#define MOTION_FORWARD_MASK ((UINT32_C(1) << MOTION_FORWARD_BITS) - 1U)
+#define MOTION_YAW_MASK ((UINT32_C(1) << MOTION_YAW_BITS) - 1U)
+#define MOTION_TARGET_MASK ((UINT32_C(1) << MOTION_TARGET_BITS) - 1U)
+#define MOTION_SPEED_MASK ((UINT32_C(1) << MOTION_SPEED_BITS) - 1U)
 
 static bool motion_config_valid (const motion_config_t * p_config);
 static bool motion_request_valid (const motion_t * p_motion,
@@ -31,6 +44,13 @@ static motion_status_t motion_feedback (motion_t * p_motion,
                                         int32_t right_delta);
 static motion_status_t motion_drive (motion_t * p_motion, core_real_t dt_s);
 static core_real_t motion_sign (core_real_t value);
+static int32_t motion_quantise (core_real_t value, bitpack_round_t rule,
+                                uint32_t width);
+static uint32_t motion_encode (core_real_t value, bitpack_round_t rule,
+                               uint32_t width);
+static core_real_t motion_decode (uint32_t field, uint32_t width);
+static uint32_t motion_target_field (const motion_request_t * p_request);
+static bool motion_kind_defined (motion_kind_t kind);
 
 motion_status_t motion_init (motion_t * p_motion,
                              const motion_config_t * p_config)
@@ -96,7 +116,11 @@ motion_status_t motion_submit (motion_t * p_motion,
     {
         return MOTION_INVALID;
     }
-    serial_delta = p_request->command_id - p_motion->request.command_id;
+    /* uint8_t IDs promote to int: subtract as uint32_t and keep the low
+     * MOTION_ID_BITS bits, the serial distance modulo 2^8.
+     */
+    serial_delta = ((uint32_t) p_request->command_id -
+                    (uint32_t) p_motion->request.command_id) & MOTION_ID_MASK;
     if (p_motion->b_has_command && (0U == serial_delta))
     {
         if (!motion_same_primitive(&p_motion->request, p_request))
@@ -124,7 +148,7 @@ motion_status_t motion_submit (motion_t * p_motion,
         p_motion->renewed_ms = now_ms;
         return MOTION_OK;
     }
-    if (p_motion->b_has_command && (serial_delta >= MOTION_SERIAL_HALF))
+    if (p_motion->b_has_command && (serial_delta >= MOTION_ID_HALF))
     {
         return MOTION_REJECTED;
     }
@@ -219,6 +243,98 @@ motion_status_t motion_step (motion_t * p_motion, uint32_t now_ms,
     return p_motion->output.reason;
 }
 
+/** @brief Magnitudes round up, so a packed request is never accepted where
+ * the original would be rejected (see motion_request_packed_t).
+ */
+void motion_request_pack (const motion_request_t * p_request,
+                          motion_request_packed_t * p_packed)
+{
+    if ((NULL == p_request) || (NULL == p_packed))
+    {
+        return;
+    }
+    p_packed->forward_mm_s = motion_encode(p_request->forward_mps,
+        BITPACK_AWAY, MOTION_FORWARD_BITS) & MOTION_FORWARD_MASK;
+    p_packed->yaw_mrad_s = motion_encode(p_request->yaw_rps, BITPACK_AWAY,
+                                         MOTION_YAW_BITS) & MOTION_YAW_MASK;
+    p_packed->command_id = p_request->command_id;
+    if (motion_kind_defined(p_request->kind))
+    {
+        p_packed->kind = p_request->kind;
+        p_packed->target =
+            motion_target_field(p_request) & MOTION_TARGET_MASK;
+    }
+    else
+    {
+        /* Two bits would alias an undefined kind onto a real one. A
+         * VELOCITY with the reserved target is INVALID, as the original.
+         */
+        p_packed->kind = MOTION_VELOCITY;
+        p_packed->target =
+            bitpack_invalid(MOTION_TARGET_BITS) & MOTION_TARGET_MASK;
+    }
+}
+
+/** @brief Field codes back to SI units; the same codes give equal values,
+ * so a renewal unpacks to an identical primitive.
+ */
+void motion_request_unpack (const motion_request_packed_t * p_packed,
+                            motion_request_t * p_request)
+{
+    if ((NULL == p_packed) || (NULL == p_request))
+    {
+        return;
+    }
+    p_request->command_id = p_packed->command_id;
+    p_request->kind = p_packed->kind;
+    p_request->forward_mps = motion_decode(p_packed->forward_mm_s,
+                                           MOTION_FORWARD_BITS);
+    p_request->yaw_rps = motion_decode(p_packed->yaw_mrad_s,
+                                       MOTION_YAW_BITS);
+    p_request->target = motion_decode(p_packed->target, MOTION_TARGET_BITS);
+}
+
+/** @brief Wheel speeds round to the nearest mm/s; enums and flags copy. */
+void motion_snapshot_pack (const motion_output_t * p_output,
+                           motion_snapshot_t * p_snapshot)
+{
+    if ((NULL == p_output) || (NULL == p_snapshot))
+    {
+        return;
+    }
+    core_pose_pack(&p_output->pose, &p_snapshot->pose);
+    p_snapshot->left_mm_s = motion_encode(p_output->left_speed_mps,
+        BITPACK_NEAREST, MOTION_SPEED_BITS) & MOTION_SPEED_MASK;
+    p_snapshot->right_mm_s = motion_encode(p_output->right_speed_mps,
+        BITPACK_NEAREST, MOTION_SPEED_BITS) & MOTION_SPEED_MASK;
+    p_snapshot->command_id = p_output->command_id;
+    p_snapshot->state = p_output->state;
+    p_snapshot->reason = p_output->reason;
+    p_snapshot->b_stationary = p_output->b_stationary;
+}
+
+/** @brief Shared fields are restored; motion-task fields read as zero. */
+void motion_snapshot_unpack (const motion_snapshot_t * p_snapshot,
+                             motion_output_t * p_output)
+{
+    if ((NULL == p_snapshot) || (NULL == p_output))
+    {
+        return;
+    }
+    core_pose_unpack(&p_snapshot->pose, &p_output->pose);
+    p_output->state = p_snapshot->state;
+    p_output->reason = p_snapshot->reason;
+    p_output->command_id = p_snapshot->command_id;
+    p_output->left_duty = 0.0;
+    p_output->right_duty = 0.0;
+    p_output->left_speed_mps = motion_decode(p_snapshot->left_mm_s,
+                                             MOTION_SPEED_BITS);
+    p_output->right_speed_mps = motion_decode(p_snapshot->right_mm_s,
+                                              MOTION_SPEED_BITS);
+    p_output->signed_distance_m = 0.0;
+    p_output->b_stationary = p_snapshot->b_stationary;
+}
+
 /** @brief Check finite, bounded configuration before it can affect outputs. */
 static bool motion_config_valid (const motion_config_t * p_config)
 {
@@ -289,7 +405,7 @@ static bool motion_request_valid (const motion_t * p_motion,
                    (fabs(p_request->forward_mps) < MOTION_COMPARE_EPS) &&
                    (fabs(p_request->target) >
                     p_config->turn_tolerance_rad) &&
-                   (fabs(p_request->target) <= (2.0 * CORE_PI));
+                   (fabs(p_request->target) <= MOTION_TURN_LIMIT_RAD);
         case MOTION_HALT:
             return false;
         default:
@@ -536,6 +652,104 @@ static motion_status_t motion_drive (motion_t * p_motion, core_real_t dt_s)
 static core_real_t motion_sign (core_real_t value)
 {
     return (value < 0.0) ? -1.0 : 1.0;
+}
+
+/** @brief Round a finite value in thousandths by rule, saturating
+ * symmetrically at the field's +/-(2^(width-1)-1).
+ */
+static int32_t motion_quantise (core_real_t value, bitpack_round_t rule,
+                                uint32_t width)
+{
+    int32_t limit = bitpack_signed_max(width);
+    int32_t code = 0;
+
+    if (!bitpack_quantise(value, MOTION_MILLI, rule, -limit, limit, &code))
+    {
+        /* Only a product beyond DBL_MAX fails here: saturate by sign. */
+        code = (value < 0.0) ? -limit : limit;
+    }
+    return code;
+}
+
+/** @brief Signed field in thousandths; non-finite gives the reserved code. */
+static uint32_t motion_encode (core_real_t value, bitpack_round_t rule,
+                               uint32_t width)
+{
+    if (!isfinite(value))
+    {
+        return bitpack_invalid(width);
+    }
+    return bitpack_signed(motion_quantise(value, rule, width), width);
+}
+
+/** @brief Thousandths back to SI units; the reserved code gives NAN. */
+static core_real_t motion_decode (uint32_t field, uint32_t width)
+{
+    if (bitpack_invalid(width) == field)
+    {
+        return NAN;
+    }
+    return (core_real_t) bitpack_extend(field, width) / MOTION_MILLI;
+}
+
+/** @brief DISTANCE mm or TURN mrad, magnitude rounded up (AWAY), so every
+ * |target| > tolerance decision stays exact. A TURN target with
+ * |target| <= 2*pi is capped at 6283 mrad, keeping that check exact too.
+ * HALT stores 0; VELOCITY stores 0 unless its target is non-finite.
+ */
+static uint32_t motion_target_field (const motion_request_t * p_request)
+{
+    uint32_t field = 0U;
+    int32_t  code = 0;
+
+    if (MOTION_HALT == p_request->kind)
+    {
+        field = 0U;
+    }
+    else if (!isfinite(p_request->target))
+    {
+        /* Reserved for every other kind, so validation still rejects it. */
+        field = bitpack_invalid(MOTION_TARGET_BITS);
+    }
+    else if (MOTION_VELOCITY == p_request->kind)
+    {
+        field = 0U;
+    }
+    else
+    {
+        code = motion_quantise(p_request->target, BITPACK_AWAY,
+                               MOTION_TARGET_BITS);
+        if ((MOTION_TURN == p_request->kind) &&
+            (fabs(p_request->target) <= MOTION_TURN_LIMIT_RAD))
+        {
+            code = (code > MOTION_TURN_MAX_MRAD) ?
+                   MOTION_TURN_MAX_MRAD : code;
+            code = (code < -MOTION_TURN_MAX_MRAD) ?
+                   -MOTION_TURN_MAX_MRAD : code;
+        }
+        field = bitpack_signed(code, MOTION_TARGET_BITS);
+    }
+    return field;
+}
+
+/** @brief Only the four enumerators are primitives; anything else is not. */
+static bool motion_kind_defined (motion_kind_t kind)
+{
+    bool b_defined = false;
+
+    switch (kind)
+    {
+        case MOTION_VELOCITY:
+        case MOTION_DISTANCE:
+        case MOTION_TURN:
+        case MOTION_HALT:
+            b_defined = true;
+        break;
+        default:
+            b_defined = false;
+        break;
+    }
+    return b_defined;
 }
 
 /** End of file. */

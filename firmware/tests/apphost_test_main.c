@@ -11,9 +11,11 @@
 #include "barcode.h"
 #include "board.h"
 #include "course_cfg.h"
+#include "mqttcmd.h"
 #include "net_mqtt.h"
 #include "robot_app.h"
 #include "robot_config.h"
+#include "telemetry.h"
 #include "vehicle.h"
 
 #include <math.h>
@@ -27,7 +29,6 @@
 #define APPHOST_FIXTURE (0)
 #endif
 
-#define APPHOST_FRAME_CAPACITY (512U)
 #define APPHOST_BOOT_MS (400U)
 #define APPHOST_BUTTON_MS (50U)
 #define APPHOST_STALL_LIMIT_MS (8000U)
@@ -35,6 +36,8 @@
 #define APPHOST_ROUTE_LIMIT_MS (60000U)
 #define APPHOST_CLOCK_RUN_MS (20000U)
 #define APPHOST_MHZ_PER_HZ (1000U)
+/* board.h: each ISR delta holds +/-31 counts (6 bits); more is an error. */
+#define APPHOST_DELTA_MAX (31)
 
 static uint64_t g_now_us;
 static uint64_t g_accel_consumed;
@@ -70,6 +73,10 @@ static uint32_t g_perception_frames;
 static uint32_t g_diagnostic_frames;
 static uint32_t g_same_time_frames;
 static uint32_t g_max_same_time_frames;
+static uint32_t g_seq_errors;
+static uint32_t g_seq_wraps;
+static uint32_t g_pair_errors;
+static uint8_t g_last_seq;
 static uint64_t g_last_send_us;
 static int32_t g_left_delta;
 static int32_t g_right_delta;
@@ -100,6 +107,7 @@ static bool g_b_triggered;
 static bool g_b_no_echo;
 static bool g_b_sonar_silent;
 static bool g_b_large_barcode_gap;
+static barcode_config_t g_apphost_codebook;
 static bool g_b_scan_obstacle;
 static bool g_b_block_left;
 static bool g_b_block_right;
@@ -108,6 +116,12 @@ static bool g_b_centre_after_scan;
 static bool g_b_no_return_echo;
 static bool g_b_no_side_echo;
 static bool g_b_inject_stop_unlock;
+/* GP20 press between Safety's poll and Vehicle's read in one tick. */
+static bool g_b_press_after_safety;
+/* STOP injected at the n-th outermost unlock of a Vehicle step (0 = off). */
+static bool g_b_vehicle_step;
+static uint32_t g_vehicle_unlocks;
+static uint32_t g_inject_vehicle_unlock;
 static bool g_b_skip_line;
 static bool g_b_skip_telemetry;
 static bool g_b_skip_comm;
@@ -117,10 +131,23 @@ static bool g_b_preempt_accel;
 static bool g_b_preempt_accel_always;
 static bool g_b_preempt_button;
 static bool g_b_prepare_reject;
-static char g_pending_command[33];
-static char g_last_status[APPHOST_FRAME_CAPACITY];
-static char g_last_perception[APPHOST_FRAME_CAPACITY];
-static char g_last_diagnostic[APPHOST_FRAME_CAPACITY];
+static bool g_b_command_pending;
+static bool g_b_online = true;
+static uint8_t g_pending_command;
+static uint8_t g_rejected_commands;
+static telemetry_status_t g_last_status;
+static telemetry_perception_t g_last_perception;
+static telemetry_diagnostic_t g_last_diagnostic;
+
+/** Diagnostic-frame fields read after a forced telemetry burst. */
+typedef enum
+{
+    APPHOST_RUN = 0,
+    APPHOST_FC,
+    APPHOST_BU,
+    APPHOST_BR,
+    APPHOST_MP
+} apphost_key_t;
 
 /* BARR-TEST-01: a single-evaluation macro retains source diagnostics. */
 #define CHECK(b_condition) \
@@ -167,9 +194,23 @@ static void apphost_barcode_junction (void);
 static void apphost_hump_history (void);
 static void apphost_watchdog_owners (void);
 static void apphost_advance (double distance_m);
-static int apphost_diagnostic_value (const char * p_key);
+static int apphost_diagnostic_value (apphost_key_t key);
+static void apphost_fault_mask (void);
+static void apphost_fault_stress (void);
+static void apphost_encoder_wrap (void);
+static void apphost_encoder_jumps (void);
+static void apphost_boot_counts (void);
+static void apphost_stop_race (void);
+static void apphost_stop_snapshot (void);
+static bool apphost_select_review (const char * p_name);
+static uint32_t apphost_mask (void);
 static void apphost_fault_diagnostic (void);
 static void apphost_telemetry_budget (void);
+static void apphost_telemetry_wrap (void);
+static void apphost_sequence (uint8_t seq);
+static void apphost_partner (uint8_t seq);
+static uint32_t apphost_take_delta (int32_t * p_delta, int32_t * p_count,
+                                    uint32_t error_bit);
 static void apphost_preempt (void);
 static board_accel_status_t apphost_accel_clocked (int16_t milligravity[3]);
 static void apphost_accel_clock (uint32_t odr_mhz, uint32_t jitter_us);
@@ -265,21 +306,53 @@ void board_read_encoders (int32_t * p_left, int32_t * p_right,
 {
     if ((NULL != p_left) && (NULL != p_right) && (NULL != p_errors))
     {
-        *p_left = g_left_delta;
-        *p_right = g_right_delta;
-        *p_errors = 0U;
-        g_left_delta = 0;
-        g_right_delta = 0;
+        *p_errors = apphost_take_delta(&g_left_delta, p_left,
+                                       BOARD_ENCODER_ERROR_LEFT) |
+                    apphost_take_delta(&g_right_delta, p_right,
+                                       BOARD_ENCODER_ERROR_RIGHT);
     }
 }
 
-/** @brief A separate non-consuming position snapshot supports optical edges. */
-void board_encoder_totals (uint32_t * p_left, uint32_t * p_right)
+/** @brief Read and clear one fixture delta as the board's 6-bit field: a
+ * delta beyond +/-31 counts reads saturated with that wheel's error bit.
+ */
+static uint32_t apphost_take_delta (int32_t * p_delta, int32_t * p_count,
+                                    uint32_t error_bit)
+{
+    uint32_t error = 0U;
+
+    *p_count = *p_delta;
+    if (*p_delta > APPHOST_DELTA_MAX)
+    {
+        *p_count = APPHOST_DELTA_MAX;
+        error = error_bit;
+    }
+    else if (*p_delta < -APPHOST_DELTA_MAX)
+    {
+        *p_count = -APPHOST_DELTA_MAX;
+        error = error_bit;
+    }
+    *p_delta = 0;
+    return error;
+}
+
+/** @brief Boot counts are dropped before the first Motion read. */
+void board_encoders_discard (void)
+{
+    g_left_delta = 0;
+    g_right_delta = 0;
+}
+
+/** @brief A separate non-consuming position snapshot supports optical edges.
+ * The board publishes 16-bit wrapping totals; the fixture keeps 32 bits.
+ */
+void board_encoder_totals (uint16_t * p_left, uint16_t * p_right)
 {
     if ((NULL != p_left) && (NULL != p_right))
     {
-        *p_left = g_left_total;
-        *p_right = g_right_total;
+        /* Modulo-2^16 narrowing is the board's documented total. */
+        *p_left = (uint16_t)g_left_total;
+        *p_right = (uint16_t)g_right_total;
     }
 }
 
@@ -453,13 +526,16 @@ bool board_motor_prepare (core_real_t left_duty, core_real_t right_duty,
     {
         return false;
     }
-    /* Clamped magnitudes are at most6250, before uint16_t narrowing. */
-    p_command->left_level = (uint16_t)(fmin(fabs(left_duty), ROBOT_MAX_DUTY)
-                                      * (ROBOT_PWM_WRAP + 1U));
-    p_command->right_level = (uint16_t)(fmin(fabs(right_duty), ROBOT_MAX_DUTY)
-                                       * (ROBOT_PWM_WRAP + 1U));
-    p_command->left_direction = (left_duty < 0.0) ? -1 : 1;
-    p_command->right_direction = (right_duty < 0.0) ? -1 : 1;
+    /* Clamped magnitudes are at most 6250, inside the 13-bit level field. */
+    p_command->left_level = ((uint32_t)(fmin(fabs(left_duty), ROBOT_MAX_DUTY)
+                                        * (ROBOT_PWM_WRAP + 1U))) & 0x1FFFU;
+    p_command->right_level = ((uint32_t)(fmin(fabs(right_duty),
+                                              ROBOT_MAX_DUTY)
+                                         * (ROBOT_PWM_WRAP + 1U))) & 0x1FFFU;
+    p_command->left_direction =
+        BOARD_DIRECTION_ENCODE((left_duty < 0.0) ? -1 : 1);
+    p_command->right_direction =
+        BOARD_DIRECTION_ENCODE((right_duty < 0.0) ? -1 : 1);
     p_command->b_valid = true;
     return true;
 }
@@ -473,9 +549,11 @@ void board_motor_commit (const board_motor_command_t * p_command)
         return;
     }
     g_left_duty = ((double)p_command->left_level /
-                   (ROBOT_PWM_WRAP + 1U)) * p_command->left_direction;
+                   (ROBOT_PWM_WRAP + 1U)) *
+                  board_direction_decode(p_command->left_direction);
     g_right_duty = ((double)p_command->right_level /
-                    (ROBOT_PWM_WRAP + 1U)) * p_command->right_direction;
+                    (ROBOT_PWM_WRAP + 1U)) *
+                   board_direction_decode(p_command->right_direction);
     if ((0U == p_command->left_level) && (0U == p_command->right_level))
     {
         g_zero_commits += 1U;
@@ -554,6 +632,17 @@ void app_main_unlock (uint32_t saved_mask)
         /* Millisecond fixture time is kept well below uint32_t wrap. */
         robot_app_comm_step((uint32_t)(g_now_us / 1000U));
     }
+    if ((0U == g_lock_mask) && g_b_vehicle_step &&
+        (0U != g_inject_vehicle_unlock))
+    {
+        ++g_vehicle_unlocks;
+        if (g_vehicle_unlocks == g_inject_vehicle_unlock)
+        {
+            g_inject_vehicle_unlock = 0U;
+            apphost_send("STOP");
+            robot_app_comm_step((uint32_t)(g_now_us / 1000U));
+        }
+    }
 }
 
 /** @brief IRQ installation is a board boundary, excluded from host claims. */
@@ -568,10 +657,15 @@ bool net_mqtt_start (void)
     return true;
 }
 
-/** @brief Capture actual serialized status; preserve the256-byte API bound. */
-bool net_mqtt_send (const char * p_text, size_t length)
+/** @brief Decode each actual binary frame with the production decoder;
+ * every frame the application sends must decode exactly.
+ */
+bool net_mqtt_send (const uint8_t * p_frame, size_t length)
 {
-    if ((NULL == p_text) || (0U == length) || (length > 256U))
+    telemetry_frame_t type = TELEMETRY_FRAME_STATUS;
+
+    if ((NULL == p_frame) || (0U == length) ||
+        (length > TELEMETRY_FRAME_MAX))
     {
         return false;
     }
@@ -585,41 +679,56 @@ bool net_mqtt_send (const char * p_text, size_t length)
     {
         g_max_same_time_frames = g_same_time_frames;
     }
-    if ((NULL != strstr(p_text, "\"st\":")) ||
-        (NULL != strstr(p_text, "\"state\":")))
+    CHECK(telemetry_frame_type(p_frame, length, &type));
+    switch (type)
     {
-        memcpy(g_last_status, p_text, length);
-        g_last_status[length] = '\0';
-        ++g_status_frames;
-    }
-    if (NULL != strstr(p_text, "\"ba\":"))
-    {
-        memcpy(g_last_perception, p_text, length);
-        g_last_perception[length] = '\0';
-        ++g_perception_frames;
-    }
-    if (NULL != strstr(p_text, "\"fc\":"))
-    {
-        memcpy(g_last_diagnostic, p_text, length);
-        g_last_diagnostic[length] = '\0';
-        ++g_diagnostic_frames;
+        case TELEMETRY_FRAME_STATUS:
+            CHECK(telemetry_decode_status(p_frame, length, &g_last_status));
+            apphost_sequence(g_last_status.seq);
+            ++g_status_frames;
+        break;
+        case TELEMETRY_FRAME_PERCEPTION:
+            CHECK(telemetry_decode_perception(p_frame, length,
+                                              &g_last_perception));
+            apphost_partner(g_last_perception.seq);
+            ++g_perception_frames;
+        break;
+        case TELEMETRY_FRAME_DIAGNOSTIC:
+            CHECK(telemetry_decode_diagnostic(p_frame, length,
+                                              &g_last_diagnostic));
+            apphost_partner(g_last_diagnostic.seq);
+            ++g_diagnostic_frames;
+        break;
+        default:
+            CHECK(false);
+        break;
     }
     return true;
 }
 
-/** @brief Deliver one exact bounded command through the production API. */
-size_t net_mqtt_receive (char * p_text, size_t capacity)
+/** @brief Deliver one command byte through the production API. */
+bool net_mqtt_receive (uint8_t * p_command)
 {
-    size_t length = strlen(g_pending_command);
-
-    if ((NULL == p_text) || (0U == length) || (capacity <= length))
+    if ((NULL == p_command) || (!g_b_command_pending))
     {
-        return 0U;
+        return false;
     }
-    memcpy(p_text, g_pending_command, length + 1U);
-    g_pending_command[0] = '\0';
+    *p_command = g_pending_command;
+    g_b_command_pending = false;
     g_command_reads += 1U;
-    return length;
+    return true;
+}
+
+/** @brief Session state of the simulated radio owner. */
+bool net_mqtt_online (void)
+{
+    return g_b_online;
+}
+
+/** @brief Wrapping count of payloads the simulated radio rejected. */
+uint8_t net_mqtt_rejected (void)
+{
+    return g_rejected_commands;
 }
 
 /** @brief No lwIP stack is part of the application-step host fixture. */
@@ -629,28 +738,30 @@ void net_mqtt_poll (struct netif * p_interface)
     (void)p_interface;
 }
 
-/** @brief One labelled synthetic pattern enables fixture INIT only. */
-void course_cfg_load (barcode_config_t * p_config)
+/** @brief One labelled synthetic pattern enables fixture INIT only. The
+ * table is refilled on every call so g_b_large_barcode_gap takes effect;
+ * the runtime keeps this pointer, as it keeps the flash table on target.
+ */
+const barcode_config_t * course_cfg_codebook (void)
 {
-    barcode_defaults(p_config);
-    if (NULL == p_config)
-    {
-        return;
-    }
-    p_config->b_calibration_confirmed = 0 != ROBOT_CALIBRATION_CONFIRMED;
-    p_config->b_codebook_confirmed = 0 != ROBOT_BARCODE_CONFIRMED;
+    barcode_defaults(&g_apphost_codebook);
+    g_apphost_codebook.b_calibration_confirmed =
+        0 != ROBOT_CALIBRATION_CONFIRMED;
+    g_apphost_codebook.b_codebook_confirmed = 0 != ROBOT_BARCODE_CONFIRMED;
     if (0 != APPHOST_FIXTURE)
     {
-        p_config->symbol_count = 1U;
-        p_config->symbols[0].label = 'T';
-        p_config->symbols[0].action = BARCODE_ACTION_STRAIGHT;
-        p_config->symbols[0].run_count = 1U;
-        p_config->symbols[0].width_m[0] = 0.012;
-        /* Fixture resolution is0.567mm; widths are not course values. */
-        p_config->minimum_run_m = 0.010;
-        p_config->maximum_step_m = 0.002;
-        p_config->maximum_gap_ms = g_b_large_barcode_gap ? 50U : 2U;
+        g_apphost_codebook.symbol_count = 1U;
+        g_apphost_codebook.symbols[0].label = 'T';
+        g_apphost_codebook.symbols[0].action = BARCODE_ACTION_STRAIGHT;
+        g_apphost_codebook.symbols[0].run_count = 1U;
+        g_apphost_codebook.symbols[0].width_m[0] = 0.012;
+        /* Fixture half-count is 0.284 mm; widths are not course values. */
+        g_apphost_codebook.minimum_run_m = 0.010;
+        g_apphost_codebook.maximum_step_m = 0.002;
+        g_apphost_codebook.maximum_gap_ms =
+            g_b_large_barcode_gap ? 50U : 2U;
     }
+    return &g_apphost_codebook;
 }
 
 /** @brief Keep checks enabled in optimized release builds. */
@@ -663,10 +774,15 @@ static void apphost_check (bool b_condition, const char * p_expression,
         g_failures += 1U;
         /* Diagnostic failure cannot erase an already counted test failure. */
         /* Fixture time is below 2^32 microseconds; narrowing is exact. */
-        (void)fprintf(stderr, "FAIL line %d time %u: %s; %s\n", line,
-            (uint32_t)g_now_us, p_expression, g_last_status);
+        (void)fprintf(stderr, "FAIL line %d time %u: %s; st=%u stop=%d "
+            "fault=%d rv=%d rg=%u\n", line, (uint32_t)g_now_us,
+            p_expression, g_last_status.state, g_last_status.b_stop,
+            g_last_status.b_hardfault, g_last_status.b_rangevalid,
+            g_last_status.range_mm);
         /* Diagnostic failure cannot change the recorded test verdict. */
-        (void)fprintf(stderr, "Perception: %s\n", g_last_perception);
+        (void)fprintf(stderr, "Diagnostic: fc=%u mask=0x%04x src=%u\n",
+            g_last_diagnostic.fault_code, g_last_diagnostic.fault_mask,
+            g_last_diagnostic.stop_source);
     }
 }
 
@@ -684,8 +800,14 @@ static void apphost_tick (void)
         robot_app_safety_step(now_ms);
     }
     /* Release phases default to 0; timing scenarios offset Motion/Line,
-     * and a phase sweep may offset Motion and the IMU.
+     * and a phase sweep may offset Motion and the IMU. A press armed for
+     * the gap after Safety's poll lands here.
      */
+    if (g_b_press_after_safety)
+    {
+        g_b_press_after_safety = false;
+        g_b_stop = true;
+    }
     if (g_motion_phase == (now_ms % 5U))
     {
         robot_app_motion_step(now_ms);
@@ -696,7 +818,10 @@ static void apphost_tick (void)
     }
     if (0U == (now_ms % 10U))
     {
+        g_b_vehicle_step = true;
+        g_vehicle_unlocks = 0U;
         robot_app_vehicle_step(now_ms);
+        g_b_vehicle_step = false;
     }
     if (g_imu_phase == (now_ms % 10U))
     {
@@ -821,43 +946,39 @@ static void apphost_start (void)
     CHECK(!apphost_stopped());
 }
 
-/** @brief Inject one bounded transport payload without altering app state. */
+/** @brief Queue the binary command byte for a named command. */
 static void apphost_send (const char * p_command)
 {
-    size_t length = strlen(p_command);
-
-    CHECK(length < sizeof(g_pending_command));
-    if (length < sizeof(g_pending_command))
+    static const char * const names[] =
     {
-        memcpy(g_pending_command, p_command, length + 1U);
+        "STOP", "START", "RESET", "LEFT", "RIGHT", "STRAIGHT", "UTURN"
+    };
+    uint32_t index = 0U;
+    bool b_found = false;
+
+    for (index = 0U; index < (sizeof(names) / sizeof(names[0])); ++index)
+    {
+        if (0 == strcmp(p_command, names[index]))
+        {
+            /* index + 1 is the declared mqttcmd_code_t value 1..7. */
+            g_pending_command = mqttcmd_byte((mqttcmd_code_t)(index + 1U));
+            g_b_command_pending = true;
+            b_found = true;
+        }
     }
+    CHECK(b_found);
 }
 
-/** @brief Inspect the actual public JSON frame, supporting the old key once. */
+/** @brief Inspect the state field of the actual decoded status frame. */
 static int32_t apphost_state (void)
 {
-    const char * p_state = NULL;
     uint32_t now_ms = 0U;
-    int result = -1;
 
     /* Test horizons below2^32ms make the narrowing exact. */
     now_ms = (uint32_t)(g_now_us / 1000U);
     robot_app_telemetry_step(now_ms);
     robot_app_telemetry_step(now_ms);
-    p_state = strstr(g_last_status, "\"st\":");
-    if (NULL != p_state)
-    {
-        result = atoi(p_state + 5);
-    }
-    else
-    {
-        p_state = strstr(g_last_status, "\"state\":");
-        if (NULL != p_state)
-        {
-            result = atoi(p_state + 8);
-        }
-    }
-    return result;
+    return (int32_t)g_last_status.state;
 }
 
 /** @brief Zero commanded demand; mechanical stop is deliberately not claimed.
@@ -964,29 +1085,41 @@ static void apphost_stall (bool b_left)
     apphost_run(APPHOST_STALL_LIMIT_MS);
     CHECK(VEHICLE_FAULT == apphost_state());
     CHECK(apphost_stopped());
-    CHECK(NULL != strstr(g_last_status, "\"fault\":true"));
+    CHECK(g_last_status.b_hardfault);
 }
 
 /** @brief A lost ultrasonic echo never becomes a new clear-space observation.
  */
 static void apphost_unknown_range (void)
 {
+    const uint32_t supervisor = UINT32_C(1) << ROBOT_APP_BIT_SUPERVISOR;
+    const uint32_t echo = UINT32_C(1) << ROBOT_APP_BIT_NO_ECHO;
+    robot_app_diagnostic_t diagnostic;
+
     apphost_start();
     g_b_no_echo = true;
     apphost_run(200U);
     CHECK(VEHICLE_RANGE_WAIT == apphost_state());
     CHECK(apphost_stopped());
-    CHECK(NULL != strstr(g_last_status, "\"rv\":false"));
+    CHECK(!g_last_status.b_rangevalid);
+    CHECK(echo == apphost_mask());
     apphost_run(1000U);
     CHECK(VEHICLE_FAULT == apphost_state());
     CHECK(apphost_stopped());
+    /* The supervisor's own timeout is its fault bit; NO_ECHO says why. */
+    memset(&diagnostic, 0, sizeof(diagnostic));
+    robot_app_diagnostic(&diagnostic);
+    CHECK((ROBOT_APP_FAULT_SUPERVISOR == diagnostic.code) &&
+          ((supervisor | echo) == diagnostic.mask));
     g_b_no_echo = false;
     apphost_run(300U);
     CHECK(VEHICLE_FAULT == apphost_state());
     CHECK(apphost_stopped());
+    CHECK(supervisor == apphost_mask());
     apphost_button();
     CHECK(VEHICLE_IDLE == apphost_state());
     CHECK(apphost_stopped());
+    CHECK(0U == apphost_mask());
     apphost_button();
     CHECK(VEHICLE_FOLLOW == apphost_state());
 }
@@ -1010,7 +1143,7 @@ static void apphost_transient_range (bool b_obstacle)
     apphost_run(400U);
     CHECK((b_obstacle ? VEHICLE_SCAN : VEHICLE_FOLLOW) == apphost_state());
     CHECK(b_obstacle == apphost_stopped());
-    CHECK(1 == apphost_diagnostic_value("\"run\":"));
+    CHECK(1 == apphost_diagnostic_value(APPHOST_RUN));
 }
 
 /** @brief STOP during a range pause remains latched after echo recovery. */
@@ -1026,7 +1159,7 @@ static void apphost_range_stop (void)
     CHECK(VEHICLE_FAULT == apphost_state());
     CHECK(apphost_stopped());
     CHECK(ROBOT_APP_FAULT_REMOTE_STOP ==
-          apphost_diagnostic_value("\"fc\":"));
+          apphost_diagnostic_value(APPHOST_FC));
 }
 
 /** @brief Absent results and ranges from the wrong pose cannot grant motion. */
@@ -1043,7 +1176,7 @@ static void apphost_sonar_silent (bool b_stale_pose)
         g_right_delta += 30;
         apphost_run(20U);
         CHECK(VEHICLE_RANGE_WAIT == apphost_state());
-        CHECK(NULL != strstr(g_last_status, "\"rv\":true"));
+        CHECK(g_last_status.b_rangevalid);
     }
     apphost_run(250U);
     CHECK(VEHICLE_RANGE_WAIT == apphost_state());
@@ -1080,12 +1213,12 @@ static void apphost_range_start (void)
 /** @brief A valid decoder config may exceed application sampling limits. */
 static void apphost_barcode_gap (void)
 {
-    barcode_config_t config = {0};
+    const barcode_config_t * p_config = NULL;
 
     g_b_large_barcode_gap = true;
-    course_cfg_load(&config);
-    CHECK(barcode_config_valid(&config));
-    CHECK(50U == config.maximum_gap_ms);
+    p_config = course_cfg_codebook();
+    CHECK(barcode_config_valid(p_config));
+    CHECK(50U == p_config->maximum_gap_ms);
     apphost_boot();
     apphost_button();
     CHECK(VEHICLE_INIT == apphost_state());
@@ -1157,7 +1290,10 @@ static void apphost_command_policy (void)
     CHECK(3U == g_command_reads);
 }
 
-/** @brief Actual assigned peripheral macros preserve GP0/GP1 console pins. */
+/** @brief Only the HC-SR04 shares the GP0/GP1 console pins, as TRIG on TX
+ * and ECHO on RX; it stays off the GP12-GP15 servo ports, and Grove 6's
+ * rewired contact takes neither GP26 nor a servo pin.
+ */
 static void apphost_pin_policy (void)
 {
     CHECK(ROBOT_PIN_ENCODER_LEFT_A > 1U);
@@ -1166,8 +1302,20 @@ static void apphost_pin_policy (void)
     CHECK(ROBOT_PIN_ENCODER_RIGHT_B > 1U);
     CHECK(ROBOT_PIN_IMU_SDA > 1U);
     CHECK(ROBOT_PIN_IMU_SCL > 1U);
-    CHECK(ROBOT_PIN_TRIGGER > 1U);
-    CHECK(ROBOT_PIN_ECHO > 1U);
+    CHECK(ROBOT_PIN_MOTOR_LEFT_A > 1U);
+    CHECK(ROBOT_PIN_SERVO > 1U);
+    CHECK(ROBOT_PIN_STOP > 1U);
+    CHECK(ROBOT_PIN_START > 1U);
+    CHECK(ROBOT_PIN_IR_LEFT > 1U);
+    CHECK((0U == ROBOT_PIN_CONSOLE_TX) && (1U == ROBOT_PIN_CONSOLE_RX));
+    CHECK(ROBOT_PIN_CONSOLE_TX == ROBOT_PIN_TRIGGER);
+    CHECK(ROBOT_PIN_CONSOLE_RX == ROBOT_PIN_ECHO);
+    CHECK((ROBOT_PIN_TRIGGER < 12U) || (ROBOT_PIN_TRIGGER > 15U));
+    CHECK((ROBOT_PIN_ECHO < 12U) || (ROBOT_PIN_ECHO > 15U));
+    /* Grove 6's second contact moved off GP26 (Grove 5's IR) to GP13. */
+    CHECK(ROBOT_PIN_IR_RIGHT_AUX != ROBOT_PIN_IR_LEFT);
+    CHECK((ROBOT_PIN_IR_RIGHT_AUX != ROBOT_PIN_SERVO) &&
+          (ROBOT_PIN_IR_RIGHT_AUX != 14U) && (ROBOT_PIN_IR_RIGHT_AUX != 15U));
 }
 
 /** @brief An explicit scenario name selects a finite deterministic fixture. */
@@ -1319,9 +1467,25 @@ static bool apphost_select_guards (const char * p_name)
     {
         apphost_fault_diagnostic();
     }
+    else if (0 == strcmp(p_name, "fault_mask"))
+    {
+        apphost_fault_mask();
+    }
+    else if (0 == strcmp(p_name, "fault_stress"))
+    {
+        apphost_fault_stress();
+    }
+    else if (0 == strcmp(p_name, "encoder_wrap"))
+    {
+        apphost_encoder_wrap();
+    }
     else if (0 == strcmp(p_name, "telemetry_budget"))
     {
         apphost_telemetry_budget();
+    }
+    else if (0 == strcmp(p_name, "telemetry_wrap"))
+    {
+        apphost_telemetry_wrap();
     }
     else
     {
@@ -1397,7 +1561,7 @@ static bool apphost_select_timing (const char * p_name)
     }
     else
     {
-        return false;
+        return apphost_select_review(p_name);
     }
     return true;
 }
@@ -1413,7 +1577,7 @@ static void apphost_line_timeout (void)
     apphost_run(40U);
     CHECK(VEHICLE_FAULT == apphost_state());
     CHECK(apphost_stopped());
-    CHECK(NULL != strstr(g_last_status, "\"fault\":true"));
+    CHECK(g_last_status.b_hardfault);
     CHECK(g_watchdog_feeds <= (previous_feeds + 10U));
 }
 
@@ -1497,7 +1661,7 @@ static void apphost_tilt_fault (bool b_roll)
     apphost_run(300U);
     CHECK(VEHICLE_FAULT == apphost_state());
     CHECK(apphost_stopped());
-    CHECK(NULL != strstr(g_last_status, "\"fault\":true"));
+    CHECK(g_last_status.b_hardfault);
     robot_app_diagnostic(&diagnostic);
     CHECK((ROBOT_APP_FAULT_TILT == diagnostic.code) ||
           ((!b_roll) &&
@@ -1526,7 +1690,7 @@ static void apphost_transient_tilt (void)
     CHECK(apphost_stopped());
     apphost_run(240U);
     CHECK(VEHICLE_FAULT == apphost_state());
-    CHECK(NULL != strstr(g_last_status, "\"fault\":false"));
+    CHECK(!g_last_status.b_hardfault);
     robot_app_diagnostic(&diagnostic);
     CHECK(ROBOT_APP_FAULT_TILT_UNAVAILABLE == diagnostic.code);
     apphost_button();
@@ -1638,7 +1802,56 @@ static void apphost_telemetry_budget (void)
     CHECK(1U == g_perception_frames);
     CHECK(1U == g_diagnostic_frames);
     CHECK(3U == g_max_same_time_frames);
-    CHECK(NULL != strstr(g_last_diagnostic, "\"fc\":0,\"fm\":0"));
+    CHECK((0U == g_last_diagnostic.fault_code) &&
+          (0U == g_last_diagnostic.first_fault_ms));
+}
+
+/** @brief 300 status frames cross the 250 wrap once; seq never skips and
+ * every 1 Hz frame repeats the seq of the status frame just sent, a
+ * multiple of 5, so a missing partner frame stays detectable.
+ */
+static void apphost_telemetry_wrap (void)
+{
+    apphost_boot();
+    g_status_frames = 0U;
+    g_perception_frames = 0U;
+    g_diagnostic_frames = 0U;
+    g_seq_errors = 0U;
+    g_seq_wraps = 0U;
+    g_pair_errors = 0U;
+    apphost_run(60000U);
+    CHECK(300U == g_status_frames);
+    CHECK(60U == g_perception_frames);
+    CHECK(60U == g_diagnostic_frames);
+    CHECK(1U == g_seq_wraps);
+    CHECK(0U == g_seq_errors);
+    CHECK(0U == g_pair_errors);
+}
+
+/** @brief Status seq advances by one modulo 250 from frame to frame. */
+static void apphost_sequence (uint8_t seq)
+{
+    if (0U != g_status_frames)
+    {
+        if (seq != (uint8_t)((g_last_seq + 1U) % TELEMETRY_SEQUENCE_MODULO))
+        {
+            ++g_seq_errors;
+        }
+        if (seq < g_last_seq)
+        {
+            ++g_seq_wraps;
+        }
+    }
+    g_last_seq = seq;
+}
+
+/** @brief A perception or diagnostic frame pairs with the last status. */
+static void apphost_partner (uint8_t seq)
+{
+    if ((seq != g_last_seq) || (0U != (seq % 5U)))
+    {
+        ++g_pair_errors;
+    }
 }
 
 /** @brief Physical path supplies barcode run widths in this fixture only. */
@@ -1655,19 +1868,274 @@ static void apphost_advance (double distance_m)
     CHECK(elapsed < 6000U);
 }
 
-/** @brief Force a full telemetry burst and read one integer diagnostic key. */
-static int apphost_diagnostic_value (const char * p_key)
+/** @brief Force a full telemetry burst and read one decoded diagnostic
+ * field.
+ */
+static int apphost_diagnostic_value (apphost_key_t key)
 {
     uint32_t index = 0U;
-    const char * p_value = NULL;
+    uint32_t frames = g_diagnostic_frames;
+    int value = -1;
 
     for (index = 0U; index < 5U; ++index)
     {
         robot_app_telemetry_step((uint32_t)(g_now_us / 1000U));
     }
-    p_value = strstr(g_last_diagnostic, p_key);
-    CHECK(NULL != p_value);
-    return (NULL == p_value) ? -1 : atoi(p_value + strlen(p_key));
+    CHECK(g_diagnostic_frames > frames);
+    switch (key)
+    {
+        case APPHOST_RUN:
+            value = (int)g_last_diagnostic.run_id;
+        break;
+        case APPHOST_FC:
+            value = (int)g_last_diagnostic.fault_code;
+        break;
+        case APPHOST_BU:
+            value = (int)g_last_diagnostic.barcode_unknown;
+        break;
+        case APPHOST_BR:
+            value = (int)g_last_diagnostic.barcode_rejected;
+        break;
+        case APPHOST_MP:
+            value = (int)g_last_diagnostic.mission_peak_mm;
+        break;
+        default:
+            CHECK(false);
+        break;
+    }
+    return value;
+}
+
+/** @brief Live fault mask through the public diagnostic snapshot. */
+static uint32_t apphost_mask (void)
+{
+    robot_app_diagnostic_t diagnostic;
+
+    memset(&diagnostic, 0, sizeof(diagnostic));
+    robot_app_diagnostic(&diagnostic);
+    return diagnostic.mask;
+}
+
+/** @brief Mask bits, stop sources and status bits through a mission:
+ * remote STOP is a stop source, not a mask bit; WIFI_LOSS follows the
+ * radio session and NO_ECHO the latest front reading; an approved reset
+ * clears stopping state but keeps the status bits; telemetry carries them.
+ */
+static void apphost_fault_mask (void)
+{
+    robot_app_diagnostic_t diagnostic;
+    const uint32_t wifi = UINT32_C(1) << ROBOT_APP_BIT_WIFI_LOSS;
+    const uint32_t echo = UINT32_C(1) << ROBOT_APP_BIT_NO_ECHO;
+
+    apphost_start();
+    CHECK(0U == apphost_mask());
+    g_b_online = false;
+    apphost_run(10U);
+    CHECK(wifi == apphost_mask());
+    CHECK(VEHICLE_FOLLOW == apphost_state());
+    g_b_online = true;
+    apphost_run(10U);
+    CHECK(0U == apphost_mask());
+    apphost_send("STOP");
+    apphost_run(10U);
+    memset(&diagnostic, 0, sizeof(diagnostic));
+    robot_app_diagnostic(&diagnostic);
+    CHECK((ROBOT_APP_FAULT_REMOTE_STOP == diagnostic.code) &&
+          (ROBOT_APP_STOP_REMOTE == diagnostic.stop_source) &&
+          (0U == diagnostic.mask));
+    g_b_no_echo = true;
+    apphost_run(300U);
+    CHECK(echo == (apphost_mask() & echo));
+    (void)apphost_diagnostic_value(APPHOST_FC);
+    CHECK((echo == (g_last_diagnostic.fault_mask & echo)) &&
+          (ROBOT_APP_STOP_REMOTE == g_last_diagnostic.stop_source));
+    g_b_no_echo = false;
+    apphost_run(300U);
+    CHECK(0U == (apphost_mask() & echo));
+    g_b_online = false;
+    apphost_run(10U);
+    apphost_button();
+    CHECK(VEHICLE_IDLE == apphost_state());
+    memset(&diagnostic, 0, sizeof(diagnostic));
+    robot_app_diagnostic(&diagnostic);
+    CHECK((ROBOT_APP_FAULT_NONE == diagnostic.code) &&
+          (0U == diagnostic.stop_source) && (wifi == diagnostic.mask));
+}
+
+/** @brief The 16-bit wrapping encoder totals cross 0xFFFF -> 0 during
+ * line following: the optical path, barcode coordinate and IMU path use
+ * modulo differences, so no ENCODER fault and no stop may follow.
+ */
+static void apphost_encoder_wrap (void)
+{
+    int rejected = 0;
+
+    g_left_total = 0xFFF0U;
+    g_right_total = 0xFFF0U;
+    apphost_start();
+    rejected = apphost_diagnostic_value(APPHOST_BR);
+    apphost_run(1000U);
+    CHECK((g_left_total > 0x10000U) && (g_right_total > 0x10000U));
+    CHECK(VEHICLE_FOLLOW == apphost_state());
+    CHECK(!apphost_stopped());
+    CHECK(0U == apphost_mask());
+    CHECK(0 == apphost_diagnostic_value(APPHOST_FC));
+    CHECK(rejected == apphost_diagnostic_value(APPHOST_BR));
+}
+
+/** @brief Line's 16-bit total differences: a 10-count reverse step back
+ * across 0x0000 reads as -10 with no fault, while a jump of exactly 0x8000
+ * (sign unknowable) latches a hard ENCODER fault as the first cause.
+ */
+static void apphost_encoder_jumps (void)
+{
+    const uint32_t encoder = UINT32_C(1) << ROBOT_APP_BIT_ENCODER;
+    robot_app_diagnostic_t diagnostic;
+
+    g_left_total = 5U;
+    apphost_boot();
+    g_left_total -= 10U;
+    apphost_run(4U);
+    CHECK(0U == apphost_mask());
+    g_left_total += 0x8000U;
+    apphost_run(4U);
+    memset(&diagnostic, 0, sizeof(diagnostic));
+    robot_app_diagnostic(&diagnostic);
+    CHECK((ROBOT_APP_FAULT_ENCODER == diagnostic.code) &&
+          (encoder == (diagnostic.mask & encoder)));
+}
+
+/** @brief Edges counted between board_init() and the end of
+ * robot_app_init() (40 counts, beyond the 6-bit delta) are discarded, so
+ * the first Motion read cannot latch a false hard ENCODER fault.
+ */
+static void apphost_boot_counts (void)
+{
+    g_left_delta = 40;
+    g_right_delta = -40;
+    apphost_start();
+    CHECK(0U == apphost_mask());
+    CHECK(VEHICLE_FOLLOW == apphost_state());
+    CHECK(!apphost_stopped());
+}
+
+/** @brief GP20 pressed after Safety's poll and before Vehicle's read in one
+ * tick: Vehicle reaches FAULT first, yet the stop is recorded as LOCAL STOP
+ * with its source, never as a SUPERVISOR fault.
+ */
+static void apphost_stop_race (void)
+{
+    robot_app_diagnostic_t diagnostic;
+
+    apphost_start();
+    while (9U != ((uint32_t)(g_now_us / 1000U) % 10U))
+    {
+        apphost_run(1U);
+    }
+    g_b_press_after_safety = true;
+    apphost_run(10U);
+    memset(&diagnostic, 0, sizeof(diagnostic));
+    robot_app_diagnostic(&diagnostic);
+    CHECK((ROBOT_APP_FAULT_LOCAL_STOP == diagnostic.code) &&
+          (ROBOT_APP_STOP_LOCAL == diagnostic.stop_source) &&
+          (0U == diagnostic.mask));
+    CHECK(VEHICLE_FAULT == apphost_state());
+    CHECK(apphost_stopped());
+}
+
+/** @brief Vehicle half of the reset handshake: a STOP raised just after the
+ * snapshot of the Vehicle step that publishes the reset (its third unlock:
+ * copy, button latch, snapshot) leaves that reset unclean, so Motion
+ * refuses it and the car stays stopped.
+ */
+static void apphost_stop_snapshot (void)
+{
+    apphost_start();
+    apphost_send("STOP");
+    apphost_run(300U);
+    CHECK(VEHICLE_FAULT == apphost_state());
+    while (9U != ((uint32_t)(g_now_us / 1000U) % 10U))
+    {
+        apphost_run(1U);
+    }
+    /* The next Vehicle step records the press; the one 30 ms later
+     * latches it and publishes the reset.
+     */
+    g_b_start = true;
+    apphost_run(30U);
+    g_inject_vehicle_unlock = 3U;
+    apphost_run(1U);
+    CHECK(0U == g_inject_vehicle_unlock);
+    g_b_start = false;
+    apphost_run(20U);
+    CHECK(VEHICLE_FAULT == apphost_state());
+    CHECK(apphost_stopped());
+}
+
+/** @brief Scenarios for the reset handshake, the boot window, the stop
+ * race and the encoder total rules.
+ */
+static bool apphost_select_review (const char * p_name)
+{
+    if (0 == strcmp(p_name, "stop_race"))
+    {
+        apphost_stop_race();
+    }
+    else if (0 == strcmp(p_name, "stop_snapshot"))
+    {
+        apphost_stop_snapshot();
+    }
+    else if (0 == strcmp(p_name, "boot_counts"))
+    {
+        apphost_boot_counts();
+    }
+    else if (0 == strcmp(p_name, "encoder_jumps"))
+    {
+        apphost_encoder_jumps();
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+/** @brief Tribunal stress test: toggle the two status bits from their
+ * owners (Comm every step, Scan at each ping) 10,000 times while a hard
+ * TILT is latched (a braked car cannot also stall); TILT must never be
+ * lost and WIFI_LOSS must follow the session flag in every round.
+ */
+static void apphost_fault_stress (void)
+{
+    const uint32_t tilt = UINT32_C(1) << ROBOT_APP_BIT_TILT;
+    const uint32_t wifi = UINT32_C(1) << ROBOT_APP_BIT_WIFI_LOSS;
+    uint32_t round = 0U;
+    uint32_t mask = 0U;
+    bool b_kept = true;
+    bool b_tracked = true;
+
+    apphost_start();
+    g_raw_accel[0] = 707;
+    g_raw_accel[2] = 707;
+    apphost_run(300U);
+    CHECK(VEHICLE_FAULT == apphost_state());
+    CHECK(tilt == (apphost_mask() & tilt));
+    g_raw_accel[0] = 0;
+    g_raw_accel[2] = 1000;
+    for (round = 0U; round < 10000U; ++round)
+    {
+        g_b_online = 0U != (round & 1U);
+        g_b_no_echo = 0U != (round & 2U);
+        apphost_run(5U);
+        mask = apphost_mask();
+        b_kept = b_kept && (tilt == (mask & tilt));
+        b_tracked = b_tracked &&
+                    ((0U != (mask & wifi)) == (!g_b_online));
+    }
+    CHECK(b_kept);
+    CHECK(b_tracked);
+    CHECK(VEHICLE_FAULT == apphost_state());
+    CHECK(apphost_stopped());
 }
 
 /** @brief Unmatched/too-short frames count; an impossible ADC still faults. */
@@ -1680,18 +2148,18 @@ static void apphost_barcode_noise (void)
     g_raw_ir[2] = ROBOT_IR_BARCODE_WHITE;
     apphost_advance(0.03);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    CHECK(1 == apphost_diagnostic_value("\"bu\":"));
+    CHECK(1 == apphost_diagnostic_value(APPHOST_BU));
     g_raw_ir[2] = ROBOT_IR_BARCODE_BLACK;
     apphost_advance(0.005);
     g_raw_ir[2] = ROBOT_IR_BARCODE_WHITE;
     apphost_advance(0.03);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    CHECK(1 == apphost_diagnostic_value("\"br\":"));
+    CHECK(1 == apphost_diagnostic_value(APPHOST_BR));
     g_raw_ir[0] = UINT16_MAX;
     apphost_run(20U);
     CHECK(VEHICLE_FAULT == apphost_state());
     CHECK(apphost_stopped());
-    CHECK(NULL != strstr(g_last_status, "\"fault\":true"));
+    CHECK(g_last_status.b_hardfault);
 }
 
 /** @brief Barcode-end does not execute action; a later latched edge does. */
@@ -1726,9 +2194,9 @@ static void apphost_hump_history (void)
     g_raw_accel[2] = 1000;
     apphost_run(600U);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    previous_peak = apphost_diagnostic_value("\"mp\":");
+    previous_peak = apphost_diagnostic_value(APPHOST_MP);
     CHECK(previous_peak > 0);
-    CHECK(NULL != strstr(g_last_diagnostic, "\"mv\":true"));
+    CHECK(g_last_diagnostic.b_mission_valid);
     apphost_send("STOP");
     apphost_run(350U);
     apphost_button();
@@ -1736,9 +2204,9 @@ static void apphost_hump_history (void)
     apphost_button();
     apphost_run(100U);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    CHECK(previous_peak == apphost_diagnostic_value("\"mp\":"));
-    CHECK(NULL != strstr(g_last_status, "\"pk\":0,"));
-    CHECK(NULL != strstr(g_last_diagnostic, "\"mv\":true"));
+    CHECK(previous_peak == apphost_diagnostic_value(APPHOST_MP));
+    CHECK(0U == g_last_status.peak_mm);
+    CHECK(g_last_diagnostic.b_mission_valid);
 }
 
 /** @brief Control owners and the application Comm owner govern watchdog
@@ -1851,7 +2319,7 @@ static void apphost_accel_clock (uint32_t odr_mhz, uint32_t jitter_us)
     CHECK(g_accel_overruns > 0U);
     CHECK(ROBOT_APP_FAULT_NONE == diagnostic.code);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    CHECK(NULL != strstr(g_last_status, "\"fault\":false"));
+    CHECK(!g_last_status.b_hardfault);
     CHECK(!apphost_stopped());
 }
 
@@ -1887,9 +2355,9 @@ static void apphost_preempt_hump (bool b_always)
     apphost_run(600U);
     g_b_preempt_accel_always = false;
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    CHECK(0 == apphost_diagnostic_value("\"fc\":"));
-    CHECK(apphost_diagnostic_value("\"mp\":") > 0);
-    CHECK(NULL != strstr(g_last_diagnostic, "\"mv\":true"));
+    CHECK(0 == apphost_diagnostic_value(APPHOST_FC));
+    CHECK(apphost_diagnostic_value(APPHOST_MP) > 0);
+    CHECK(g_last_diagnostic.b_mission_valid);
 }
 
 /** @brief Pinned wheel speed of exactly one encoder count per 5 ms Motion
@@ -1926,7 +2394,7 @@ static void apphost_preempt_steady (uint32_t preempt_ms)
     g_steady_mps = apphost_steady_speed();
     apphost_run(1000U);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    CHECK(0 == apphost_diagnostic_value("\"fc\":"));
+    CHECK(0 == apphost_diagnostic_value(APPHOST_FC));
     g_preempt_ms = preempt_ms;
     g_b_preempt_accel = true;
     for (elapsed = 0U; g_b_preempt_accel && (elapsed < 20U); ++elapsed)
@@ -1945,7 +2413,7 @@ static void apphost_preempt_steady (uint32_t preempt_ms)
     /* Motion (phase 1) published at +1 ms, and at +6 ms when doubled. */
     CHECK(((preempt_ms + 4U) / 5U) == g_preempt_motion_steps);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    CHECK(0 == apphost_diagnostic_value("\"fc\":"));
+    CHECK(0 == apphost_diagnostic_value(APPHOST_FC));
     CHECK(!apphost_stopped());
 }
 
@@ -1967,8 +2435,8 @@ static void apphost_barcode_crossbar (void)
     g_raw_ir[2] = ROBOT_IR_BARCODE_WHITE;
     apphost_advance(0.15);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    unknown = apphost_diagnostic_value("\"bu\":");
-    rejected = apphost_diagnostic_value("\"br\":");
+    unknown = apphost_diagnostic_value(APPHOST_BU);
+    rejected = apphost_diagnostic_value(APPHOST_BR);
     g_raw_ir[2] = ROBOT_IR_BARCODE_BLACK;
     apphost_advance(0.005);
     CHECK(VEHICLE_FOLLOW == apphost_state());
@@ -1976,8 +2444,8 @@ static void apphost_barcode_crossbar (void)
     g_raw_ir[1] = ROBOT_IR_RIGHT_BLACK;
     apphost_run(45U);
     CHECK(VEHICLE_NAVIGATE == apphost_state());
-    CHECK(unknown == apphost_diagnostic_value("\"bu\":"));
-    CHECK((rejected + 1) == apphost_diagnostic_value("\"br\":"));
+    CHECK(unknown == apphost_diagnostic_value(APPHOST_BU));
+    CHECK((rejected + 1) == apphost_diagnostic_value(APPHOST_BR));
 }
 
 /** @brief Parse single-digit Motion (0..4) and IMU (0..9) release phases. */
@@ -2012,7 +2480,7 @@ static void apphost_preempt_vehicle (void)
     CHECK(!g_b_preempt_button);
     CHECK(1U == g_preemptions);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    CHECK(0 == apphost_diagnostic_value("\"fc\":"));
+    CHECK(0 == apphost_diagnostic_value(APPHOST_FC));
     CHECK(!apphost_stopped());
 }
 
@@ -2040,7 +2508,7 @@ static void apphost_collision (bool b_preempt)
     g_b_preempt_accel_always = false;
     CHECK(b_preempt == (g_preemptions > 90U));
     CHECK(VEHICLE_FAULT == apphost_state());
-    CHECK(ROBOT_APP_FAULT_COLLISION == apphost_diagnostic_value("\"fc\":"));
+    CHECK(ROBOT_APP_FAULT_COLLISION == apphost_diagnostic_value(APPHOST_FC));
     CHECK(apphost_stopped());
 }
 
@@ -2058,13 +2526,13 @@ static void apphost_wiring_only (void)
     robot_app_diagnostic(&diagnostic);
     CHECK(ROBOT_APP_FAULT_NONE == diagnostic.code);
     CHECK(VEHICLE_INIT == apphost_state());
-    CHECK(NULL != strstr(g_last_status, "\"stop\":true,\"fault\":false"));
+    CHECK(g_last_status.b_stop && (!g_last_status.b_hardfault));
     CHECK(apphost_stopped());
     CHECK(0U != g_zero_commits);
     apphost_button();
     CHECK(VEHICLE_INIT == apphost_state());
     CHECK(apphost_stopped());
-    CHECK(0 == apphost_diagnostic_value("\"fc\":"));
+    CHECK(0 == apphost_diagnostic_value(APPHOST_FC));
 }
 
 /** @brief With calibration confirmed, a rejected PWM preparation is a real
@@ -2080,9 +2548,9 @@ static void apphost_motor_output (void)
     CHECK(apphost_stopped());
     g_b_prepare_reject = false;
     CHECK(VEHICLE_FAULT == apphost_state());
-    CHECK(NULL != strstr(g_last_status, "\"fault\":true"));
+    CHECK(g_last_status.b_hardfault);
     CHECK(ROBOT_APP_FAULT_MOTOR_OUTPUT ==
-          apphost_diagnostic_value("\"fc\":"));
+          apphost_diagnostic_value(APPHOST_FC));
     apphost_run(250U);
     apphost_button();
     CHECK(VEHICLE_FAULT == apphost_state());
@@ -2096,18 +2564,17 @@ static void apphost_motor_output (void)
  */
 static void apphost_barcode_range_pause (bool b_trailing)
 {
-    barcode_config_t config = {0};
+    const barcode_config_t * p_config = course_cfg_codebook();
     double white_start_m = 0.0;
     double white_m = 0.0;
     uint32_t elapsed = 0U;
     int unknown = 0;
     int rejected = 0;
 
-    course_cfg_load(&config);
     apphost_start();
     apphost_advance(0.03);
-    unknown = apphost_diagnostic_value("\"bu\":");
-    rejected = apphost_diagnostic_value("\"br\":");
+    unknown = apphost_diagnostic_value(APPHOST_BU);
+    rejected = apphost_diagnostic_value(APPHOST_BR);
     g_raw_ir[2] = ROBOT_IR_BARCODE_BLACK;
     /* Mid-bar: 6 mm into a bar. Trailing: after one valid 12 mm bar. */
     apphost_advance(b_trailing ? 0.012 : 0.006);
@@ -2116,7 +2583,7 @@ static void apphost_barcode_range_pause (bool b_trailing)
         /* Commit the white edge (a quarter minimum run), then lose range. */
         g_raw_ir[2] = ROBOT_IR_BARCODE_WHITE;
         white_start_m = g_robot_x;
-        apphost_advance(0.4 * config.minimum_run_m);
+        apphost_advance(0.4 * p_config->minimum_run_m);
     }
     g_b_no_echo = true;
     while ((!apphost_stopped()) && (elapsed < 200U))
@@ -2130,20 +2597,20 @@ static void apphost_barcode_range_pause (bool b_trailing)
         /* Includes braking travel, so it over-states the FOLLOW span. */
         white_m = g_robot_x - white_start_m;
         if (0 > printf("trailing white at pause %.4f m (quiet %.4f m)\n",
-                       white_m, config.quiet_zone_m))
+                       white_m, p_config->quiet_zone_m))
         {
             g_failures += 1U;
         }
-        CHECK(white_m > (0.5 * config.minimum_run_m));
-        CHECK(white_m < config.quiet_zone_m);
+        CHECK(white_m > (0.5 * p_config->minimum_run_m));
+        CHECK(white_m < p_config->quiet_zone_m);
     }
     CHECK(VEHICLE_RANGE_WAIT == apphost_state());
     CHECK(apphost_stopped());
     g_b_no_echo = false;
     apphost_run(400U);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    CHECK(unknown == apphost_diagnostic_value("\"bu\":"));
-    CHECK((rejected + 1) == apphost_diagnostic_value("\"br\":"));
+    CHECK(unknown == apphost_diagnostic_value(APPHOST_BU));
+    CHECK((rejected + 1) == apphost_diagnostic_value(APPHOST_BR));
 }
 
 /* End of file. */

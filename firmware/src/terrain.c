@@ -7,11 +7,18 @@
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
+#include "bitpack.h"
 #include "core.h"
 
 #if DBL_MANT_DIG < 53
 #error "Terrain calculations require at least 53 double mantissa bits."
 #endif
+
+/* Constant masks let -Wconversion prove each bit-field store fits. */
+#define TERRAIN_ANGLE_MASK ((UINT32_C(1) << TERRAIN_ANGLE_BITS) - 1U)
+#define TERRAIN_RATE_MASK ((UINT32_C(1) << TERRAIN_RATE_BITS) - 1U)
+#define TERRAIN_HEIGHT_MASK ((UINT32_C(1) << TERRAIN_HEIGHT_BITS) - 1U)
+#define TERRAIN_MILLI_PER_UNIT (1000.0)
 
 static bool terrain_config_valid (const terrain_config_t * p_config);
 static bool terrain_input_valid (const terrain_input_t * p_input);
@@ -148,6 +155,96 @@ bool terrain_step (terrain_state_t * p_state,
     }
     *p_output = p_state->output;
     return true;
+}
+
+/** Quantise angles (AWAY), yaw (NEAREST) and heights (FLOOR) to fields. */
+void terrain_shared_pack (const terrain_output_t * p_output,
+                          uint32_t mission_maximum_mm, bool b_mission_valid,
+                          terrain_shared_t * p_shared)
+{
+    const int32_t angle_limit = bitpack_signed_max(TERRAIN_ANGLE_BITS);
+    const int32_t rate_limit  = bitpack_signed_max(TERRAIN_RATE_BITS);
+    int32_t pitch_mrad = 0;
+    int32_t roll_mrad  = 0;
+    int32_t rate_mrad_s = 0;
+    bool b_tilt = false;
+
+    if ((NULL == p_output) || (NULL == p_shared))
+    {
+        return;
+    }
+    /* A non-finite angle (never published with a valid flag) clears the
+     * flag, so the reserved code is never read as a measurement. */
+    b_tilt = p_output->b_tilt_valid
+             && bitpack_quantise(p_output->pitch_rad, TERRAIN_MILLI_PER_UNIT,
+                                 BITPACK_AWAY, -angle_limit, angle_limit,
+                                 &pitch_mrad)
+             && bitpack_quantise(p_output->roll_rad, TERRAIN_MILLI_PER_UNIT,
+                                 BITPACK_AWAY, -angle_limit, angle_limit,
+                                 &roll_mrad);
+    if (b_tilt)
+    {
+        p_shared->pitch_mrad = bitpack_signed(pitch_mrad, TERRAIN_ANGLE_BITS)
+                               & TERRAIN_ANGLE_MASK;
+        p_shared->roll_mrad  = bitpack_signed(roll_mrad, TERRAIN_ANGLE_BITS)
+                               & TERRAIN_ANGLE_MASK;
+    }
+    else
+    {
+        p_shared->pitch_mrad = bitpack_invalid(TERRAIN_ANGLE_BITS)
+                               & TERRAIN_ANGLE_MASK;
+        p_shared->roll_mrad  = bitpack_invalid(TERRAIN_ANGLE_BITS)
+                               & TERRAIN_ANGLE_MASK;
+    }
+    if (bitpack_quantise(p_output->encoder_yaw_rate_rps,
+                         TERRAIN_MILLI_PER_UNIT, BITPACK_NEAREST,
+                         -rate_limit, rate_limit, &rate_mrad_s))
+    {
+        p_shared->yaw_mrad_s = bitpack_signed(rate_mrad_s, TERRAIN_RATE_BITS)
+                               & TERRAIN_RATE_MASK;
+    }
+    else
+    {
+        p_shared->yaw_mrad_s = bitpack_invalid(TERRAIN_RATE_BITS)
+                               & TERRAIN_RATE_MASK;
+    }
+    p_shared->motion                = p_output->motion;
+    p_shared->b_tilt_valid          = b_tilt;
+    p_shared->b_collision_candidate = p_output->b_collision_candidate;
+    p_shared->b_hump_active         = p_output->b_hump_active;
+    p_shared->b_last_hump_valid     = p_output->b_last_hump_valid;
+    p_shared->run_maximum_mm = terrain_height_mm(p_output->run_maximum_m)
+                               & TERRAIN_HEIGHT_MASK;
+    p_shared->mission_maximum_mm = bitpack_saturate(mission_maximum_mm,
+                                                    TERRAIN_HEIGHT_BITS)
+                                   & TERRAIN_HEIGHT_MASK;
+    p_shared->b_mission_valid = b_mission_valid;
+}
+
+/** Floor equals the legacy truncation for every nonnegative height. */
+uint32_t terrain_height_mm (double height_m)
+{
+    int32_t height_mm = 0;
+
+    /* Negative heights clamp to 0; a non-finite height is no measurement.
+     * The 511 mm limit is exact in int32_t. */
+    if (!bitpack_quantise(height_m, TERRAIN_MILLI_PER_UNIT, BITPACK_FLOOR,
+                          0, (int32_t)TERRAIN_HEIGHT_MAX_MM, &height_mm))
+    {
+        return 0U;
+    }
+    /* Clamped to 0..511 above, so the conversion is exact. */
+    return (uint32_t)height_mm;
+}
+
+/** Sign-extend, then take the magnitude; -2047..2047 plus reserved -2048. */
+uint32_t terrain_angle_mrad (uint32_t field)
+{
+    const int32_t angle_mrad = bitpack_extend(field & TERRAIN_ANGLE_MASK,
+                                              TERRAIN_ANGLE_BITS);
+
+    /* The magnitude is at most 2048, so both conversions are exact. */
+    return (angle_mrad < 0) ? (uint32_t)(-angle_mrad) : (uint32_t)angle_mrad;
 }
 
 /** Validate every floating threshold, including ordering constraints. */
@@ -416,7 +513,7 @@ static void terrain_finish_hump (terrain_state_t * p_state)
         p_out->last_hump_peak_m = p_out->hump_peak_m;
         p_out->run_maximum_m = fmax(p_out->run_maximum_m,
                                    p_out->last_hump_peak_m);
-        if (UINT32_MAX != p_out->completed_humps)
+        if (UINT8_MAX != p_out->completed_humps)
         {
             p_out->completed_humps++;
         }

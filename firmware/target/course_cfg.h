@@ -6,8 +6,11 @@
 
 #include "barcode.h"
 
-/** Load the reviewed codebook. Supplied configuration is empty/inhibited. */
-void course_cfg_load (barcode_config_t * p_config);
+/** Reviewed codebook as a constant table in flash (no RAM copy); never
+ * NULL. barcode_derive() converts it once. The supplied table is empty and
+ * inhibited.
+ */
+const barcode_config_t * course_cfg_codebook (void);
 
 #endif /* COURSE_CFG_H */
 

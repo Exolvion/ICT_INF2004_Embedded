@@ -51,7 +51,7 @@ test_sources=("${project_dir}"/tests/test_*_main.c)
             "${build_dir}/${test_name}_release"
             printf '\n%s: ASan + UBSan build (-O1 -g)\n' "$test_name"
             "$compiler" "${common_flags[@]}" -O1 -g \
-                -fno-omit-frame-pointer -fsanitize=address,undefined \
+                -fno-omit-frame-pointer                 -fsanitize=address,undefined,float-cast-overflow \
                 -fno-sanitize-recover=all "${sources[@]}" "$test_source" \
                 -lm -o "${build_dir}/${test_name}_sanitized"
             printf '%s\n' "$leak_note"

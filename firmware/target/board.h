@@ -13,15 +13,46 @@
 
 #include "core.h"
 
-/** Precomputed PWM commit, produced only by board_motor_prepare(). */
+/** Motor direction code: 2-bit two's complement of -1, 0 or +1 (3, 0, 1),
+ * the same code as bitpack_signed(direction, BOARD_DIRECTION_BITS).
+ */
+#define BOARD_DIRECTION_BITS (2U)
+#define BOARD_DIRECTION_MASK (3U)
+/** Reserved code 2 (-2), as bitpack_invalid(2U): never prepared; BRAKEs. */
+#define BOARD_DIRECTION_INVALID (2U)
+/** Encode -1, 0 or +1 only. A macro keeps the constant mask visible to
+ * -Wconversion when the result is assigned to a 2-bit field.
+ */
+#define BOARD_DIRECTION_ENCODE(direction) \
+    (((uint32_t)(direction)) & BOARD_DIRECTION_MASK)
+
+/** board_read_encoders() error bits: sticky per wheel until consumed. */
+#define BOARD_ENCODER_ERROR_LEFT (1U)
+#define BOARD_ENCODER_ERROR_RIGHT (2U)
+
+/** Precomputed PWM commit, produced only by board_motor_prepare(). 31 bits:
+ * levels are PWM compare values 0..6250 (13 bits each) and directions are
+ * BOARD_DIRECTION_BITS codes, read with board_direction_decode(). A per-call
+ * message of one task; it is never shared with an ISR.
+ */
 typedef struct
 {
-    uint16_t left_level;
-    uint16_t right_level;
-    int32_t  left_direction;
-    int32_t  right_direction;
-    bool     b_valid;
+    uint32_t left_level      : 13;
+    uint32_t right_level     : 13;
+    uint32_t left_direction  : 2;
+    uint32_t right_direction : 2;
+    bool     b_valid         : 1;
 } board_motor_command_t;
+
+/** Sign-extend a direction code, equal to bitpack_extend(code, 2U): 3 is -1,
+ * 0 is 0, 1 is +1 and the reserved 2 is -2. Branch-free integer work, so the
+ * GPIO ISR and IRQ-masked regions use it; host doubles share the rule.
+ */
+static inline int32_t board_direction_decode (uint32_t code)
+{
+    /* Flipping the sign bit maps codes 0..3 to 2, 3, 0, 1: minus 2 is exact. */
+    return (int32_t)((code & BOARD_DIRECTION_MASK) ^ 2U) - 2;
+}
 
 /** Acquisition status distinguishes normal sample phase from sensor faults. */
 typedef enum
@@ -100,12 +131,27 @@ bool board_init (void);
 /** Last initialization result as a static diagnostic string; no allocation. */
 const char * board_init_diagnostic (void);
 
+/** Return the UART0 console pins, which the HC-SR04 uses after start-up
+ * (ROBOT_PIN_CONSOLE_TX/RX), to UART0 so a start-up refusal can print its
+ * reason. Call only after braking with interrupts masked; the sonar then
+ * stops working until reboot.
+ */
+void board_console_restore (void);
+
 /** Read the monotonic, coherent RP2040 timer in microseconds. */
 uint64_t board_time_us (void);
 
-/** Copy and consume signed encoder deltas and illegal/unknown-edge count.
+/** Copy and consume signed encoder deltas and the sticky edge-error bits.
  * Null output pointers are ignored; counts are consumed only when all exist.
- * Must be called by one motion owner. Saturation is counted as an error.
+ * Must be called by one motion owner. Deltas and phases share one 16-bit
+ * ISR word, the sticky error bits one byte; deltas and errors are read and
+ * cleared in one IRQ-masked region and the phases stay, so the next edge
+ * decodes from them.
+ * Each delta holds +/-31 counts (6 bits). The 0.15 m/s cap is about 1.3
+ * counts per 5 ms read and 6.6 per 25 ms; 31 counts is 17.6 mm, over
+ * 3.5 m/s at a 5 ms read. A further count leaves the delta saturated and
+ * sets that wheel's error bit; *p_errors holds BOARD_ENCODER_ERROR_LEFT and
+ * BOARD_ENCODER_ERROR_RIGHT bits, never a count.
  * Multiple pending edge bits on either wheel report an error with no guessed
  * displacement, then resynchronize that wheel to the observed input phase.
  * A single edge must match the sampled phase change, pin and polarity.
@@ -117,13 +163,23 @@ uint64_t board_time_us (void);
 void board_read_encoders (int32_t * p_left, int32_t * p_right,
                           uint32_t * p_errors);
 
-/** Snapshot cumulative decoded position, without consuming deltas.
- * Values are signed positions represented modulo 2^32: a forward edge adds
- * one, reverse subtracts one. Polarity is raw; apply confirmed signs outside
- * the ISR. Multiple readers may independently subtract their snapshots.
- * Null pointers leave both outputs unchanged. One GPIO ISR writes totals.
+/** Discard deltas and error bits counted before the first consumer read.
+ * The GPIO ISR runs from board_init(), so boot motion or input settling
+ * could otherwise latch a false saturation or edge error into the first
+ * board_read_encoders(). Phases and totals are kept. Call once at the end
+ * of application initialization, before the motion task runs.
  */
-void board_encoder_totals (uint32_t * p_left, uint32_t * p_right);
+void board_encoders_discard (void);
+
+/** Snapshot cumulative decoded position, without consuming deltas.
+ * Values are signed positions represented modulo 2^16 (two halves of one
+ * ISR word): a forward edge adds one, reverse subtracts one. Subtract
+ * snapshots modulo 2^16 with a 0x8000 half-range (18.6 m at 0.567 mm per
+ * count). Polarity is raw; apply confirmed signs outside the ISR. Multiple
+ * readers may independently subtract their snapshots. Null pointers leave
+ * both outputs unchanged. One GPIO ISR writes totals.
+ */
+void board_encoder_totals (uint16_t * p_left, uint16_t * p_right);
 
 /** Read ADC0/1/2 into three 0..4095 samples. Null returns false. */
 bool board_read_ir (uint16_t samples[3]);

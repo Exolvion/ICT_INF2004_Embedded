@@ -1,0 +1,80 @@
+{
+ "topic_bytes": 33,
+ "command_topic_bytes": 31,
+ "status_topic_bytes": 30,
+ "encoder_buffer_before": 256,
+ "encoder_buffer_after": 17,
+ "rows": [
+  {
+   "message": "status frame (worst)",
+   "before_payload": 237,
+   "after_payload": 17,
+   "before_publish": 275,
+   "after_publish": 54
+  },
+  {
+   "message": "status frame (typical)",
+   "before_payload": 145,
+   "after_payload": 17,
+   "before_publish": 183,
+   "after_publish": 54
+  },
+  {
+   "message": "perception frame (worst)",
+   "before_payload": 252,
+   "after_payload": 16,
+   "before_publish": 290,
+   "after_publish": 53
+  },
+  {
+   "message": "perception frame (typical)",
+   "before_payload": 142,
+   "after_payload": 16,
+   "before_publish": 180,
+   "after_publish": 53
+  },
+  {
+   "message": "diagnostic frame (worst)",
+   "before_payload": 144,
+   "after_payload": 17,
+   "before_publish": 182,
+   "after_publish": 54
+  },
+  {
+   "message": "diagnostic frame (typical)",
+   "before_payload": 78,
+   "after_payload": 17,
+   "before_publish": 115,
+   "after_publish": 54
+  },
+  {
+   "message": "command (largest token / any command)",
+   "before_payload": 8,
+   "after_payload": 1,
+   "before_publish": 43,
+   "after_publish": 36
+  },
+  {
+   "message": "STOP command",
+   "before_payload": 4,
+   "after_payload": 1,
+   "before_publish": 39,
+   "after_publish": 36
+  },
+  {
+   "message": "presence 'online' (status topic)",
+   "before_payload": 6,
+   "after_payload": 1,
+   "before_publish": 40,
+   "after_publish": 35
+  },
+  {
+   "message": "presence 'offline' (status topic)",
+   "before_payload": 7,
+   "after_payload": 1,
+   "before_publish": 41,
+   "after_publish": 35
+  }
+ ],
+ "scope": "Host-measured payload lengths from each tree's own encoder; MQTT framing computed for QoS0 PUBLISH."
+}

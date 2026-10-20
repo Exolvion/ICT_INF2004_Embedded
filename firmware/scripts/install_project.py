@@ -117,7 +117,7 @@ ifneq ($(SMP),0)
 $(error This application uses core-0 IRQ masking and requires SMP=0)
 endif
 ifneq ($(CONSOLE),uart)
-$(error This reviewed profile reserves UART0 GP0/GP1; use CONSOLE=uart)
+$(error This reviewed profile uses the UART0 console on GP0/GP1 (shared with the HC-SR04 after start-up); use CONSOLE=uart)
 endif
 ifeq ($(wildcard $(PICO_SDK_PATH)/src/rp2_common/hardware_adc/adc.c),)
 $(error Set PICO_SDK_PATH to the pinned Pico SDK 2.2.0 checkout)

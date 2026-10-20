@@ -4,7 +4,8 @@
 #   bash scripts/dev.sh setup [setup options]     dependencies, toolchain, install
 #                                                 (--no-install while .import-stage exists)
 #   bash scripts/dev.sh host-tests [pattern]      firmware/run_tests.sh (release + ASan/UBSan)
-#   bash scripts/dev.sh style                     selected BARR-C lexical checks
+#   bash scripts/dev.sh style                     selected BARR-C lexical checks and
+#                                                 the shared-write lock discipline
 #   bash scripts/dev.sh app-tests [options]       application scenario tests
 #   bash scripts/dev.sh integration               board IRQ, image gate, build script,
 #                                                 installer memory, preflight, radio,
@@ -68,8 +69,15 @@ refuse_during_import() {
     fi
 }
 
-cmd_host_tests() { (cd "$firmware" && bash run_tests.sh "$@"); }
-cmd_style() { python3 "$scripts/check_style.py" --report-dir "$out/style" "$@"; }
+cmd_host_tests() {
+    (cd "$firmware" && bash run_tests.sh "$@")
+    # The laptop decoder shares the C encoder's golden telemetry vectors.
+    (cd "$scripts" && python3 -m unittest -q test_telemetry_codec)
+}
+cmd_style() {
+    python3 "$scripts/check_style.py" --report-dir "$out/style" "$@"
+    python3 "$scripts/check_locks.py" --report "$out/style/lock-report.json"
+}
 cmd_app_tests() {
     refuse_during_import "app-tests"
     python3 "$scripts/test_application.py" "$@"

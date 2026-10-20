@@ -105,7 +105,8 @@ def main() -> None:
         (output / "host_build_command.json").write_text(
             json.dumps(command, indent=2) + "\n")
         for label, extra in [("release", []), ("sanitize", ["-g",
-                              "-fsanitize=address,undefined",
+                              "-fsanitize=address,undefined,"
+                              "float-cast-overflow",
                               "-fno-sanitize-recover=all",
                               "-fno-omit-frame-pointer"])]:
             binary = Path(temporary) / ("mqttnet_" + label)

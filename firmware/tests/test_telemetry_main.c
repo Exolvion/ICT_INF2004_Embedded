@@ -1,6 +1,7 @@
 /**
  * @file test_telemetry_main.c
- * @brief Exact-schema, integer-extreme and capacity boundary tests.
+ * @brief Golden bytes shared with scripts/telemetry_codec.py, saturation,
+ * invalid codes, decoder rejection and randomized round trips.
  * NOTE: main preserves the required hosted-C entry name (BARR-C 6.1.i).
  */
 #include "test_telemetry_main.h"
@@ -10,351 +11,476 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uint32_t checks;
-static uint32_t failures;
+#define TEST_TELEMETRY_ROUNDS (20000U)
 
-static const telemetry_perception_t perception_max =
+static uint32_t g_checks;
+static uint32_t g_failures;
+static uint32_t g_seed = 0x5EEDU;
+
+/* The same inputs and bytes are in scripts/test_telemetry_codec.py. */
+static const telemetry_status_t g_status_golden =
 {
-    .seq = UINT32_MAX, .now_ms = UINT32_MAX, .run_id = UINT32_MAX,
-    .cal_version = UINT32_MAX, .barcode_action = INT32_MIN,
-    .barcode_label = INT32_MIN, .yaw_mrad_s = INT32_MIN,
-    .motion_class = INT32_MIN, .scan_width_mm = INT32_MIN,
-    .scan_nearest_mm = INT32_MIN, .scan_side = INT32_MIN,
-    .scan_valid = UINT32_MAX, .scan_unknown = UINT32_MAX,
-    .b_tilt_valid = false, .b_hump_active = false, .b_scan_valid = false
+    .now_ms = 0x12345678U, .range_age_ms = 1023U, .vleft_mm_s = -123,
+    .vright_mm_s = 511, .pitch_mrad = TELEMETRY_INVALID, .peak_mm = 300U,
+    .range_mm = 4095U, .seq = 125U, .dropped = 3U, .ignored = 255U,
+    .state = 2U, .b_stop = true, .b_hardfault = false,
+    .b_heightvalid = true, .b_rangevalid = false
+};
+static const uint8_t g_status_bytes[TELEMETRY_STATUS_BYTES] =
+{
+    0xD1U, 0x87U, 0x67U, 0x45U, 0x23U, 0x31U, 0xF0U, 0xFFU, 0xBFU, 0x14U,
+    0xFEU, 0x1FU, 0x00U, 0xB2U, 0xFCU, 0xFFU, 0x02U
+};
+static const telemetry_perception_t g_perception_golden =
+{
+    .now_ms = 0x89ABCDEFU, .yaw_mrad_s = -4095, .scan_width_mm = 1234U,
+    .scan_nearest_mm = 4000U, .seq = 125U, .run_id = 7U, .cal_version = 1U,
+    .barcode_action = 4U, .barcode_symbol = 15U, .motion_class = 8U,
+    .scan_side = 2U, .scan_valid = 61U, .scan_unknown = 0U,
+    .b_tilt_valid = true, .b_hump_active = false, .b_scan_valid = true,
+    .b_obstacle_seen = true
+};
+static const uint8_t g_perception_bytes[TELEMETRY_PERCEPTION_BYTES] =
+{
+    0xD5U, 0xF7U, 0xDEU, 0xBCU, 0x9AU, 0x78U, 0x10U, 0xC0U, 0x0FU, 0x80U,
+    0x28U, 0x4DU, 0xA0U, 0x6FU, 0x0FU, 0x34U
+};
+static const telemetry_diagnostic_t g_diagnostic_golden =
+{
+    .now_ms = 1U, .first_fault_ms = 0xFFFFFFFFU, .fault_mask = 0x8001U,
+    .mission_peak_mm = 511U, .seq = 0U, .run_id = 255U, .fault_code = 15U,
+    .stop_source = 3U, .barcode_unknown = 0U, .barcode_rejected = 200U,
+    .b_mission_valid = true
+};
+static const uint8_t g_diagnostic_bytes[TELEMETRY_DIAGNOSTIC_BYTES] =
+{
+    0x09U, 0x10U, 0x00U, 0x00U, 0x00U, 0xF0U, 0xFFU, 0xFFU, 0xFFU, 0xFFU,
+    0xFFU, 0x00U, 0xC8U, 0xFFU, 0x07U, 0x00U, 0x0EU
 };
 
-
 static void test_telemetry_check (bool b_result, const char * p_label);
-static void test_telemetry_fixture (void);
-static void test_telemetry_extremes (void);
-static void test_telemetry_bounds (void);
-static void test_perception_fixture (void);
-static void test_perception_extremes (void);
-static void test_perception_bounds (void);
-static void test_diagnostic_fixture (void);
-static void test_diagnostic_extremes (void);
-static void test_diagnostic_bounds (void);
+static uint32_t test_telemetry_random (void);
+static int16_t test_telemetry_signed (uint32_t width);
+static void test_telemetry_golden (void);
+static void test_telemetry_saturation (void);
+static void test_telemetry_rejection (void);
+static void test_telemetry_capacity (void);
+static size_t test_telemetry_encode_golden (telemetry_frame_t type,
+                                            uint8_t * p_frame,
+                                            size_t capacity);
+static void test_telemetry_status_rounds (void);
+static void test_telemetry_perception_rounds (void);
+static void test_telemetry_diagnostic_rounds (void);
 
-/** @brief Return a failing exit status for any violated formatter contract. */
+/** @brief Return a failing exit status for any violated codec contract. */
 int main (void)
 {
     int result;
 
-    test_telemetry_fixture();
-    test_telemetry_extremes();
-    test_telemetry_bounds();
-    test_perception_fixture();
-    test_perception_extremes();
-    test_perception_bounds();
-    test_diagnostic_fixture();
-    test_diagnostic_extremes();
-    test_diagnostic_bounds();
-    result = printf("telemetry: %u checks, %u failures\n", checks, failures);
-    if ((result < 0) || (failures > 0U))
+    test_telemetry_golden();
+    test_telemetry_saturation();
+    test_telemetry_rejection();
+    test_telemetry_capacity();
+    test_telemetry_status_rounds();
+    test_telemetry_perception_rounds();
+    test_telemetry_diagnostic_rounds();
+    result = printf("telemetry: %u checks, %u failures\n", g_checks,
+                    g_failures);
+    if ((result < 0) || (g_failures > 0U))
     {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
 }
 
-/** @brief Record assertions while keeping every scenario runnable. */
+/** @brief Record every assertion without aborting subsequent scenarios. */
 static void test_telemetry_check (bool b_result, const char * p_label)
 {
-    checks++;
+    g_checks++;
     if (!b_result)
     {
         int result;
 
-        failures++;
+        g_failures++;
         result = fprintf(stderr, "FAIL: %s\n", p_label);
-        /* A diagnostic write failure does not erase the failed assertion. */
+        /* Failure is already recorded even if diagnostic output fails. */
         (void)result;
     }
 }
 
-/** @brief Compare all fields and mixed Boolean values with exact JSON. */
-static void test_telemetry_fixture (void)
+/** @brief Deterministic LCG keeps the randomized rounds reproducible. */
+static uint32_t test_telemetry_random (void)
 {
-    const telemetry_status_t status =
-    {
-        .seq = 12U, .now_ms = 3456U, .dropped = 7U, .ignored = 8U,
-        .range_age_ms = 9U, .state = 2, .vleft_mm_s = -123,
-        .vright_mm_s = 456, .pitch_mrad = -7, .peak_mm = 8, .range_mm = 90,
-        .b_stop = true, .b_hardfault = false,
-        .b_heightvalid = true, .b_rangevalid = false
-    };
-    const char expected[] =
-        "{\"seq\":12,\"ms\":3456,\"drop\":7,\"ign\":8,\"age\":9,"
-        "\"st\":2,\"vl\":-123,\"vr\":456,\"pt\":-7,\"pk\":8,\"rg\":90,"
-        "\"stop\":true,\"fault\":false,\"hv\":true,\"rv\":false}";
-    char text[TELEMETRY_BUFFER_SIZE];
-    size_t length = telemetry_format(&status, text, sizeof(text));
-
-    test_telemetry_check(length == (sizeof(expected) - 1U),
-                          "fixture byte length excludes NUL");
-    test_telemetry_check(0 == strcmp(text, expected),
-                          "all keys, units, numbers and Booleans match");
-    test_telemetry_check('\0' == text[length], "success terminates text");
+    g_seed = (g_seed * 1664525U) + 1013904223U;
+    return g_seed;
 }
 
-/** @brief All longest values fit, including INT32_MIN without overflow. */
-static void test_telemetry_extremes (void)
+/** @brief Random in-range value of a symmetric signed field, or invalid. */
+static int16_t test_telemetry_signed (uint32_t width)
 {
-    telemetry_status_t status =
+    uint32_t limit = (1U << (width - 1U)) - 1U;
+    uint32_t draw = test_telemetry_random() % ((2U * limit) + 2U);
+
+    if (draw > (2U * limit))
     {
-        .seq = UINT32_MAX, .now_ms = UINT32_MAX, .dropped = UINT32_MAX,
-        .ignored = UINT32_MAX, .range_age_ms = UINT32_MAX,
-        .state = INT32_MIN, .vleft_mm_s = INT32_MIN,
-        .vright_mm_s = INT32_MIN, .pitch_mrad = INT32_MIN,
-        .peak_mm = INT32_MIN, .range_mm = INT32_MIN,
-        .b_stop = false, .b_hardfault = false,
-        .b_heightvalid = false, .b_rangevalid = false
-    };
-    const char expected[] =
-        "{\"seq\":4294967295,\"ms\":4294967295,\"drop\":4294967295,"
-        "\"ign\":4294967295,\"age\":4294967295,\"st\":-2147483648,"
-        "\"vl\":-2147483648,\"vr\":-2147483648,\"pt\":-2147483648,"
-        "\"pk\":-2147483648,\"rg\":-2147483648,\"stop\":false,"
-        "\"fault\":false,\"hv\":false,\"rv\":false}";
-    char text[TELEMETRY_BUFFER_SIZE];
-    size_t length = telemetry_format(&status, text, sizeof(text));
-
-    test_telemetry_check(length > 0U, "all worst-width fields fit");
-    test_telemetry_check(length < TELEMETRY_BUFFER_SIZE,
-                          "worst schema leaves room for NUL");
-    test_telemetry_check(length == (sizeof(expected) - 1U),
-                          "worst schema exact length");
-    test_telemetry_check(0 == strcmp(text, expected),
-                          "UINT32_MAX and INT32_MIN exact decimal strings");
-    status.state = INT32_MAX;
-    status.vleft_mm_s = -1;
-    status.vright_mm_s = 0;
-    status.pitch_mrad = 1;
-    status.peak_mm = 10;
-    status.range_mm = 100;
-    length = telemetry_format(&status, text, sizeof(text));
-    test_telemetry_check(length > 0U, "mixed sign and decimal boundaries fit");
-    test_telemetry_check(NULL != strstr(text,
-        "\"st\":2147483647,\"vl\":-1,\"vr\":0,\"pt\":1,\"pk\":10,\"rg\":100"),
-        "signed maximum, negative one, zero and powers of ten");
-}
-
-/** @brief Every undersized capacity clears output and preserves canaries. */
-static void test_telemetry_bounds (void)
-{
-    const telemetry_status_t status = {0};
-    char reference[TELEMETRY_BUFFER_SIZE];
-    char text[TELEMETRY_BUFFER_SIZE];
-    size_t capacity;
-    size_t required = telemetry_format(&status, reference, sizeof(reference));
-    size_t length;
-
-    test_telemetry_check(required > 0U, "zero-valued snapshot is valid");
-    for (capacity = 1U; capacity <= required; capacity++)
-    {
-        memset(text, 'X', sizeof(text));
-        length = telemetry_format(&status, text, capacity);
-        test_telemetry_check(0U == length, "short capacity reports failure");
-        test_telemetry_check('\0' == text[0], "failure clears first byte");
-        test_telemetry_check('X' == text[capacity], "no write past capacity");
+        return TELEMETRY_INVALID;
     }
-    memset(text, 'X', sizeof(text));
-    length = telemetry_format(&status, text, required + 1U);
-    test_telemetry_check(length == required, "exact capacity succeeds");
-    test_telemetry_check(0 == strcmp(text, reference), "exact capacity JSON");
-    test_telemetry_check('X' == text[required + 1U], "exact-size canary");
-    text[0] = 'X';
-    test_telemetry_check(0U == telemetry_format(&status, text, 0U),
-                          "zero capacity rejected");
-    test_telemetry_check('X' == text[0], "zero capacity performs no write");
-    test_telemetry_check(0U == telemetry_format(&status, NULL, sizeof(text)),
-                          "NULL destination rejected");
-    test_telemetry_check(0U == telemetry_format(NULL, text, sizeof(text)),
-                          "NULL snapshot rejected");
-    test_telemetry_check('\0' == text[0], "NULL snapshot clears destination");
+    /* draw - limit lies in +/-4095, exactly representable in int16_t. */
+    return (int16_t)((int32_t)draw - (int32_t)limit);
 }
 
-/** @brief Verify exact perception keys, field order and physical units. */
-static void test_perception_fixture (void)
+/** @brief Every frame matches the Python reference bytes exactly. */
+static void test_telemetry_golden (void)
 {
-    const telemetry_perception_t status =
+    uint8_t frame[TELEMETRY_FRAME_MAX + 3U];
+    telemetry_status_t status;
+    telemetry_perception_t perception;
+    telemetry_diagnostic_t diagnostic;
+    telemetry_frame_t type = TELEMETRY_FRAME_DIAGNOSTIC;
+
+    memset(frame, 0xA5, sizeof(frame));
+    memset(&status, 0, sizeof(status));
+    memset(&perception, 0, sizeof(perception));
+    memset(&diagnostic, 0, sizeof(diagnostic));
+    test_telemetry_check(TELEMETRY_STATUS_BYTES ==
+                         telemetry_encode_status(&g_status_golden, frame,
+                                                 sizeof(frame)),
+                         "status is 17 bytes");
+    test_telemetry_check(0 == memcmp(frame, g_status_bytes,
+                                     TELEMETRY_STATUS_BYTES),
+                         "status golden bytes");
+    test_telemetry_check(0xA5U == frame[TELEMETRY_STATUS_BYTES],
+                         "status writes nothing past its length");
+    test_telemetry_check(telemetry_frame_type(frame, TELEMETRY_STATUS_BYTES,
+                                              &type) &&
+                         (TELEMETRY_FRAME_STATUS == type), "status type");
+    test_telemetry_check(telemetry_decode_status(g_status_bytes,
+                         TELEMETRY_STATUS_BYTES, &status) &&
+                         (0 == memcmp(&status, &g_status_golden,
+                                      sizeof(status))),
+                         "status decodes to its inputs");
+    test_telemetry_check(TELEMETRY_PERCEPTION_BYTES ==
+                         telemetry_encode_perception(&g_perception_golden,
+                             frame, sizeof(frame)) &&
+                         (0 == memcmp(frame, g_perception_bytes,
+                                      TELEMETRY_PERCEPTION_BYTES)),
+                         "perception golden bytes");
+    test_telemetry_check(telemetry_frame_type(frame,
+                         TELEMETRY_PERCEPTION_BYTES, &type) &&
+                         (TELEMETRY_FRAME_PERCEPTION == type),
+                         "perception type");
+    test_telemetry_check(telemetry_decode_perception(g_perception_bytes,
+                         TELEMETRY_PERCEPTION_BYTES, &perception) &&
+                         (0 == memcmp(&perception, &g_perception_golden,
+                                      sizeof(perception))),
+                         "perception decodes to its inputs");
+    test_telemetry_check(TELEMETRY_DIAGNOSTIC_BYTES ==
+                         telemetry_encode_diagnostic(&g_diagnostic_golden,
+                             frame, sizeof(frame)) &&
+                         (0 == memcmp(frame, g_diagnostic_bytes,
+                                      TELEMETRY_DIAGNOSTIC_BYTES)),
+                         "diagnostic golden bytes");
+    test_telemetry_check(telemetry_decode_diagnostic(g_diagnostic_bytes,
+                         TELEMETRY_DIAGNOSTIC_BYTES, &diagnostic) &&
+                         (0 == memcmp(&diagnostic, &g_diagnostic_golden,
+                                      sizeof(diagnostic))),
+                         "diagnostic decodes to its inputs");
+    test_telemetry_check(0U == (TELEMETRY_SEQUENCE_MODULO % 5U),
+                         "sequence wrap keeps the every-fifth rule");
+}
+
+/** @brief Out-of-range inputs saturate; invalid survives a round trip. */
+static void test_telemetry_saturation (void)
+{
+    uint8_t frame[TELEMETRY_FRAME_MAX];
+    telemetry_status_t status = g_status_golden;
+    telemetry_status_t back;
+    telemetry_perception_t perception = g_perception_golden;
+    telemetry_perception_t perception_back;
+    telemetry_diagnostic_t diagnostic = g_diagnostic_golden;
+    telemetry_diagnostic_t diagnostic_back;
+
+    status.range_age_ms = 60000U;
+    status.state = 200U;
+    status.vleft_mm_s = 600;
+    status.vright_mm_s = -32767;
+    status.pitch_mrad = 3000;
+    status.peak_mm = 700U;
+    status.range_mm = 5000U;
+    test_telemetry_check(
+        (TELEMETRY_STATUS_BYTES ==
+         telemetry_encode_status(&status, frame, sizeof(frame))) &&
+        telemetry_decode_status(frame, TELEMETRY_STATUS_BYTES, &back) &&
+        (1023U == back.range_age_ms) && (15U == back.state) &&
+        (511 == back.vleft_mm_s) && (-511 == back.vright_mm_s) &&
+        (2047 == back.pitch_mrad) && (511U == back.peak_mm) &&
+        (4095U == back.range_mm), "status fields saturate, never wrap");
+    status.pitch_mrad = -2048;
+    test_telemetry_check(
+        (TELEMETRY_STATUS_BYTES ==
+         telemetry_encode_status(&status, frame, sizeof(frame))) &&
+        telemetry_decode_status(frame, TELEMETRY_STATUS_BYTES, &back) &&
+        (-2047 == back.pitch_mrad), "a real -2048 mrad is not invalid");
+    perception.yaw_mrad_s = 9000;
+    perception.scan_valid = 99U;
+    perception.barcode_action = 9U;
+    test_telemetry_check(
+        (TELEMETRY_PERCEPTION_BYTES == telemetry_encode_perception(
+            &perception, frame, sizeof(frame))) &&
+        telemetry_decode_perception(frame, TELEMETRY_PERCEPTION_BYTES,
+                                    &perception_back) &&
+        (4095 == perception_back.yaw_mrad_s) &&
+        (63U == perception_back.scan_valid) &&
+        (7U == perception_back.barcode_action),
+        "perception fields saturate");
+    diagnostic.mission_peak_mm = 1000U;
+    diagnostic.stop_source = 9U;
+    test_telemetry_check(
+        (TELEMETRY_DIAGNOSTIC_BYTES == telemetry_encode_diagnostic(
+            &diagnostic, frame, sizeof(frame))) &&
+        telemetry_decode_diagnostic(frame, TELEMETRY_DIAGNOSTIC_BYTES,
+                                    &diagnostic_back) &&
+        (511U == diagnostic_back.mission_peak_mm) &&
+        (3U == diagnostic_back.stop_source),
+        "diagnostic fields saturate");
+}
+
+/** @brief Wrong length, version, type, padding or pointers are refused. */
+static void test_telemetry_rejection (void)
+{
+    uint8_t frame[TELEMETRY_FRAME_MAX];
+    telemetry_status_t status = g_status_golden;
+    telemetry_perception_t perception;
+    telemetry_frame_t type = TELEMETRY_FRAME_STATUS;
+
+    memset(frame, 0x5A, sizeof(frame));
+    test_telemetry_check((0U == telemetry_encode_status(&g_status_golden,
+                          frame, TELEMETRY_STATUS_BYTES - 1U)) &&
+                         (0x5AU == frame[0]),
+                         "short capacity writes nothing");
+    test_telemetry_check(0U == telemetry_encode_status(NULL, frame,
+                                                       sizeof(frame)),
+                         "NULL status refused");
+    test_telemetry_check(0U == telemetry_encode_perception(
+                             &g_perception_golden, NULL, 16U),
+                         "NULL frame refused");
+    memcpy(frame, g_status_bytes, TELEMETRY_STATUS_BYTES);
+    test_telemetry_check(!telemetry_decode_status(frame,
+                         TELEMETRY_STATUS_BYTES - 1U, &status),
+                         "short status refused");
+    frame[0] = (uint8_t)((frame[0] & 0xFCU) | 0x02U);
+    test_telemetry_check((!telemetry_decode_status(frame,
+                          TELEMETRY_STATUS_BYTES, &status)) &&
+                         (!telemetry_frame_type(frame,
+                          TELEMETRY_STATUS_BYTES, &type)),
+                         "other version refused");
+    memcpy(frame, g_status_bytes, TELEMETRY_STATUS_BYTES);
+    frame[TELEMETRY_STATUS_BYTES - 1U] |= 0x80U;
+    test_telemetry_check(!telemetry_decode_status(frame,
+                         TELEMETRY_STATUS_BYTES, &status),
+                         "nonzero padding refused");
+    test_telemetry_check(0 == memcmp(&status, &g_status_golden,
+                                     sizeof(status)),
+                         "refused decode leaves output unchanged");
+    test_telemetry_check(!telemetry_decode_perception(g_status_bytes,
+                         TELEMETRY_PERCEPTION_BYTES, &perception),
+                         "status bytes are not a perception frame");
+    frame[0] = 0x0DU;
+    test_telemetry_check(!telemetry_frame_type(frame, 1U, &type),
+                         "reserved frame type refused");
+    test_telemetry_check(!telemetry_frame_type(frame, 0U, &type),
+                         "empty frame refused");
+}
+
+/** @brief Every capacity below a frame's size is refused with nothing
+ * written; the exact size gives the golden frame and nothing past it.
+ */
+static void test_telemetry_capacity (void)
+{
+    static const telemetry_frame_t types[3] =
     {
-        .seq = 5U, .now_ms = 1000U, .run_id = 2U, .cal_version = 3U,
-        .barcode_action = 1, .barcode_label = 65, .yaw_mrad_s = -123,
-        .motion_class = 4, .scan_width_mm = 56, .scan_nearest_mm = 78,
-        .scan_side = -1, .scan_valid = 9U, .scan_unknown = 10U,
-        .b_tilt_valid = true, .b_hump_active = false, .b_scan_valid = true
+        TELEMETRY_FRAME_STATUS, TELEMETRY_FRAME_PERCEPTION,
+        TELEMETRY_FRAME_DIAGNOSTIC
     };
-    const char expected[] =
-        "{\"seq\":5,\"ms\":1000,\"run\":2,\"cal\":3,\"ba\":1,\"bl\":65,"
-        "\"yr\":-123,\"mc\":4,\"sw\":56,\"sn\":78,\"ss\":-1,\"sv\":9,"
-        "\"su\":10,\"tv\":true,\"ha\":false,\"sc\":true}";
-    char text[TELEMETRY_BUFFER_SIZE];
-    size_t length = telemetry_format_perception(&status, text, sizeof(text));
-
-    test_telemetry_check(length == (sizeof(expected) - 1U),
-                          "perception fixture excludes final NUL");
-    test_telemetry_check(0 == strcmp(text, expected),
-                          "perception fields and native Booleans match");
-    test_telemetry_check('\0' == text[length], "perception has final NUL");
-}
-
-/** @brief Every longest representation fits within the 256-byte limit. */
-static void test_perception_extremes (void)
-{
-    const char expected[] =
-        "{\"seq\":4294967295,\"ms\":4294967295,\"run\":4294967295,"
-        "\"cal\":4294967295,\"ba\":-2147483648,\"bl\":-2147483648,"
-        "\"yr\":-2147483648,\"mc\":-2147483648,\"sw\":-2147483648,"
-        "\"sn\":-2147483648,\"ss\":-2147483648,\"sv\":4294967295,"
-        "\"su\":4294967295,\"tv\":false,\"ha\":false,\"sc\":false}";
-    char text[TELEMETRY_BUFFER_SIZE];
-    size_t length;
-
-    length = telemetry_format_perception(&perception_max, text, sizeof(text));
-    test_telemetry_check(252U == length, "perception longest frame is252");
-    test_telemetry_check(length < TELEMETRY_BUFFER_SIZE,
-                          "perception longest frame has NUL capacity");
-    test_telemetry_check(length == (sizeof(expected) - 1U),
-                          "perception longest exact fixture size");
-    test_telemetry_check(0 == strcmp(text, expected),
-                          "all perception UINT32_MAX/INT32_MIN fields exact");
-}
-
-/** @brief Every insufficient size is rejected, without crossing its bound. */
-static void test_perception_bounds (void)
-{
-    char reference[TELEMETRY_BUFFER_SIZE];
-    char text[TELEMETRY_BUFFER_SIZE];
-    size_t capacity;
-    size_t required;
-    size_t length;
-
-    required = telemetry_format_perception(&perception_max, reference,
-                                             sizeof(reference));
-    for (capacity = 1U; capacity <= required; capacity++)
+    static const size_t sizes[3] =
     {
-        memset(text, 'X', sizeof(text));
-        length = telemetry_format_perception(&perception_max, text, capacity);
-        test_telemetry_check(0U == length, "short perception size fails");
-        test_telemetry_check('\0' == text[0], "failed perception is empty");
-        test_telemetry_check('X' == text[capacity], "perception bound canary");
+        TELEMETRY_STATUS_BYTES, TELEMETRY_PERCEPTION_BYTES,
+        TELEMETRY_DIAGNOSTIC_BYTES
+    };
+    static const uint8_t * const goldens[3] =
+    {
+        g_status_bytes, g_perception_bytes, g_diagnostic_bytes
+    };
+    uint8_t frame[TELEMETRY_FRAME_MAX + 1U];
+    size_t kind = 0U;
+    size_t capacity = 0U;
+    size_t index = 0U;
+    bool b_untouched = true;
+
+    for (kind = 0U; kind < 3U; kind++)
+    {
+        for (capacity = 0U; capacity < sizes[kind]; capacity++)
+        {
+            memset(frame, 0x5A, sizeof(frame));
+            b_untouched = 0U == test_telemetry_encode_golden(types[kind],
+                                                             frame,
+                                                             capacity);
+            for (index = 0U; index < sizeof(frame); index++)
+            {
+                b_untouched = b_untouched && (0x5AU == frame[index]);
+            }
+            test_telemetry_check(b_untouched,
+                                 "short capacity refused, nothing written");
+        }
+        memset(frame, 0x5A, sizeof(frame));
+        test_telemetry_check((sizes[kind] ==
+                              test_telemetry_encode_golden(types[kind], frame,
+                                                           sizes[kind])) &&
+                             (0 == memcmp(frame, goldens[kind],
+                                          sizes[kind])) &&
+                             (0x5AU == frame[sizes[kind]]),
+                             "exact capacity writes the frame only");
     }
-    memset(text, 'X', sizeof(text));
-    length = telemetry_format_perception(&perception_max, text, required + 1U);
-    test_telemetry_check(length == required, "perception exact capacity");
-    test_telemetry_check(0 == strcmp(text, reference), "perception exact JSON");
-    test_telemetry_check('X' == text[required + 1U], "perception exact canary");
-    text[0] = 'X';
-    length = telemetry_format_perception(&perception_max, text, 0U);
-    test_telemetry_check(0U == length, "zero perception capacity fails");
-    test_telemetry_check('X' == text[0], "zero perception capacity no write");
-    length = telemetry_format_perception(&perception_max, NULL, sizeof(text));
-    test_telemetry_check(0U == length, "NULL perception output fails");
-    length = telemetry_format_perception(NULL, text, sizeof(text));
-    test_telemetry_check(0U == length, "NULL perception snapshot fails");
-    test_telemetry_check('\0' == text[0], "NULL perception empties text");
 }
 
-/** @brief Diagnostic keys retain event time separately from frame time. */
-static void test_diagnostic_fixture (void)
+/** @brief Encode the golden record of one frame type. */
+static size_t test_telemetry_encode_golden (telemetry_frame_t type,
+                                            uint8_t * p_frame,
+                                            size_t capacity)
 {
-    telemetry_diagnostic_t status =
+    size_t length = 0U;
+
+    switch (type)
     {
-        .seq = 6U, .now_ms = 1234U, .run_id = 2U,
-        .fault_code = 5, .first_fault_ms = 900U,
-        .barcode_unknown = 2U, .barcode_rejected = 3U,
-        .mission_peak_mm = 19, .b_mission_valid = true
-    };
-    const char expected[] =
-        "{\"seq\":6,\"ms\":1234,\"run\":2,\"fc\":5,\"fm\":900,"
-        "\"bu\":2,\"br\":3,\"mp\":19,\"mv\":true}";
-    char text[TELEMETRY_BUFFER_SIZE];
-    size_t length = telemetry_format_diagnostic(&status, text, sizeof(text));
-
-    test_telemetry_check(length == (sizeof(expected) - 1U),
-                          "diagnostic fixture length excludes NUL");
-    test_telemetry_check(0 == strcmp(text, expected),
-                          "diagnostic frame and first-fault times differ");
-    test_telemetry_check('\0' == text[length], "diagnostic terminates text");
-    status.fault_code = 0;
-    status.first_fault_ms = 0U;
-    length = telemetry_format_diagnostic(&status, text, sizeof(text));
-    test_telemetry_check(length > 0U, "cleared diagnostic formats");
-    test_telemetry_check(NULL != strstr(text, "\"fc\":0,\"fm\":0,"),
-                          "cleared diagnostic latch is explicit");
-}
-
-/** @brief Longest numeric values fit with event time at unsigned maximum. */
-static void test_diagnostic_extremes (void)
-{
-    telemetry_diagnostic_t status =
-    {
-        .seq = UINT32_MAX, .now_ms = UINT32_MAX, .run_id = UINT32_MAX,
-        .fault_code = INT32_MIN, .first_fault_ms = UINT32_MAX,
-        .barcode_unknown = UINT32_MAX, .barcode_rejected = UINT32_MAX,
-        .mission_peak_mm = INT32_MIN, .b_mission_valid = false
-    };
-    const char expected[] =
-        "{\"seq\":4294967295,\"ms\":4294967295,\"run\":4294967295,"
-        "\"fc\":-2147483648,\"fm\":4294967295,"
-        "\"bu\":4294967295,\"br\":4294967295,\"mp\":-2147483648,\"mv\":false}";
-    char text[TELEMETRY_BUFFER_SIZE];
-    size_t length = telemetry_format_diagnostic(&status, text, sizeof(text));
-
-    test_telemetry_check(144U == length, "diagnostic longest frame is 144");
-    test_telemetry_check(length == (sizeof(expected) - 1U),
-                          "diagnostic longest exact fixture size");
-    test_telemetry_check(0 == strcmp(text, expected),
-                          "diagnostic signed minimum and unsigned maximum");
-    status.fault_code = INT32_MAX;
-    length = telemetry_format_diagnostic(&status, text, sizeof(text));
-    test_telemetry_check(length > 0U, "diagnostic signed maximum formats");
-    test_telemetry_check(NULL != strstr(text, "\"fc\":2147483647,"),
-                          "diagnostic signed maximum remains exact");
-}
-
-/** @brief Insufficient diagnostic buffers fail and preserve each canary. */
-static void test_diagnostic_bounds (void)
-{
-    const telemetry_diagnostic_t status =
-    {
-        .seq = UINT32_MAX, .now_ms = UINT32_MAX, .run_id = UINT32_MAX,
-        .fault_code = INT32_MIN, .first_fault_ms = UINT32_MAX,
-        .barcode_unknown = UINT32_MAX, .barcode_rejected = UINT32_MAX,
-        .mission_peak_mm = INT32_MIN, .b_mission_valid = false
-    };
-    char reference[TELEMETRY_BUFFER_SIZE];
-    char text[TELEMETRY_BUFFER_SIZE];
-    size_t required = telemetry_format_diagnostic(&status, reference,
-                                                  sizeof(reference));
-    size_t capacity;
-    size_t length;
-
-    test_telemetry_check(144U == required, "diagnostic bound fixture valid");
-    for (capacity = 1U; capacity <= required; capacity++)
-    {
-        memset(text, 'X', sizeof(text));
-        length = telemetry_format_diagnostic(&status, text, capacity);
-        test_telemetry_check(0U == length, "short diagnostic size fails");
-        test_telemetry_check('\0' == text[0], "failed diagnostic is empty");
-        test_telemetry_check('X' == text[capacity], "diagnostic bound canary");
+        case TELEMETRY_FRAME_STATUS:
+            length = telemetry_encode_status(&g_status_golden, p_frame,
+                                             capacity);
+        break;
+        case TELEMETRY_FRAME_PERCEPTION:
+            length = telemetry_encode_perception(&g_perception_golden,
+                                                 p_frame, capacity);
+        break;
+        case TELEMETRY_FRAME_DIAGNOSTIC:
+            length = telemetry_encode_diagnostic(&g_diagnostic_golden,
+                                                 p_frame, capacity);
+        break;
+        default:
+            length = 0U;
+        break;
     }
-    memset(text, 'X', sizeof(text));
-    length = telemetry_format_diagnostic(&status, text, required + 1U);
-    test_telemetry_check(length == required, "diagnostic exact capacity");
-    test_telemetry_check(0 == strcmp(text, reference), "diagnostic exact JSON");
-    test_telemetry_check('X' == text[required + 1U], "diagnostic exact canary");
-    text[0] = 'X';
-    length = telemetry_format_diagnostic(&status, text, 0U);
-    test_telemetry_check(0U == length, "zero diagnostic capacity fails");
-    test_telemetry_check('X' == text[0], "zero diagnostic capacity no write");
-    length = telemetry_format_diagnostic(&status, NULL, sizeof(text));
-    test_telemetry_check(0U == length, "NULL diagnostic output fails");
-    length = telemetry_format_diagnostic(NULL, text, sizeof(text));
-    test_telemetry_check(0U == length, "NULL diagnostic snapshot fails");
-    test_telemetry_check('\0' == text[0], "NULL diagnostic empties text");
+    return length;
+}
+
+/** @brief Random in-range status values decode to themselves. */
+static void test_telemetry_status_rounds (void)
+{
+    uint8_t frame[TELEMETRY_FRAME_MAX];
+    telemetry_status_t status;
+    telemetry_status_t back;
+    uint32_t round;
+    bool b_equal = true;
+
+    for (round = 0U; round < TEST_TELEMETRY_ROUNDS; round++)
+    {
+        memset(&status, 0, sizeof(status));
+        memset(&back, 0, sizeof(back));
+        status.now_ms = test_telemetry_random();
+        status.range_age_ms = (uint16_t)(test_telemetry_random() % 1024U);
+        status.vleft_mm_s = test_telemetry_signed(10U);
+        status.vright_mm_s = test_telemetry_signed(10U);
+        status.pitch_mrad = test_telemetry_signed(12U);
+        status.peak_mm = (uint16_t)(test_telemetry_random() % 512U);
+        status.range_mm = (uint16_t)(test_telemetry_random() % 4096U);
+        status.seq = (uint8_t)(test_telemetry_random() % 250U);
+        status.dropped = (uint8_t)test_telemetry_random();
+        status.ignored = (uint8_t)test_telemetry_random();
+        status.state = (uint8_t)(test_telemetry_random() % 16U);
+        status.b_stop = 0U != (test_telemetry_random() & 1U);
+        status.b_hardfault = 0U != (test_telemetry_random() & 1U);
+        status.b_heightvalid = 0U != (test_telemetry_random() & 1U);
+        status.b_rangevalid = 0U != (test_telemetry_random() & 1U);
+        b_equal = b_equal &&
+            (TELEMETRY_STATUS_BYTES ==
+             telemetry_encode_status(&status, frame, sizeof(frame))) &&
+            telemetry_decode_status(frame, TELEMETRY_STATUS_BYTES, &back) &&
+            (0 == memcmp(&status, &back, sizeof(status)));
+    }
+    test_telemetry_check(b_equal, "status random round trips");
+}
+
+/** @brief Random in-range perception values decode to themselves. */
+static void test_telemetry_perception_rounds (void)
+{
+    uint8_t frame[TELEMETRY_FRAME_MAX];
+    telemetry_perception_t status;
+    telemetry_perception_t back;
+    uint32_t round;
+    bool b_equal = true;
+
+    for (round = 0U; round < TEST_TELEMETRY_ROUNDS; round++)
+    {
+        memset(&status, 0, sizeof(status));
+        memset(&back, 0, sizeof(back));
+        status.now_ms = test_telemetry_random();
+        status.yaw_mrad_s = test_telemetry_signed(13U);
+        status.scan_width_mm = (uint16_t)(test_telemetry_random() % 4096U);
+        status.scan_nearest_mm =
+            (uint16_t)(test_telemetry_random() % 4096U);
+        status.seq = (uint8_t)(test_telemetry_random() % 250U);
+        status.run_id = (uint8_t)test_telemetry_random();
+        status.cal_version = (uint8_t)test_telemetry_random();
+        status.barcode_action = (uint8_t)(test_telemetry_random() % 8U);
+        status.barcode_symbol = (uint8_t)(test_telemetry_random() % 16U);
+        status.motion_class = (uint8_t)(test_telemetry_random() % 16U);
+        status.scan_side = (uint8_t)(test_telemetry_random() % 4U);
+        status.scan_valid = (uint8_t)(test_telemetry_random() % 64U);
+        status.scan_unknown = (uint8_t)(test_telemetry_random() % 64U);
+        status.b_tilt_valid = 0U != (test_telemetry_random() & 1U);
+        status.b_hump_active = 0U != (test_telemetry_random() & 1U);
+        status.b_scan_valid = 0U != (test_telemetry_random() & 1U);
+        status.b_obstacle_seen = 0U != (test_telemetry_random() & 1U);
+        b_equal = b_equal &&
+            (TELEMETRY_PERCEPTION_BYTES ==
+             telemetry_encode_perception(&status, frame, sizeof(frame))) &&
+            telemetry_decode_perception(frame, TELEMETRY_PERCEPTION_BYTES,
+                                        &back) &&
+            (0 == memcmp(&status, &back, sizeof(status)));
+    }
+    test_telemetry_check(b_equal, "perception random round trips");
+}
+
+/** @brief Random in-range diagnostic values decode to themselves. */
+static void test_telemetry_diagnostic_rounds (void)
+{
+    uint8_t frame[TELEMETRY_FRAME_MAX];
+    telemetry_diagnostic_t status;
+    telemetry_diagnostic_t back;
+    uint32_t round;
+    bool b_equal = true;
+
+    for (round = 0U; round < TEST_TELEMETRY_ROUNDS; round++)
+    {
+        memset(&status, 0, sizeof(status));
+        memset(&back, 0, sizeof(back));
+        status.now_ms = test_telemetry_random();
+        status.first_fault_ms = test_telemetry_random();
+        status.fault_mask = (uint16_t)test_telemetry_random();
+        status.mission_peak_mm = (uint16_t)(test_telemetry_random() % 512U);
+        status.seq = (uint8_t)(test_telemetry_random() % 250U);
+        status.run_id = (uint8_t)test_telemetry_random();
+        status.fault_code = (uint8_t)(test_telemetry_random() % 16U);
+        status.stop_source = (uint8_t)(test_telemetry_random() % 4U);
+        status.barcode_unknown = (uint8_t)test_telemetry_random();
+        status.barcode_rejected = (uint8_t)test_telemetry_random();
+        status.b_mission_valid = 0U != (test_telemetry_random() & 1U);
+        b_equal = b_equal &&
+            (TELEMETRY_DIAGNOSTIC_BYTES ==
+             telemetry_encode_diagnostic(&status, frame, sizeof(frame))) &&
+            telemetry_decode_diagnostic(frame, TELEMETRY_DIAGNOSTIC_BYTES,
+                                        &back) &&
+            (0 == memcmp(&status, &back, sizeof(status)));
+    }
+    test_telemetry_check(b_equal, "diagnostic random round trips");
 }
 
 /* End of file. */

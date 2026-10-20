@@ -44,13 +44,16 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
             -Wnull-dereference)
         if(CORE_SANITIZERS)
             target_compile_options(${target} PRIVATE -g -fno-omit-frame-pointer
-                -fsanitize=address,undefined -fno-sanitize-recover=all)
+                -fsanitize=address,undefined,float-cast-overflow
+                -fno-sanitize-recover=all)
             target_link_options(${target} INTERFACE
-                -fsanitize=address,undefined -fno-sanitize-recover=all)
+                -fsanitize=address,undefined,float-cast-overflow
+                -fno-sanitize-recover=all)
             get_target_property(target_kind ${target} TYPE)
             if(target_kind STREQUAL "EXECUTABLE")
                 target_link_options(${target} PRIVATE
-                    -fsanitize=address,undefined -fno-sanitize-recover=all)
+                    -fsanitize=address,undefined,float-cast-overflow
+                    -fno-sanitize-recover=all)
             endif()
         endif()
     endforeach()

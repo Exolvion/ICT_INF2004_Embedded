@@ -52,17 +52,39 @@
 #define BOARD_RIGHT_MASK BOARD_EDGE_BITS(ROBOT_PIN_ENCODER_RIGHT_A)
 #endif
 #define BOARD_ECHO_MASK BOARD_EDGE_BITS(ROBOT_PIN_ECHO)
+/* Pending bits of a source latched in bank `source`, if that is `bank`. */
+#define BOARD_SAME_BANK(bank, source, pending) \
+    (((bank) == (source)) ? (pending) : 0U)
 #if (BOARD_IRQ_BANK(ROBOT_PIN_ENCODER_LEFT_A) != \
      BOARD_IRQ_BANK(ROBOT_PIN_ENCODER_LEFT_B)) || \
     (BOARD_IRQ_BANK(ROBOT_PIN_ENCODER_RIGHT_A) != \
      BOARD_IRQ_BANK(ROBOT_PIN_ENCODER_RIGHT_B))
 #error "Both encoder inputs of one wheel must share an IO_BANK0 bank"
 #endif
+/* The boot console drives its TX pin, so only TRIG (a sensor input) may
+ * share it; ECHO (a sensor output) may share only the console RX pin.
+ */
+#if (ROBOT_PIN_ECHO == ROBOT_PIN_CONSOLE_TX) || \
+    (ROBOT_PIN_TRIGGER == ROBOT_PIN_CONSOLE_RX)
+#error "HC-SR04 on the console pins needs TRIG on TX and ECHO on RX"
+#endif
+/* RP2040 I2C pairs: SDA on GPIO 4k is I2C0, on 4k + 2 is I2C1; SCL is the
+ * next GPIO. The accelerometer's controller follows its configured pins.
+ */
+#if (ROBOT_PIN_IMU_SCL != (ROBOT_PIN_IMU_SDA + 1U))
+#error "IMU SCL must be the GPIO after SDA"
+#elif ((ROBOT_PIN_IMU_SDA % 4U) == 0U)
+#define BOARD_I2C i2c0
+#elif ((ROBOT_PIN_IMU_SDA % 4U) == 2U)
+#define BOARD_I2C i2c1
+#else
+#error "IMU SDA must be an RP2040 I2C SDA pin"
+#endif
 #define BOARD_MOTOR_SLICE_LEFT 4U
 #define BOARD_MOTOR_SLICE_RIGHT 5U
 #define BOARD_SERVO_SLICE 6U
 /* RP2040 GPIO n drives PWM slice (n >> 1) & 7, channel A when n is even.
- * Motor setup loops LEFT_A..RIGHT_B, and board_apply_motor drives A then B.
+ * Motor setup loops LEFT_A..RIGHT_B; board_apply_motor_locked drives A then B.
  */
 #define BOARD_PWM_SLICE(pin) (((pin) >> 1U) & 7U)
 #if (BOARD_PWM_SLICE(ROBOT_PIN_MOTOR_LEFT_A) != BOARD_MOTOR_SLICE_LEFT) || \
@@ -86,6 +108,41 @@
 #define BOARD_ECHO_MAX_US 25000U
 #define BOARD_WATCHDOG_MAX_MS 8000U
 #define BOARD_WATCHDOG_COUNTS_MS 2000U
+/* Encoder ISR word: left delta bits 0-5, right delta bits 6-11 (two's
+ * complement, saturating at +/-31, so code 0x20 is never stored), left
+ * phase bits 12-13, right phase bits 14-15 (phase = A << 1 | B). Wheel 0 is
+ * left and wheel 1 right: a wheel's delta shifts by 6 * wheel, its phase by
+ * 12 + 2 * wheel, its total by 16 * wheel and its error bit is 1 << wheel.
+ */
+#define BOARD_LEFT 0U
+#define BOARD_RIGHT 1U
+#define BOARD_DELTA_MASK 0x3FU
+#define BOARD_DELTA_SIGN 0x20U
+#define BOARD_DELTA_MAX 31
+#define BOARD_PHASE_SHIFT 12U
+#define BOARD_PHASE_BITS 0xF000U
+#define BOARD_ENCODER_BITS 0xFFFFU
+/* Sticky edge-error byte: bit 0 left, bit 1 right (1 << wheel). */
+#define BOARD_ENCODER_ERRORS \
+    (BOARD_ENCODER_ERROR_LEFT | BOARD_ENCODER_ERROR_RIGHT)
+/* Totals word: left modulo-2^16 total in bits 0-15, right in bits 16-31. */
+#define BOARD_TOTAL_MASK 0xFFFFU
+/* Task-written motor direction byte: left code bits 0-1, right bits 2-3. */
+#define BOARD_LEFT_DIRECTION_SHIFT 0U
+#define BOARD_RIGHT_DIRECTION_SHIFT 2U
+#define BOARD_DIRECTIONS_MASK 0xFU
+/* Motor command levels are PWM compare values 0..6250 in 13 bits. */
+#define BOARD_LEVEL_MASK 0x1FFFU
+#if (ROBOT_PWM_WRAP + 1U) > BOARD_LEVEL_MASK
+#error "Motor levels up to the PWM wrap must fit the 13-bit command field"
+#endif
+/* Echo word: state bits 0-2, completed pulse in microseconds bits 3-17. */
+#define BOARD_ECHO_STATE_MASK 0x7U
+#define BOARD_ECHO_PULSE_SHIFT 3U
+#define BOARD_ECHO_PULSE_MASK 0x7FFFU
+#if ROBOT_ECHO_TIMEOUT_US > BOARD_ECHO_PULSE_MASK
+#error "Echo pulses up to the timeout must fit the 15-bit pulse field"
+#endif
 
 typedef enum
 {
@@ -98,26 +155,35 @@ typedef enum
 
 static bool                         gb_initialized;
 static bool                         gb_accel_initialized;
-static volatile int32_t             g_left_direction;
-static volatile int32_t             g_right_direction;
 static const char *                gp_init_diagnostic = "not initialized";
 static uint16_t                     g_motor_level_limit;
 static uint32_t                     g_watchdog_reload;
-static volatile int32_t             g_left_delta;
-static volatile int32_t             g_right_delta;
-static volatile uint32_t            g_left_total;
-static volatile uint32_t            g_right_total;
-static volatile uint32_t            g_edge_errors;
-static volatile uint32_t            g_left_phase;
-static volatile uint32_t            g_right_phase;
-static volatile board_echo_state_t  g_echo_state;
-static volatile uint64_t            g_echo_rise_us;
-static volatile uint32_t            g_echo_pulse_us;
+/* Tasks write directions only inside app_main_lock(); the ISR reads them. */
+static volatile uint8_t             g_motor_directions;
+/* The GPIO ISR stores each word once per edge batch and only sets error
+ * bits; tasks read and clear them only inside app_main_lock().
+ */
+static volatile uint16_t            g_encoder_word;
+static volatile uint32_t            g_encoder_totals;
+static volatile uint8_t             g_encoder_errors;
+static volatile uint32_t            g_echo_word;
+/* ISR-private rise time: the low timer word, subtracted modulo 2^32. */
+static uint32_t                     g_echo_rise_us;
 static uint64_t                     g_trigger_time_us;
 static bool                         gb_triggered_once;
 
 static void board_gpio_isr (uint32_t interrupt_number);
+static uint32_t board_count_batch (uint32_t left_pending,
+                                   uint32_t right_pending,
+                                   uint32_t input_levels,
+                                   uint32_t * p_encoder,
+                                   uint32_t * p_totals);
+static void board_record_error (uint32_t errors);
+static void board_echo_edge (uint32_t echo_pending, uint32_t input_levels,
+                             uint32_t current_us);
 static uint32_t board_wheel_edges (uint32_t pending, uint32_t pin_a,
+                                   uint32_t pin_b);
+static uint32_t board_wheel_phase (uint32_t input_levels, uint32_t pin_a,
                                    uint32_t pin_b);
 static void board_init_motor (void);
 static void board_init_inputs (void);
@@ -125,24 +191,25 @@ static bool board_init_accel (void);
 static bool board_read_registers (uint8_t reg, uint8_t * p_data,
                                   size_t count);
 static bool board_write_register (uint8_t reg, uint8_t value);
-static void board_count_encoder (uint32_t pending, uint32_t current,
-                                 uint32_t previous, int32_t direction,
-                                 volatile int32_t * p_count,
-                                 volatile uint32_t * p_total);
+static uint32_t board_count_wheel (uint32_t wheel, uint32_t pending,
+                                   uint32_t current, int32_t direction,
+                                   uint32_t * p_encoder,
+                                   uint32_t * p_totals);
+static int32_t board_count_encoder (uint32_t pending, uint32_t current,
+                                    uint32_t previous, int32_t direction);
 #if ROBOT_ENCODER_CHANNELS == 2
-static void board_count_transition (uint32_t pending, uint32_t current,
-                                    uint32_t previous,
-                                    volatile int32_t * p_count,
-                                    volatile uint32_t * p_total);
+static int32_t board_count_transition (uint32_t pending, uint32_t current,
+                                       uint32_t previous);
 #endif
-static void board_add_count (int32_t increment,
-                             volatile int32_t * p_count,
-                             volatile uint32_t * p_total);
-static void board_apply_motor (uint32_t slice, int32_t direction,
-                               uint16_t level,
-                               volatile int32_t * p_direction);
+static uint32_t board_add_count (uint32_t wheel, int32_t increment,
+                                 uint32_t * p_encoder, uint32_t * p_totals);
+static int32_t board_delta (uint32_t encoder, uint32_t wheel);
+static void board_apply_motor_locked (uint32_t slice, int32_t direction,
+                                      uint16_t level, uint32_t shift);
+static void board_store_direction_locked (uint32_t shift, int32_t direction);
 static uint16_t board_duty_level (core_real_t duty);
-static void board_record_error (void);
+static uint32_t board_echo_word (board_echo_state_t state, uint32_t pulse_us);
+static board_echo_state_t board_echo_state (uint32_t echo);
 
 void board_boot_timebase (void)
 {
@@ -286,33 +353,54 @@ void board_read_encoders (int32_t * p_left, int32_t * p_right,
                           uint32_t * p_errors)
 {
     uint32_t saved;
+    uint32_t encoder;
+    uint32_t errors;
 
     if ((NULL == p_left) || (NULL == p_right) || (NULL == p_errors))
     {
         return;
     }
+    /* Read and clear in one masked region, so no edge can fall between the
+     * read and the clear (M0+ has no exclusive access). Phases are kept.
+     */
     saved = app_main_lock();
-    *p_left = g_left_delta;
-    *p_right = g_right_delta;
-    *p_errors = g_edge_errors;
-    g_left_delta = 0;
-    g_right_delta = 0;
-    g_edge_errors = 0U;
+    encoder = g_encoder_word;
+    errors = g_encoder_errors;
+    g_encoder_word = encoder & BOARD_PHASE_BITS;
+    g_encoder_errors = 0U;
+    app_main_unlock(saved);
+    *p_left = board_delta(encoder, BOARD_LEFT);
+    *p_right = board_delta(encoder, BOARD_RIGHT);
+    *p_errors = errors;
+}
+
+void board_encoders_discard (void)
+{
+    uint32_t saved = app_main_lock();
+
+    /* Phases and totals stay, so the next edge decodes from the live phase
+     * and position readers keep their reference.
+     */
+    g_encoder_word = g_encoder_word & BOARD_PHASE_BITS;
+    g_encoder_errors = 0U;
     app_main_unlock(saved);
 }
 
-void board_encoder_totals (uint32_t * p_left, uint32_t * p_right)
+void board_encoder_totals (uint16_t * p_left, uint16_t * p_right)
 {
     uint32_t saved;
+    uint32_t totals;
 
     if ((NULL == p_left) || (NULL == p_right))
     {
         return;
     }
     saved = app_main_lock();
-    *p_left = g_left_total;
-    *p_right = g_right_total;
+    totals = g_encoder_totals;
     app_main_unlock(saved);
+    /* Each 16-bit half is one wheel's total, so both narrowings are exact. */
+    *p_left = (uint16_t)(totals & BOARD_TOTAL_MASK);
+    *p_right = (uint16_t)(totals >> 16U);
 }
 
 bool board_read_ir (uint16_t samples[3])
@@ -413,18 +501,18 @@ bool board_ultrasonic_trigger (void)
         return false;
     }
     saved = app_main_lock();
-    if (BOARD_ECHO_IDLE != g_echo_state)
+    if (BOARD_ECHO_IDLE != board_echo_state(g_echo_word))
     {
         app_main_unlock(saved);
         return false;
     }
     if (gpio_get(ROBOT_PIN_ECHO))
     {
-        g_echo_state = BOARD_ECHO_TIMEOUT;
+        g_echo_word = board_echo_word(BOARD_ECHO_TIMEOUT, 0U);
         app_main_unlock(saved);
         return false;
     }
-    g_echo_state = BOARD_ECHO_WAIT_RISE;
+    g_echo_word = board_echo_word(BOARD_ECHO_WAIT_RISE, 0U);
     g_trigger_time_us = current_us;
     gb_triggered_once = true;
     app_main_unlock(saved);
@@ -447,12 +535,13 @@ void board_ultrasonic_service (void)
 {
     uint64_t current_us = board_time_us();
     uint32_t saved = app_main_lock();
+    board_echo_state_t state = board_echo_state(g_echo_word);
 
-    if (((BOARD_ECHO_WAIT_RISE == g_echo_state) ||
-         (BOARD_ECHO_WAIT_FALL == g_echo_state)) &&
+    if (((BOARD_ECHO_WAIT_RISE == state) ||
+         (BOARD_ECHO_WAIT_FALL == state)) &&
         ((current_us - g_trigger_time_us) >= ROBOT_ECHO_TIMEOUT_US))
     {
-        g_echo_state = BOARD_ECHO_TIMEOUT;
+        g_echo_word = board_echo_word(BOARD_ECHO_TIMEOUT, 0U);
     }
     app_main_unlock(saved);
 }
@@ -460,23 +549,29 @@ void board_ultrasonic_service (void)
 bool board_ultrasonic_result (uint32_t * p_pulse_us, bool * p_valid)
 {
     uint32_t saved;
+    uint32_t echo;
+    uint32_t pulse_us;
+    board_echo_state_t state;
 
     if ((NULL == p_pulse_us) || (NULL == p_valid))
     {
         return false;
     }
     saved = app_main_lock();
-    if ((BOARD_ECHO_READY != g_echo_state) &&
-        (BOARD_ECHO_TIMEOUT != g_echo_state))
+    echo = g_echo_word;
+    state = board_echo_state(echo);
+    if ((BOARD_ECHO_READY != state) && (BOARD_ECHO_TIMEOUT != state))
     {
         app_main_unlock(saved);
         return false;
     }
-    *p_valid = ((BOARD_ECHO_READY == g_echo_state) &&
-                (g_echo_pulse_us >= BOARD_ECHO_MIN_US) &&
-                (g_echo_pulse_us <= BOARD_ECHO_MAX_US));
-    *p_pulse_us = *p_valid ? g_echo_pulse_us : 0U;
-    g_echo_state = BOARD_ECHO_IDLE;
+    /* State and pulse come from one word, so they are always one result. */
+    pulse_us = (echo >> BOARD_ECHO_PULSE_SHIFT) & BOARD_ECHO_PULSE_MASK;
+    *p_valid = ((BOARD_ECHO_READY == state) &&
+                (pulse_us >= BOARD_ECHO_MIN_US) &&
+                (pulse_us <= BOARD_ECHO_MAX_US));
+    *p_pulse_us = *p_valid ? pulse_us : 0U;
+    g_echo_word = board_echo_word(BOARD_ECHO_IDLE, 0U);
     app_main_unlock(saved);
     return true;
 }
@@ -508,6 +603,11 @@ void board_motor_duty (core_real_t left_duty, core_real_t right_duty)
 bool board_motor_prepare (core_real_t left_duty, core_real_t right_duty,
                           board_motor_command_t * p_command)
 {
+    uint16_t left_level;
+    uint16_t right_level;
+    int32_t  left_direction;
+    int32_t  right_direction;
+
     if (NULL == p_command)
     {
         return false;
@@ -524,18 +624,25 @@ bool board_motor_prepare (core_real_t left_duty, core_real_t right_duty,
     /* Soft floating-point work stays outside the short GPIO critical region. */
     left_duty *= ROBOT_LEFT_MOTOR_SIGN;
     right_duty *= ROBOT_RIGHT_MOTOR_SIGN;
-    p_command->left_level = board_duty_level(left_duty);
-    p_command->right_level = board_duty_level(right_duty);
-    p_command->left_direction = (left_duty > 0.0) ? 1 : -1;
-    p_command->right_direction = (right_duty > 0.0) ? 1 : -1;
-    if (0U == p_command->left_level)
+    left_level = board_duty_level(left_duty);
+    right_level = board_duty_level(right_duty);
+    left_direction = (left_duty > 0.0) ? 1 : -1;
+    right_direction = (right_duty > 0.0) ? 1 : -1;
+    if (0U == left_level)
     {
-        p_command->left_direction = 0;
+        left_direction = 0;
     }
-    if (0U == p_command->right_level)
+    if (0U == right_level)
     {
-        p_command->right_direction = 0;
+        right_direction = 0;
     }
+    /* |duty| <= 1 bounds levels to 6250, which the #if check proves fits
+     * 13 bits, so the masks are exact; directions -1, 0, +1 become codes.
+     */
+    p_command->left_level = left_level & BOARD_LEVEL_MASK;
+    p_command->right_level = right_level & BOARD_LEVEL_MASK;
+    p_command->left_direction = BOARD_DIRECTION_ENCODE(left_direction);
+    p_command->right_direction = BOARD_DIRECTION_ENCODE(right_direction);
     p_command->b_valid = true;
     return true;
 }
@@ -552,21 +659,22 @@ void board_motor_commit (const board_motor_command_t * p_command)
         app_main_unlock(saved);
         return;
     }
+    /* A 2-bit code holds -2..1: only the reserved code is out of range. */
     if ((p_command->left_level > g_motor_level_limit) ||
         (p_command->right_level > g_motor_level_limit) ||
-        (p_command->left_direction < -1) ||
-        (p_command->left_direction > 1) ||
-        (p_command->right_direction < -1) ||
-        (p_command->right_direction > 1))
+        (BOARD_DIRECTION_INVALID == p_command->left_direction) ||
+        (BOARD_DIRECTION_INVALID == p_command->right_direction))
     {
         board_motor_brake();
         app_main_unlock(saved);
         return;
     }
-    board_apply_motor(BOARD_MOTOR_SLICE_LEFT, p_command->left_direction,
-                      p_command->left_level, &g_left_direction);
-    board_apply_motor(BOARD_MOTOR_SLICE_RIGHT, p_command->right_direction,
-                      p_command->right_level, &g_right_direction);
+    board_apply_motor_locked(BOARD_MOTOR_SLICE_LEFT,
+        board_direction_decode(p_command->left_direction),
+        p_command->left_level, BOARD_LEFT_DIRECTION_SHIFT);
+    board_apply_motor_locked(BOARD_MOTOR_SLICE_RIGHT,
+        board_direction_decode(p_command->right_direction),
+        p_command->right_level, BOARD_RIGHT_DIRECTION_SHIFT);
     app_main_unlock(saved);
 }
 
@@ -576,8 +684,8 @@ void board_motor_brake (void)
 
     pwm_set_both_levels(BOARD_MOTOR_SLICE_LEFT, 0U, 0U);
     pwm_set_both_levels(BOARD_MOTOR_SLICE_RIGHT, 0U, 0U);
-    g_left_direction = 0;
-    g_right_direction = 0;
+    /* Both wheels braked: code 0 for each, one store. */
+    g_motor_directions = 0U;
     app_main_unlock(saved);
 }
 
@@ -661,12 +769,13 @@ static void board_init_inputs (void)
         gpio_pull_up(encoder_pins[index]);
     }
     input_levels = gpio_get_all();
-    g_left_phase =
-        ((input_levels >> ROBOT_PIN_ENCODER_LEFT_A) & 1U) << 1U;
-    g_left_phase |= (input_levels >> ROBOT_PIN_ENCODER_LEFT_B) & 1U;
-    g_right_phase =
-        ((input_levels >> ROBOT_PIN_ENCODER_RIGHT_A) & 1U) << 1U;
-    g_right_phase |= (input_levels >> ROBOT_PIN_ENCODER_RIGHT_B) & 1U;
+    /* The ISR is not registered yet: one plain store seeds both phases. */
+    g_encoder_word =
+        ((board_wheel_phase(input_levels, ROBOT_PIN_ENCODER_LEFT_A,
+                            ROBOT_PIN_ENCODER_LEFT_B) << BOARD_PHASE_SHIFT) |
+         (board_wheel_phase(input_levels, ROBOT_PIN_ENCODER_RIGHT_A,
+                            ROBOT_PIN_ENCODER_RIGHT_B) <<
+          (BOARD_PHASE_SHIFT + 2U))) & BOARD_PHASE_BITS;
     gpio_init(ROBOT_PIN_STOP);
     gpio_pull_up(ROBOT_PIN_STOP);
     gpio_init(ROBOT_PIN_START);
@@ -690,6 +799,13 @@ static void board_init_inputs (void)
     }
 }
 
+/** Hand the shared Grove 1 pins back to UART0 for the refusal message. */
+void board_console_restore (void)
+{
+    gpio_set_function(ROBOT_PIN_CONSOLE_TX, GPIO_FUNC_UART);
+    gpio_set_function(ROBOT_PIN_CONSOLE_RX, GPIO_FUNC_UART);
+}
+
 /** Configure only LSM303DLHC acceleration: no nonexistent gyro is assumed. */
 static bool board_init_accel (void)
 {
@@ -701,7 +817,7 @@ static bool board_init_accel (void)
     gpio_set_function(ROBOT_PIN_IMU_SCL, GPIO_FUNC_I2C);
     gpio_pull_up(ROBOT_PIN_IMU_SDA);
     gpio_pull_up(ROBOT_PIN_IMU_SCL);
-    actual_hz = i2c_init(i2c1, ROBOT_I2C_HZ);
+    actual_hz = i2c_init(BOARD_I2C, ROBOT_I2C_HZ);
     if ((0U == actual_hz) || (actual_hz > 400000U))
     {
         return false;
@@ -731,14 +847,14 @@ static bool board_read_registers (uint8_t reg, uint8_t * p_data,
     {
         return false;
     }
-    written = i2c_write_timeout_us(i2c1, BOARD_ACCEL_ADDRESS, &reg, 1U,
+    written = i2c_write_timeout_us(BOARD_I2C, BOARD_ACCEL_ADDRESS, &reg, 1U,
                                   true, ROBOT_I2C_TIMEOUT_US);
     if (1 != written)
     {
         return false;
     }
-    received = i2c_read_timeout_us(i2c1, BOARD_ACCEL_ADDRESS, p_data, count,
-                                  false, ROBOT_I2C_TIMEOUT_US);
+    received = i2c_read_timeout_us(BOARD_I2C, BOARD_ACCEL_ADDRESS, p_data,
+                                  count, false, ROBOT_I2C_TIMEOUT_US);
     /* count is checked <= 6, so int conversion is exact. */
     return ((int)count == received);
 }
@@ -747,24 +863,27 @@ static bool board_read_registers (uint8_t reg, uint8_t * p_data,
 static bool board_write_register (uint8_t reg, uint8_t value)
 {
     uint8_t payload[2] = {reg, value};
-    int result = i2c_write_timeout_us(i2c1, BOARD_ACCEL_ADDRESS, payload,
+    int result = i2c_write_timeout_us(BOARD_I2C, BOARD_ACCEL_ADDRESS, payload,
                                       sizeof(payload), false,
                                       ROBOT_I2C_TIMEOUT_US);
 
     return (2 == result);
 }
 
-/** GPIO ISR: acknowledge owned edges only; do no kernel waits or I/O. */
+/** GPIO ISR: acknowledge owned edges only; do no kernel waits or I/O.
+ * Constant work per call, no loops: each shared word is loaded once and
+ * stored once per edge batch, and the echo time is one timer-word read.
+ */
 static void board_gpio_isr (uint32_t interrupt_number)
 {
     uint32_t left_pending;
     uint32_t right_pending;
     uint32_t echo_pending;
-    uint32_t echo_edges;
-    uint32_t current;
     uint32_t input_levels;
-    uint64_t current_us;
-    uint64_t elapsed_us;
+    uint32_t current_us;
+    uint32_t encoder;
+    uint32_t totals;
+    uint32_t errors;
 
     /* D-ADAPTER: kernel passes IRQ number; this handler is GPIO-only. */
     (void)interrupt_number;
@@ -774,72 +893,144 @@ static void board_gpio_isr (uint32_t interrupt_number)
                     BOARD_RIGHT_MASK;
     echo_pending = io_bank0_hw->proc0_irq_ctrl.ints[BOARD_ECHO_BANK] &
                    BOARD_ECHO_MASK;
-    io_bank0_hw->intr[BOARD_LEFT_BANK] = left_pending;
-    io_bank0_hw->intr[BOARD_RIGHT_BANK] = right_pending;
+    /* One write-1-to-clear per bank register, merging sources that share
+     * a bank (ECHO on GP1 shares bank 0 with the left encoder).
+     */
+    io_bank0_hw->intr[BOARD_LEFT_BANK] = left_pending |
+        BOARD_SAME_BANK(BOARD_LEFT_BANK, BOARD_RIGHT_BANK, right_pending) |
+        BOARD_SAME_BANK(BOARD_LEFT_BANK, BOARD_ECHO_BANK, echo_pending);
+#if (BOARD_RIGHT_BANK != BOARD_LEFT_BANK)
+    io_bank0_hw->intr[BOARD_RIGHT_BANK] = right_pending |
+        BOARD_SAME_BANK(BOARD_RIGHT_BANK, BOARD_ECHO_BANK, echo_pending);
+#endif
+#if (BOARD_ECHO_BANK != BOARD_LEFT_BANK) && \
+    (BOARD_ECHO_BANK != BOARD_RIGHT_BANK)
     io_bank0_hw->intr[BOARD_ECHO_BANK] = echo_pending;
+#endif
     /* One SIO read keeps all four encoder levels in one coherent sample. */
     input_levels = gpio_get_all();
-    current_us = board_time_us();
-    if (0U != left_pending)
+    /* The raw low timer word needs no high/low retry loop: echo times are
+     * differences modulo 2^32 us (71 minutes), far above the 30 ms timeout.
+     */
+    current_us = timer_hw->timerawl;
+    if (0U != (left_pending | right_pending))
     {
-        current =
-            ((input_levels >> ROBOT_PIN_ENCODER_LEFT_A) & 1U) << 1U;
-        current |= (input_levels >> ROBOT_PIN_ENCODER_LEFT_B) & 1U;
-        board_count_encoder(board_wheel_edges(left_pending,
-                                              ROBOT_PIN_ENCODER_LEFT_A,
-                                              ROBOT_PIN_ENCODER_LEFT_B),
-                            current, g_left_phase, g_left_direction *
-                            ROBOT_LEFT_MOTOR_SIGN * ROBOT_LEFT_ENCODER_SIGN,
-                            &g_left_delta, &g_left_total);
-        g_left_phase = current;
-    }
-    if (0U != right_pending)
-    {
-        current =
-            ((input_levels >> ROBOT_PIN_ENCODER_RIGHT_A) & 1U) << 1U;
-        current |= (input_levels >> ROBOT_PIN_ENCODER_RIGHT_B) & 1U;
-        board_count_encoder(board_wheel_edges(right_pending,
-                                              ROBOT_PIN_ENCODER_RIGHT_A,
-                                              ROBOT_PIN_ENCODER_RIGHT_B),
-                            current, g_right_phase, g_right_direction *
-                            ROBOT_RIGHT_MOTOR_SIGN * ROBOT_RIGHT_ENCODER_SIGN,
-                            &g_right_delta, &g_right_total);
-        g_right_phase = current;
+        /* Decode on local copies, then publish each word with one store,
+         * so a task never observes a partly applied edge batch.
+         */
+        encoder = g_encoder_word;
+        totals = g_encoder_totals;
+        errors = board_count_batch(left_pending, right_pending,
+                                   input_levels, &encoder, &totals);
+        /* The word uses bits 0-15 only, so the mask keeps it exact. */
+        g_encoder_word = encoder & BOARD_ENCODER_BITS;
+        g_encoder_totals = totals;
+        board_record_error(errors);
     }
     if (0U != echo_pending)
     {
-        echo_edges = (echo_pending >> BOARD_IRQ_SHIFT(ROBOT_PIN_ECHO)) & 0xCU;
-        if ((BOARD_ECHO_WAIT_RISE == g_echo_state) &&
-            ((uint32_t)GPIO_IRQ_EDGE_RISE == echo_edges) &&
-            (0U != (input_levels & (1U << ROBOT_PIN_ECHO))))
+        board_echo_edge(echo_pending, input_levels, current_us);
+    }
+}
+
+/** Count both wheels' latched edges into the caller's local word copies.
+ * Writes no shared word. Returns the error bits to latch, else 0.
+ */
+static uint32_t board_count_batch (uint32_t left_pending,
+                                   uint32_t right_pending,
+                                   uint32_t input_levels,
+                                   uint32_t * p_encoder,
+                                   uint32_t * p_totals)
+{
+    uint32_t errors = 0U;
+    int32_t  left_direction = 0;
+    int32_t  right_direction = 0;
+#if ROBOT_ENCODER_CHANNELS == 1
+    uint32_t directions = g_motor_directions;
+
+    /* One-channel counting signs each A edge with the applied demand. Only
+     * tasks write the codes; they decode exactly as bitpack_extend().
+     */
+    left_direction = board_direction_decode(directions >>
+                                            BOARD_LEFT_DIRECTION_SHIFT) *
+                     ROBOT_LEFT_MOTOR_SIGN * ROBOT_LEFT_ENCODER_SIGN;
+    right_direction = board_direction_decode(directions >>
+                                             BOARD_RIGHT_DIRECTION_SHIFT) *
+                      ROBOT_RIGHT_MOTOR_SIGN * ROBOT_RIGHT_ENCODER_SIGN;
+#endif
+
+    if (0U != left_pending)
+    {
+        errors |= board_count_wheel(BOARD_LEFT,
+            board_wheel_edges(left_pending, ROBOT_PIN_ENCODER_LEFT_A,
+                              ROBOT_PIN_ENCODER_LEFT_B),
+            board_wheel_phase(input_levels, ROBOT_PIN_ENCODER_LEFT_A,
+                              ROBOT_PIN_ENCODER_LEFT_B),
+            left_direction, p_encoder, p_totals);
+    }
+    if (0U != right_pending)
+    {
+        errors |= board_count_wheel(BOARD_RIGHT,
+            board_wheel_edges(right_pending, ROBOT_PIN_ENCODER_RIGHT_A,
+                              ROBOT_PIN_ENCODER_RIGHT_B),
+            board_wheel_phase(input_levels, ROBOT_PIN_ENCODER_RIGHT_A,
+                              ROBOT_PIN_ENCODER_RIGHT_B),
+            right_direction, p_encoder, p_totals);
+    }
+    return errors;
+}
+
+/** Latch sticky per-wheel error bits; GPIO ISR context only. Only the
+ * motion owner clears them, inside app_main_lock().
+ */
+static void board_record_error (uint32_t errors)
+{
+    if (0U != errors)
+    {
+        g_encoder_errors = (g_encoder_errors | errors) & BOARD_ENCODER_ERRORS;
+    }
+}
+
+/** Advance the echo word for one ECHO edge batch with a single store. */
+static void board_echo_edge (uint32_t echo_pending, uint32_t input_levels,
+                             uint32_t current_us)
+{
+    uint32_t echo_edges = (echo_pending >> BOARD_IRQ_SHIFT(ROBOT_PIN_ECHO)) &
+                          0xCU;
+    board_echo_state_t state = board_echo_state(g_echo_word);
+    uint32_t elapsed_us;
+
+    if ((BOARD_ECHO_WAIT_RISE == state) &&
+        ((uint32_t)GPIO_IRQ_EDGE_RISE == echo_edges) &&
+        (0U != (input_levels & (1U << ROBOT_PIN_ECHO))))
+    {
+        g_echo_rise_us = current_us;
+        g_echo_word = board_echo_word(BOARD_ECHO_WAIT_FALL, 0U);
+    }
+    else if ((BOARD_ECHO_WAIT_FALL == state) &&
+             ((uint32_t)GPIO_IRQ_EDGE_FALL == echo_edges) &&
+             (0U == (input_levels & (1U << ROBOT_PIN_ECHO))))
+    {
+        /* Unsigned subtraction stays exact across the 2^32 us timer wrap. */
+        elapsed_us = current_us - g_echo_rise_us;
+        if (elapsed_us <= ROBOT_ECHO_TIMEOUT_US)
         {
-            g_echo_rise_us = current_us;
-            g_echo_state = BOARD_ECHO_WAIT_FALL;
-        }
-        else if ((BOARD_ECHO_WAIT_FALL == g_echo_state) &&
-                 ((uint32_t)GPIO_IRQ_EDGE_FALL == echo_edges) &&
-                 (0U == (input_levels & (1U << ROBOT_PIN_ECHO))))
-        {
-            elapsed_us = current_us - g_echo_rise_us;
-            if (elapsed_us <= ROBOT_ECHO_TIMEOUT_US)
-            {
-                /* Explicit timeout limits elapsed_us to 30000. */
-                g_echo_pulse_us = (uint32_t)elapsed_us;
-                g_echo_state = BOARD_ECHO_READY;
-            }
-            else
-            {
-                g_echo_state = BOARD_ECHO_TIMEOUT;
-            }
+            /* State and pulse (<= 30000, 15 bits) publish in one store. */
+            g_echo_word = board_echo_word(BOARD_ECHO_READY, elapsed_us);
         }
         else
         {
-            /* Both edges coalesced, or unexpected order: no valid timing. */
-            if (BOARD_ECHO_IDLE != g_echo_state)
-            {
-                g_echo_state = BOARD_ECHO_TIMEOUT;
-            }
+            g_echo_word = board_echo_word(BOARD_ECHO_TIMEOUT, 0U);
         }
+    }
+    else if (BOARD_ECHO_IDLE != state)
+    {
+        /* Both edges coalesced, or unexpected order: no valid timing. */
+        g_echo_word = board_echo_word(BOARD_ECHO_TIMEOUT, 0U);
+    }
+    else
+    {
+        /* An ECHO edge without a pending trigger is ignored. */
     }
 }
 
@@ -851,18 +1042,50 @@ static uint32_t board_wheel_edges (uint32_t pending, uint32_t pin_a,
            (((pending >> BOARD_IRQ_SHIFT(pin_b)) & 0xCU) << 4U);
 }
 
-/** Select the explicitly configured acquisition model without guessing B. */
-static void board_count_encoder (uint32_t pending, uint32_t current,
-                                 uint32_t previous, int32_t direction,
-                                 volatile int32_t * p_count,
-                                 volatile uint32_t * p_total)
+/** Sample one wheel's phase, A in bit 1 and B in bit 0, from one SIO read. */
+static uint32_t board_wheel_phase (uint32_t input_levels, uint32_t pin_a,
+                                   uint32_t pin_b)
+{
+    return (((input_levels >> pin_a) & 1U) << 1U) |
+           ((input_levels >> pin_b) & 1U);
+}
+
+/** Count one wheel's latched edges into the local word copies and adopt the
+ * sampled phase. Returns the wheel's error bit, 1 << wheel, for a rejected
+ * edge or a saturated delta, else 0.
+ */
+static uint32_t board_count_wheel (uint32_t wheel, uint32_t pending,
+                                   uint32_t current, int32_t direction,
+                                   uint32_t * p_encoder,
+                                   uint32_t * p_totals)
+{
+    uint32_t shift = BOARD_PHASE_SHIFT + (2U * wheel);
+    uint32_t previous = (*p_encoder >> shift) & 3U;
+    int32_t  increment = board_count_encoder(pending, current, previous,
+                                             direction);
+
+    /* Every batch adopts the sampled phase: a rejected edge resynchronizes. */
+    *p_encoder = (*p_encoder & ~(3U << shift)) | (current << shift);
+    if (0 == increment)
+    {
+        return 1U << wheel;
+    }
+    return board_add_count(wheel, increment, p_encoder, p_totals);
+}
+
+/** Select the explicitly configured acquisition model without guessing B.
+ * Returns +1 or -1 for one accepted edge and 0 for a rejected one.
+ */
+static int32_t board_count_encoder (uint32_t pending, uint32_t current,
+                                    uint32_t previous, int32_t direction)
 {
 #if ROBOT_ENCODER_CHANNELS == 2
     (void)direction;
-    board_count_transition(pending, current, previous, p_count, p_total);
+    return board_count_transition(pending, current, previous);
 #else
-    uint32_t expected = (0U != (current & 2U)) ? GPIO_IRQ_EDGE_RISE :
-                                               GPIO_IRQ_EDGE_FALL;
+    uint32_t expected = (0U != (current & 2U)) ?
+                        (uint32_t)GPIO_IRQ_EDGE_RISE :
+                        (uint32_t)GPIO_IRQ_EDGE_FALL;
 
     /* Both A edges count. B is not a sensor in this mode. Coalesced edges,
      * inconsistent samples and unknown sign cannot yield safe displacement.
@@ -872,19 +1095,18 @@ static void board_count_encoder (uint32_t pending, uint32_t current,
         ((1 != direction) && (-1 != direction)) ||
         (0U == ((current ^ previous) & 2U)) || (pending != expected))
     {
-        board_record_error();
-        return;
+        return 0;
     }
-    board_add_count(direction, p_count, p_total);
+    return direction;
 #endif
 }
 
 #if ROBOT_ENCODER_CHANNELS == 2
-/** Reject ambiguous latched edges before interpreting the sampled phase. */
-static void board_count_transition (uint32_t pending, uint32_t current,
-                                    uint32_t previous,
-                                    volatile int32_t * p_count,
-                                    volatile uint32_t * p_total)
+/** Reject ambiguous latched edges before interpreting the sampled phase.
+ * Returns the x4 increment, +1 or -1, or 0 for a rejected edge.
+ */
+static int32_t board_count_transition (uint32_t pending, uint32_t current,
+                                       uint32_t previous)
 {
     static const int32_t increments[16] =
     {
@@ -893,7 +1115,6 @@ static void board_count_transition (uint32_t pending, uint32_t current,
          1,  0,  0, -1,
          0, -1,  1,  0
     };
-    int32_t increment = increments[(previous << 2U) | current];
     uint32_t changed = current ^ previous;
     uint32_t expected;
 
@@ -903,63 +1124,83 @@ static void board_count_transition (uint32_t pending, uint32_t current,
      * another edge races the status acknowledgement and SIO sample. Never
      * invent displacement; caller resynchronizes the observed phase.
      */
+    /* The SDK edge enumerators are positive int constants: widen first. */
     if (2U == changed)
     {
-        expected = (0U != (current & 2U)) ? GPIO_IRQ_EDGE_RISE :
-                                           GPIO_IRQ_EDGE_FALL;
+        expected = (0U != (current & 2U)) ? (uint32_t)GPIO_IRQ_EDGE_RISE :
+                                           (uint32_t)GPIO_IRQ_EDGE_FALL;
     }
     else
     {
-        expected = ((0U != (current & 1U)) ? GPIO_IRQ_EDGE_RISE :
-                                            GPIO_IRQ_EDGE_FALL) << 4U;
+        expected = ((0U != (current & 1U)) ? (uint32_t)GPIO_IRQ_EDGE_RISE :
+                                            (uint32_t)GPIO_IRQ_EDGE_FALL)
+                   << 4U;
     }
     if (((1U != changed) && (2U != changed)) || (pending != expected))
     {
-        board_record_error();
-        return;
+        return 0;
     }
-    board_add_count(increment, p_count, p_total);
+    /* One changed channel always selects +1 or -1 from the table. */
+    return increments[(previous << 2U) | current];
 }
 #endif
 
-/** Share saturation and modulo-total semantics across acquisition modes. */
-static void board_add_count (int32_t increment,
-                             volatile int32_t * p_count,
-                             volatile uint32_t * p_total)
+/** Advance one wheel's modulo-2^16 total, then its saturating 6-bit delta.
+ * The total counts even when the delta saturates, as before. Returns the
+ * wheel's error bit when the delta is already at +/-31, else 0.
+ */
+static uint32_t board_add_count (uint32_t wheel, int32_t increment,
+                                 uint32_t * p_encoder, uint32_t * p_totals)
 {
-    if (increment > 0)
+    uint32_t total_shift = 16U * wheel;
+    uint32_t delta_shift = 6U * wheel;
+    /* Adding 0xFFFF subtracts one modulo 2^16; the mask stops any carry or
+     * borrow reaching the other wheel's half.
+     */
+    uint32_t step = (increment > 0) ? 1U : BOARD_TOTAL_MASK;
+    uint32_t total = ((*p_totals >> total_shift) + step) & BOARD_TOTAL_MASK;
+    int32_t  delta = board_delta(*p_encoder, wheel);
+
+    *p_totals = (*p_totals & ~(BOARD_TOTAL_MASK << total_shift)) |
+                (total << total_shift);
+    if (((increment > 0) && (BOARD_DELTA_MAX == delta)) ||
+        ((increment < 0) && (-BOARD_DELTA_MAX == delta)))
     {
-        /* Unsigned overflow deliberately preserves modulo-2^32 position. */
-        (*p_total)++;
+        return 1U << wheel;
     }
-    else if (increment < 0)
-    {
-        /* Unsigned underflow deliberately preserves reverse displacement. */
-        (*p_total)--;
-    }
-    else
-    {
-        /* A repeated phase does not change either position accumulator. */
-    }
-    if (((increment > 0) && (INT32_MAX == *p_count)) ||
-        ((increment < 0) && (INT32_MIN == *p_count)))
-    {
-        board_record_error();
-        return;
-    }
-    *p_count += increment;
+    /* |delta + increment| <= 31: its 6-bit two's complement code is exact. */
+    *p_encoder = (*p_encoder & ~(BOARD_DELTA_MASK << delta_shift)) |
+                 (((uint32_t)(delta + increment) & BOARD_DELTA_MASK) <<
+                  delta_shift);
+    return 0U;
 }
 
-/** Insert one zero-demand cycle before changing polarity; caller masks IRQ. */
-static void board_apply_motor (uint32_t slice, int32_t direction,
-                               uint16_t level,
-                               volatile int32_t * p_direction)
+/** Sign-extend one wheel's 6-bit delta, equal to bitpack_extend(field, 6U).
+ */
+static int32_t board_delta (uint32_t encoder, uint32_t wheel)
 {
-    if ((0 != *p_direction) &&
-        (direction != *p_direction))
+    uint32_t field = (encoder >> (6U * wheel)) & BOARD_DELTA_MASK;
+
+    /* Flipping the sign bit maps codes 0..63 to 32..63, 0..31: the biased
+     * value is at most 63, so the conversion and subtraction are exact.
+     */
+    return (int32_t)(field ^ BOARD_DELTA_SIGN) - (int32_t)BOARD_DELTA_SIGN;
+}
+
+/** Insert one zero-demand cycle before changing polarity; caller masks IRQ.
+ * The applied direction is the wheel's code in the task-written byte.
+ */
+static void board_apply_motor_locked (uint32_t slice, int32_t direction,
+                                      uint16_t level, uint32_t shift)
+{
+    int32_t applied = board_direction_decode((uint32_t)g_motor_directions >>
+                                             shift);
+
+    if ((0 != applied) &&
+        (direction != applied))
     {
         pwm_set_both_levels(slice, 0U, 0U);
-        *p_direction = 0;
+        board_store_direction_locked(shift, 0);
         return;
     }
     if (direction > 0)
@@ -974,7 +1215,18 @@ static void board_apply_motor (uint32_t slice, int32_t direction,
     {
         pwm_set_both_levels(slice, 0U, 0U);
     }
-    *p_direction = direction;
+    board_store_direction_locked(shift, direction);
+}
+
+/** Replace one wheel's 2-bit direction code; callers hold the lock. */
+static void board_store_direction_locked (uint32_t shift, int32_t direction)
+{
+    uint32_t directions = g_motor_directions;
+
+    directions &= ~(BOARD_DIRECTION_MASK << shift);
+    directions |= BOARD_DIRECTION_ENCODE(direction) << shift;
+    /* Two 2-bit codes occupy bits 0-3, so the mask keeps the byte exact. */
+    g_motor_directions = directions & BOARD_DIRECTIONS_MASK;
 }
 
 /** Map validated duty to its capped compare level outside the IRQ mask. */
@@ -990,13 +1242,27 @@ static uint16_t board_duty_level (core_real_t duty)
     return (uint16_t)(magnitude * (ROBOT_PWM_WRAP + 1U));
 }
 
-/** Saturate the diagnostic counter; it is consumed with encoder deltas. */
-static void board_record_error (void)
+/** Compose the echo word: state bits 0-2, pulse bits 3-17 (READY only). */
+static uint32_t board_echo_word (board_echo_state_t state, uint32_t pulse_us)
 {
-    if (UINT32_MAX != g_edge_errors)
+    return ((uint32_t)state & BOARD_ECHO_STATE_MASK) |
+           ((pulse_us & BOARD_ECHO_PULSE_MASK) << BOARD_ECHO_PULSE_SHIFT);
+}
+
+/** Decode the state bits of an echo word built by board_echo_word().
+ * Only codes 0..4 are stored; 5..7 could only come from a corrupted word
+ * and read as TIMEOUT (UNKNOWN), so they can never yield a pulse.
+ */
+static board_echo_state_t board_echo_state (uint32_t echo)
+{
+    uint32_t code = echo & BOARD_ECHO_STATE_MASK;
+
+    if (code > (uint32_t)BOARD_ECHO_TIMEOUT)
     {
-        g_edge_errors++;
+        code = (uint32_t)BOARD_ECHO_TIMEOUT;
     }
+    /* code is an enumerator value 0..4 here, so the conversion is exact. */
+    return (board_echo_state_t)code;
 }
 
 /* End of file. */

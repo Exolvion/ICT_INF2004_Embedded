@@ -5,25 +5,28 @@
  */
 #include "course_cfg.h"
 #include "robot_config.h"
-#include <stddef.h>
+
+/* Enter measured symbols, framing, tolerances and encoder resolution here
+ * before confirming. Do not copy test patterns onto the course. Widths stay
+ * in metres (the narrow/wide encoding waits for the confirmed symbology);
+ * barcode_derive() converts them to half-counts, and the widest run must be
+ * at most 255 half-counts (72.3 mm with the current hypotheses).
+ * reverse_tolerance_m must exceed one effective encoder count of centre
+ * distance (2*pi*R/counts, about 0.567 mm with the current hypotheses): the
+ * 0.5 mm default is below it (floor(0.5 / 0.2836) = 1 half-count), and the
+ * start-up codebook gate in robot_app.c does not check this yet (T-57).
+ */
+static const barcode_config_t g_course_cfg_codebook =
+{
+    BARCODE_DEFAULT_LIMITS,
+    .b_calibration_confirmed = (0 != ROBOT_CALIBRATION_CONFIRMED),
+    .b_codebook_confirmed    = (0 != ROBOT_BARCODE_CONFIRMED)
+};
 
 /** @brief Empty codebook keeps autonomous START inhibited until configured. */
-void course_cfg_load (barcode_config_t * p_config)
+const barcode_config_t * course_cfg_codebook (void)
 {
-    barcode_defaults(p_config);
-    if (NULL != p_config)
-    {
-        p_config->b_calibration_confirmed =
-            0 != ROBOT_CALIBRATION_CONFIRMED;
-        /* Enter measured symbols, framing, tolerances and encoder resolution
-         * here before confirming. Do not copy test patterns onto the course.
-         * reverse_tolerance_m must exceed one effective encoder count of
-         * centre distance (2*pi*R/counts, about 0.567 mm with the current
-         * hypotheses): the 0.5 mm default is below it, and the start-up
-         * codebook gate in robot_app.c does not check this yet (T-57).
-         */
-        p_config->b_codebook_confirmed = 0 != ROBOT_BARCODE_CONFIRMED;
-    }
+    return &g_course_cfg_codebook;
 }
 
 /* End of file. */

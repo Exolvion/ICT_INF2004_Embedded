@@ -7,6 +7,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
+#include "bitpack.h"
 
 #if DBL_MANT_DIG < 53
 #error "Scanner geometry requires at least 53 double mantissa bits."
@@ -19,6 +20,12 @@
 #define SCANNER_SIDE_ANGLE_DEG (20)
 #define SCANNER_MAX_DELAY_MS (60000U)
 #define SCANNER_MIN_INTERVAL_MS (65U)
+#define SCANNER_US_PER_S (1000000.0)
+#define SCANNER_MM_PER_M (1000.0)
+#define SCANNER_CODE_MASK (0x7FFFU)
+/* Constant masks let -Wconversion prove each bit-field store fits. */
+#define SCANNER_MM_MASK ((UINT32_C(1) << SCANNER_SHARED_MM_BITS) - 1U)
+#define SCANNER_COUNT_MASK ((UINT32_C(1) << SCANNER_SHARED_COUNT_BITS) - 1U)
 
 typedef struct
 {
@@ -33,18 +40,24 @@ typedef struct
 } scanner_profile_t;
 
 static bool scanner_config_valid (const scanner_config_t * p_config);
+static bool scanner_saturation_exact (
+    const core_ultrasonic_config_t * p_range);
 static void scanner_result_reset (scanner_result_t * p_result);
+static void scanner_table_clear (scanner_state_t * p_state);
+static uint32_t scanner_index (int32_t angle_deg);
+static bool scanner_decode (const scanner_state_t * p_state, uint32_t index,
+                            scanner_sample_t * p_sample);
 static void scanner_capture (scanner_state_t * p_state,
                              const scanner_echo_t * p_echo);
 static bool scanner_advance (scanner_state_t * p_state);
 static bool scanner_refine (scanner_state_t * p_state);
-static bool scanner_latest (const scanner_state_t * p_state, uint32_t index);
 static void scanner_profile (scanner_state_t * p_state);
 static void scanner_accumulate (scanner_state_t * p_state,
                                 scanner_profile_t * p_profile,
                                 const scanner_sample_t * p_sample);
 static void scanner_choose_side (scanner_state_t * p_state,
                                  const scanner_profile_t * p_profile);
+static uint32_t scanner_shared_mm (double distance_m, bool b_valid);
 
 /** Default timing exceeds the HC-SR04 recommendation of 60 ms per cycle. */
 void scanner_default_config (scanner_config_t * p_config)
@@ -80,6 +93,7 @@ bool scanner_init (scanner_state_t * p_state,
     p_state->config        = config_copy;
     p_state->b_initialized = true;
     p_state->phase         = SCANNER_IDLE;
+    scanner_table_clear(p_state);
     scanner_result_reset(&p_state->result);
     return true;
 }
@@ -105,6 +119,7 @@ bool scanner_start (scanner_state_t * p_state, uint32_t now_ms,
     p_state->phase_started_ms = now_ms;
     p_state->b_fine           = false;
     p_state->phase            = SCANNER_POSITION;
+    scanner_table_clear(p_state);
     scanner_result_reset(&p_state->result);
     return true;
 }
@@ -194,6 +209,81 @@ bool scanner_step (scanner_state_t * p_state, uint32_t now_ms,
     return true;
 }
 
+/** Odd, out-of-sector and never-sampled angles have no observation; nor
+ * has a state that scanner_init never accepted (its table is not filled).
+ */
+bool scanner_sample (const scanner_state_t * p_state, int32_t angle_deg,
+                     scanner_sample_t * p_sample)
+{
+    if ((NULL == p_state) || (NULL == p_sample)
+        || (!p_state->b_initialized)
+        || (angle_deg < SCANNER_MIN_ANGLE_DEG)
+        || (angle_deg > SCANNER_MAX_ANGLE_DEG)
+        || (0 != ((angle_deg - SCANNER_MIN_ANGLE_DEG)
+                  % SCANNER_FINE_STEP_DEG)))
+    {
+        return false;
+    }
+    return scanner_decode(p_state, scanner_index(angle_deg), p_sample);
+}
+
+/** CEIL distances to whole mm and copy counts, side and flags. */
+void scanner_shared_pack (const scanner_result_t * p_result,
+                          scanner_shared_t * p_shared)
+{
+    if ((NULL == p_result) || (NULL == p_shared))
+    {
+        return;
+    }
+    p_shared->nearest_mm = scanner_shared_mm(p_result->nearest_distance_m,
+                                             p_result->valid_samples > 0U)
+                           & SCANNER_MM_MASK;
+    p_shared->width_mm = scanner_shared_mm(p_result->apparent_width_m,
+                                           p_result->b_obstacle_seen)
+                         & SCANNER_MM_MASK;
+    p_shared->preferred_side  = p_result->preferred_side;
+    p_shared->valid_samples   = bitpack_saturate(p_result->valid_samples,
+                                                 SCANNER_SHARED_COUNT_BITS)
+                                & SCANNER_COUNT_MASK;
+    p_shared->unknown_samples = bitpack_saturate(p_result->unknown_samples,
+                                                 SCANNER_SHARED_COUNT_BITS)
+                                & SCANNER_COUNT_MASK;
+    p_shared->b_profile_valid  = p_result->b_profile_valid;
+    p_shared->b_obstacle_seen  = p_result->b_obstacle_seen;
+    p_shared->b_left_observed  = p_result->b_left_observed;
+    p_shared->b_right_observed = p_result->b_right_observed;
+    p_shared->b_aborted        = p_result->b_aborted;
+}
+
+/** Whole millimetres are exact in double; one division rounds to metres. */
+void scanner_shared_unpack (const scanner_shared_t * p_shared,
+                            scanner_result_t * p_result)
+{
+    if ((NULL == p_shared) || (NULL == p_result))
+    {
+        return;
+    }
+    scanner_result_reset(p_result);
+    if (p_shared->valid_samples > 0U)
+    {
+        p_result->nearest_distance_m = ((double) p_shared->nearest_mm)
+                                       / SCANNER_MM_PER_M;
+    }
+    if (p_shared->b_obstacle_seen)
+    {
+        p_result->apparent_width_m = ((double) p_shared->width_mm)
+                                     / SCANNER_MM_PER_M;
+    }
+    p_result->preferred_side   = p_shared->preferred_side;
+    p_result->valid_samples    = p_shared->valid_samples;
+    p_result->unknown_samples  = p_shared->unknown_samples;
+    p_result->b_profile_valid  = p_shared->b_profile_valid;
+    p_result->b_obstacle_seen  = p_shared->b_obstacle_seen;
+    p_result->b_left_observed  = p_shared->b_left_observed;
+    p_result->b_right_observed = p_shared->b_right_observed;
+    p_result->b_aborted        = p_shared->b_aborted;
+}
+
 /** Bound times below half the clock wrap and reject nonphysical geometry. */
 static bool scanner_config_valid (const scanner_config_t * p_config)
 {
@@ -224,7 +314,24 @@ static bool scanner_config_valid (const scanner_config_t * p_config)
            && (p_config->trigger_interval_ms >= SCANNER_MIN_INTERVAL_MS)
            && (p_config->trigger_interval_ms <= SCANNER_MAX_DELAY_MS)
            && (p_config->echo_timeout_ms > 0U)
-           && (p_config->echo_timeout_ms < p_config->trigger_interval_ms);
+           && (p_config->echo_timeout_ms < p_config->trigger_interval_ms)
+           && (scanner_saturation_exact(&p_config->range));
+}
+
+/**
+ * Longer pulses are stored as SCANNER_ENTRY_PULSE_MAX_US. With that code
+ * beyond the maximum range, computed exactly as core_ultrasonic_range does,
+ * every longer pulse is also beyond it (monotone arithmetic), so the stored
+ * code and the original pulse are both non-VALID.
+ */
+static bool scanner_saturation_exact (
+    const core_ultrasonic_config_t * p_range)
+{
+    const double pulse_s = ((double) SCANNER_ENTRY_PULSE_MAX_US)
+                           / SCANNER_US_PER_S;
+
+    return ((pulse_s / 2.0) * p_range->sound_speed_m_per_s)
+           > p_range->max_distance_m;
 }
 
 /** Unknown distances use NaN; no previous profile survives a new request. */
@@ -237,30 +344,82 @@ static void scanner_result_reset (scanner_result_t * p_result)
     p_result->right_clearance_m  = NAN;
 }
 
-/** Capture the current pulse or timeout; store no guessed distance. */
-static void scanner_capture (scanner_state_t * p_state,
-                             const scanner_echo_t * p_echo)
+/** No observation from an earlier scan may survive into a new one. */
+static void scanner_table_clear (scanner_state_t * p_state)
 {
-    scanner_sample_t * p_sample = NULL;
-    core_status_t status = CORE_UNAVAILABLE;
-    double pulse_s = 0.0;
+    uint32_t index = 0U;
 
-    if (p_state->sample_count >= SCANNER_MAX_SAMPLES)
+    for (index = 0U; index < SCANNER_TABLE_SIZE; index++)
     {
-        return;
+        /* 0x7FFF fits the 16-bit entry exactly. */
+        p_state->table[index] = (scanner_entry_t) SCANNER_ENTRY_NOT_SAMPLED;
     }
-    p_sample = &p_state->samples[p_state->sample_count];
-    p_sample->angle_deg = p_state->angle_deg;
-    p_sample->b_fine    = p_state->b_fine;
-    /* uint32_t is exactly representable by the required 53-bit double. */
-    pulse_s = ((double) p_echo->pulse_us) / 1000000.0;
+}
+
+/** Table index (angle + 60) / 2 of an even beam angle in -60..60. */
+static uint32_t scanner_index (int32_t angle_deg)
+{
+    /* -60..60 gives the exact offset 0..120; an angle outside the sector
+     * converts modulo 2^32 (C99 6.3.1.3) to an index >= 61 (or 60 for 61).
+     * The step constant 2 is exact as uint32_t. */
+    return ((uint32_t) (angle_deg - SCANNER_MIN_ANGLE_DEG))
+           / (uint32_t) SCANNER_FINE_STEP_DEG;
+}
+
+/** Rebuild the list sample; the pulse code converts exactly as it did. */
+static bool scanner_decode (const scanner_state_t * p_state, uint32_t index,
+                            scanner_sample_t * p_sample)
+{
+    const uint32_t entry = p_state->table[index];
+    const uint32_t code  = entry & SCANNER_CODE_MASK;
+    core_status_t status = CORE_UNAVAILABLE;
+
+    if (SCANNER_ENTRY_NOT_SAMPLED == code)
+    {
+        return false;
+    }
+    /* index is 0..60, so the beam angle -60..60 is exact. */
+    p_sample->angle_deg = (((int32_t) index) * SCANNER_FINE_STEP_DEG)
+                          + SCANNER_MIN_ANGLE_DEG;
+    p_sample->b_fine = (0U != (entry & SCANNER_ENTRY_FINE));
+    /* Code 0 is no echo; a zero-width echo also failed as UNKNOWN. */
     status = core_ultrasonic_range(&p_state->config.range,
-                                    p_echo->b_ready, pulse_s, &p_sample->range);
+                                   SCANNER_ENTRY_NO_ECHO != code,
+                                   ((double) code) / SCANNER_US_PER_S,
+                                   &p_sample->range);
     if ((CORE_OK != status) && (CORE_OUT_OF_RANGE != status))
     {
         p_sample->range.state      = CORE_RANGE_UNKNOWN;
         p_sample->range.distance_m = NAN;
     }
+    return true;
+}
+
+/** Store the current pulse or timeout; the newest observation wins. */
+static void scanner_capture (scanner_state_t * p_state,
+                             const scanner_echo_t * p_echo)
+{
+    const uint32_t index = scanner_index(p_state->angle_deg);
+    uint32_t code = SCANNER_ENTRY_NO_ECHO;
+
+    /* The beam angle is always in -60..60; the index bound is defensive. */
+    if ((p_state->sample_count >= SCANNER_MAX_SAMPLES)
+        || (index >= SCANNER_TABLE_SIZE))
+    {
+        return;
+    }
+    if (p_echo->b_ready)
+    {
+        /* scanner_init proved the saturated code is beyond max range. */
+        code = (p_echo->pulse_us > SCANNER_ENTRY_PULSE_MAX_US)
+               ? SCANNER_ENTRY_PULSE_MAX_US : p_echo->pulse_us;
+    }
+    if (p_state->b_fine)
+    {
+        code |= SCANNER_ENTRY_FINE;
+    }
+    /* A 15-bit code plus the fine flag always fits the 16-bit entry. */
+    p_state->table[index] = (scanner_entry_t) code;
     p_state->sample_count++;
 }
 
@@ -275,7 +434,8 @@ static bool scanner_advance (scanner_state_t * p_state)
     if ((p_state->angle_deg < end_deg)
         && (p_state->sample_count < SCANNER_MAX_SAMPLES))
     {
-        p_state->angle_deg += step_deg;
+        /* Below an end of at most 60 by a whole step: the sum is <= 60. */
+        p_state->angle_deg = (int8_t) (p_state->angle_deg + step_deg);
         p_state->phase = SCANNER_POSITION;
         return true;
     }
@@ -290,24 +450,26 @@ static bool scanner_advance (scanner_state_t * p_state)
 /** Refine all uncertain/near coarse beams and their immediate neighbours. */
 static bool scanner_refine (scanner_state_t * p_state)
 {
+    scanner_sample_t sample;
     int32_t first_deg = SCANNER_MAX_ANGLE_DEG;
     int32_t last_deg  = SCANNER_MIN_ANGLE_DEG;
     uint32_t index   = 0U;
     bool b_found     = false;
 
-    for (index = 0U; index < p_state->sample_count; index++)
+    /* Only this scan's coarse beams are sampled here; ascending angle order
+     * is their capture order. */
+    for (index = 0U; index < SCANNER_TABLE_SIZE; index++)
     {
-        const scanner_sample_t * p_sample = &p_state->samples[index];
-
-        if ((CORE_RANGE_VALID != p_sample->range.state)
-            || (p_sample->range.distance_m
-                <= p_state->config.obstacle_distance_m))
+        if (scanner_decode(p_state, index, &sample)
+            && ((CORE_RANGE_VALID != sample.range.state)
+                || (sample.range.distance_m
+                    <= p_state->config.obstacle_distance_m)))
         {
             if (!b_found)
             {
-                first_deg = p_sample->angle_deg;
+                first_deg = sample.angle_deg;
             }
-            last_deg = p_sample->angle_deg;
+            last_deg = sample.angle_deg;
             b_found  = true;
         }
     }
@@ -315,35 +477,21 @@ static bool scanner_refine (scanner_state_t * p_state)
     {
         first_deg -= SCANNER_COARSE_STEP_DEG;
         last_deg  += SCANNER_COARSE_STEP_DEG;
-        p_state->angle_deg = (first_deg < SCANNER_MIN_ANGLE_DEG)
-                             ? SCANNER_MIN_ANGLE_DEG : first_deg;
-        p_state->fine_end_deg = (last_deg > SCANNER_MAX_ANGLE_DEG)
-                                ? SCANNER_MAX_ANGLE_DEG : last_deg;
+        /* Both are clamped into -60..60, which int8_t holds exactly. */
+        p_state->angle_deg = (int8_t) ((first_deg < SCANNER_MIN_ANGLE_DEG)
+                             ? SCANNER_MIN_ANGLE_DEG : first_deg);
+        p_state->fine_end_deg = (int8_t) ((last_deg > SCANNER_MAX_ANGLE_DEG)
+                                ? SCANNER_MAX_ANGLE_DEG : last_deg);
         p_state->b_fine = true;
     }
     return b_found;
-}
-
-/** A fine observation replaces the coarse beam at the same angle. */
-static bool scanner_latest (const scanner_state_t * p_state, uint32_t index)
-{
-    uint32_t later = 0U;
-
-    for (later = index + 1U; later < p_state->sample_count; later++)
-    {
-        if (p_state->samples[later].angle_deg
-            == p_state->samples[index].angle_deg)
-        {
-            return false;
-        }
-    }
-    return true;
 }
 
 /** Assemble visible endpoint span and explicitly qualified sector margins. */
 static void scanner_profile (scanner_state_t * p_state)
 {
     scanner_profile_t profile;
+    scanner_sample_t sample;
     uint32_t index = 0U;
 
     memset(&profile, 0, sizeof(profile));
@@ -354,11 +502,12 @@ static void scanner_profile (scanner_state_t * p_state)
     profile.b_left_valid     = true;
     profile.b_right_valid    = true;
     scanner_result_reset(&p_state->result);
-    for (index = 0U; index < p_state->sample_count; index++)
+    /* Each sampled entry is the newest observation at its angle. */
+    for (index = 0U; index < SCANNER_TABLE_SIZE; index++)
     {
-        if (scanner_latest(p_state, index))
+        if (scanner_decode(p_state, index, &sample))
         {
-            scanner_accumulate(p_state, &profile, &p_state->samples[index]);
+            scanner_accumulate(p_state, &profile, &sample);
         }
     }
     p_state->result.b_profile_valid = (p_state->result.valid_samples > 0U)
@@ -470,6 +619,26 @@ static void scanner_choose_side (scanner_state_t * p_state,
     {
         p_result->preferred_side = SCANNER_SIDE_NONE;
     }
+}
+
+/** CEIL to whole mm in 0..4095; 0 when not valid. A non-finite distance
+ * flagged valid stores the largest code, beyond every consumer gate. */
+static uint32_t scanner_shared_mm (double distance_m, bool b_valid)
+{
+    int32_t distance_mm = 0;
+
+    if (!b_valid)
+    {
+        return 0U;
+    }
+    /* The 4095 mm limit is exact in int32_t. */
+    if (!bitpack_quantise(distance_m, SCANNER_MM_PER_M, BITPACK_CEIL, 0,
+                          (int32_t) SCANNER_MM_MASK, &distance_mm))
+    {
+        return SCANNER_MM_MASK;
+    }
+    /* Clamped to 0..4095 above, so the conversion is exact. */
+    return (uint32_t) distance_mm;
 }
 
 /** End of file. */

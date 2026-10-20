@@ -199,6 +199,72 @@ core_status_t core_stopping_clearance (
     core_real_t margin_m,
     core_real_t * p_clearance_m);
 
+/* Field widths of the shared pose and range records. */
+#define CORE_POSE_XY_BITS  (16U)
+#define CORE_POSE_YAW_BITS (13U)
+#define CORE_RANGE_MM_BITS (12U)
+
+/** Shared pose: x/y wrap modulo 2^16 mm in two's complement, so only
+ * differences below 32.767 m are meaningful (consumers use
+ * core_pose_delta); yaw is [-pi, pi] in a 13-bit signed mrad field.
+ * Nearest rounding; 45 bits. A non-finite x, y or yaw, or an x/y whose
+ * millimetre value overflows (beyond DBL_MAX / 1000 m), stores x = y = 0
+ * and the reserved yaw code, which marks the whole pose invalid.
+ */
+typedef struct
+{
+    uint32_t x_mm     : 16;
+    uint32_t y_mm     : 16;
+    uint32_t yaw_mrad : 13;
+} core_pose_packed_t;
+
+/** @brief Pack a pose for sharing; NULL arguments have no effect.
+ * Yaw is first normalised to [-pi, pi], so any finite pose is representable.
+ */
+void core_pose_pack (const core_pose_t * p_pose,
+                     core_pose_packed_t * p_packed);
+
+/** @brief Unpack a shared pose; NULL arguments have no effect.
+ * x/y are the wrapped values in [-32.768, 32.767] m, yaw is within
+ * +/-3.142 rad, and centre_path_m is not shared and unpacks as 0. An invalid
+ * pose unpacks x, y and yaw as NAN.
+ */
+void core_pose_unpack (const core_pose_packed_t * p_packed,
+                       core_pose_t * p_pose);
+
+/** @brief Wrap-safe p_to minus p_from: int16 x/y differences in metres, yaw
+ * difference normalised to [-pi, pi]; NULL outputs are skipped. A NULL or
+ * invalid pose makes every output NAN, which fails every <= or < gate.
+ */
+void core_pose_delta (const core_pose_packed_t * p_to,
+                      const core_pose_packed_t * p_from,
+                      core_real_t * p_dx_m, core_real_t * p_dy_m,
+                      core_real_t * p_dyaw_rad);
+
+/** Shared range: 2-bit state and 12-bit distance in mm rounded UP (CEIL),
+ * so decisions d <= T and d > T on whole millimetres stay exact; distance is
+ * meaningful only when state is VALID (stored as 0 otherwise). 14 bits.
+ */
+typedef struct
+{
+    core_range_state_t state       : 2;
+    uint32_t           distance_mm : 12;
+} core_range_packed_t;
+
+/** @brief Pack a qualified range; NULL arguments have no effect.
+ * Distances above 4.095 m saturate (sensor maximum 4.0 m) and negative ones
+ * store 0. A VALID sample without a finite distance, or an undefined state,
+ * packs as UNKNOWN: never a measurement.
+ */
+void core_range_pack (const core_range_sample_t * p_sample,
+                      core_range_packed_t * p_packed);
+
+/** @brief Unpack a shared range; NULL arguments have no effect.
+ * distance_m is NAN unless VALID, exactly like core_ultrasonic_range.
+ */
+void core_range_unpack (const core_range_packed_t * p_packed,
+                        core_range_sample_t * p_sample);
+
 #endif /* CORE_H */
 
 /* End of file. */

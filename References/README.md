@@ -3,8 +3,9 @@
 These are original supplied sources. The Week 4 VTT is a transcript, not the lecture audio.
 The device-guide README records provenance and differences between supplied versions.
 
-- [Barcode & Line Specification(1).pdf](<Barcode & Line Specification(1).pdf>)
+- [Barcode & Line Specification.pdf](<Barcode & Line Specification.pdf>)
 - [Barcode Sample.pdf](<Barcode Sample.pdf>)
+- [Change Requirement.docx](<Change Requirement.docx>)
 - [Device_Guides/HCSR04.pdf](<Device_Guides/HCSR04.pdf>)
 - [Device_Guides/Infrared-Reflective-Sensor-UserManual.pdf](<Device_Guides/Infrared-Reflective-Sensor-UserManual.pdf>)
 - [Device_Guides/LM393-D.PDF](<Device_Guides/LM393-D.PDF>)
@@ -20,7 +21,7 @@ The device-guide README records provenance and differences between supplied vers
 - [Device_Guides/lsm303dlhc.pdf](<Device_Guides/lsm303dlhc.pdf>)
 - [Device_Guides/tcrt5000.pdf](<Device_Guides/tcrt5000.pdf>)
 - [Embedded_Week4_Lecture (transcribed on 21-Sep-2026 13-28-57).vtt](<Embedded_Week4_Lecture (transcribed on 21-Sep-2026 13-28-57).vtt>)
-- [Project Briefing(1).pdf](<Project Briefing(1).pdf>)
-- [Project Write-up(2).pdf](<Project Write-up(2).pdf>)
+- [Project Briefing.pdf](<Project Briefing.pdf>)
+- [Project Write-up.pdf](<Project Write-up.pdf>)
 - [W0_Module Overview.pdf](<W0_Module Overview.pdf>)
-- [Week_6_Design_Review_Template(1).docx](<Week_6_Design_Review_Template(1).docx>)
+- [Week_6_Design_Review_Template.docx](<Week_6_Design_Review_Template.docx>)

@@ -4,9 +4,11 @@
  */
 #include "test_motion_main.h"
 
+#include "bitpack.h"
 #include "motion.h"
 #include "vehicle.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -19,6 +21,18 @@
 #define TEST_TIMEOUT_STEPS (10U)
 #define TEST_BYPASS_STEPS (7U)
 #define TEST_INTEGRATION_LIMIT (2000U)
+/* More primitives than one 8-bit ID cycle (1..255), within a step budget. */
+#define TEST_WRAP_PRIMITIVES (300U)
+#define TEST_WRAP_LIMIT (8000U)
+/* Q7 line steering codes -127..127, as robot_app.c scales them. */
+#define TEST_STEER_CODES (127)
+/* D5 consumers: robot_config.h ROBOT_TRACK_WIDTH_M, the IMU task's
+ * quasistatic speed limit and terrain_default_config's turning threshold.
+ */
+#define TEST_TRACK_WIDTH_M (0.140)
+#define TEST_QUASI_LIMIT_MPS (0.15)
+#define TEST_TURNING_RPS (0.25)
+#define TEST_BOUND_STEPS (20000U)
 /* Junction geometry: 18 mm line, sensors 60 mm ahead of the axle (the
  * ROBOT_SENSOR_AXLE_OFFSET_M hypothesis that app_cfg.c configures as
  * junction_distance_m), and an edge once the sensors are 2 mm inside.
@@ -36,6 +50,16 @@
 #define TEST_PLANT_STEP_M (0.002)
 #define TEST_LINE_SPEED_MPS (0.08)
 #define TEST_JUNCTION_DEBOUNCE_S (0.020)
+
+/* One request shape and the status the original double request gets. */
+typedef struct
+{
+    motion_kind_t   kind;
+    core_real_t     forward_mps;
+    core_real_t     yaw_rps;
+    core_real_t     target;
+    motion_status_t expected;
+} test_request_case_t;
 
 static unsigned int g_checks = 0U;
 static unsigned int g_failures = 0U;
@@ -84,10 +108,41 @@ static void test_vehicle_junction_geometry (vehicle_nav_t navigation,
                                             core_real_t approach_m,
                                             core_real_t tolerance_m);
 static void test_junction_production (void);
-static void test_integrated_sequence (void);
+static void test_integrated_sequence (bool b_packed);
 static bool integrated_motion_tick (motion_t * p_motion,
                                     const vehicle_output_t * p_output,
                                     uint32_t now_ms);
+static bool packed_motion_tick (motion_t * p_motion,
+                                const vehicle_output_t * p_output,
+                                uint32_t now_ms);
+static motion_config_t motion_production (void);
+static motion_request_t request_shared (const motion_request_t * p_request);
+static motion_request_packed_t request_packed (motion_kind_t kind,
+                                               core_real_t forward_mps,
+                                               core_real_t yaw_rps,
+                                               core_real_t target);
+static void request_codes (motion_kind_t kind, core_real_t forward_mps,
+                           core_real_t yaw_rps, core_real_t target,
+                           int32_t * p_codes);
+static int32_t speed_code (core_real_t speed_mps);
+static motion_status_t submit_fresh (const motion_config_t * p_config,
+                                     const motion_request_t * p_request);
+static void test_motion_ids (void);
+static void test_request_fields (void);
+static void test_request_targets (void);
+static void test_request_equivalence (void);
+static void test_request_bounded (void);
+static void test_request_renewal (void);
+static void test_snapshot_pack (void);
+static void test_snapshot_speeds (void);
+static void test_snapshot_speed_bound (void);
+static void test_vehicle_id_wrap (void);
+static void test_completion_bound (void);
+static uint32_t completion_steps (const motion_request_t * p_request,
+                                  int32_t left_delta, int32_t right_delta);
+static void test_request_direction (void);
+static int32_t renewal_resets (const motion_request_t * p_first,
+                               const motion_request_t * p_renewal);
 
 /** @brief Return nonzero on any persistent release-mode test failure. */
 int main (void)
@@ -129,7 +184,20 @@ int main (void)
     test_vehicle_junction_geometry(VEHICLE_NAV_UTURN, CORE_PI,
         TEST_EDGE_ENTRY_M, TEST_SENSOR_AXLE_M, 0.5 * TEST_LINE_WIDTH_M);
     test_junction_production();
-    test_integrated_sequence();
+    test_integrated_sequence(false);
+    test_integrated_sequence(true);
+    test_motion_ids();
+    test_request_fields();
+    test_request_targets();
+    test_request_equivalence();
+    test_request_bounded();
+    test_request_renewal();
+    test_snapshot_pack();
+    test_snapshot_speeds();
+    test_snapshot_speed_bound();
+    test_vehicle_id_wrap();
+    test_completion_bound();
+    test_request_direction();
     if (0 > printf("Checks: %u; failures: %u\n", g_checks, g_failures))
     {
         return EXIT_FAILURE;
@@ -287,12 +355,13 @@ static void test_motion_stop (void)
 }
 
 /** @brief Expiration works across clock wrap and cannot be revived by submit.
+ * The 8-bit ID also wraps (255 -> 1 is newer; 255 after 1 is stale).
  */
 static void test_motion_lease (void)
 {
     motion_t motion;
     motion_config_t config = motion_fixture();
-    motion_request_t request = {UINT32_MAX, MOTION_VELOCITY, 0.2, 0.0, 0.0};
+    motion_request_t request = {UINT8_MAX, MOTION_VELOCITY, 0.2, 0.0, 0.0};
     motion_output_t output;
     uint32_t started = UINT32_MAX - 20U;
 
@@ -308,7 +377,7 @@ static void test_motion_lease (void)
     CHECK(MOTION_OK == motion_reset(&motion, true, true));
     request.command_id = 1U;
     CHECK(MOTION_OK == motion_submit(&motion, &request, started + 52U));
-    request.command_id = UINT32_MAX;
+    request.command_id = UINT8_MAX;
     CHECK(MOTION_REJECTED ==
           motion_submit(&motion, &request, started + 53U));
     request.command_id = 1U;
@@ -501,7 +570,7 @@ static void test_vehicle_bypass (int32_t side, vehicle_nav_t navigation)
     vehicle_input_t input = vehicle_inputs();
     vehicle_output_t output;
     uint32_t phase = 0U;
-    uint32_t command_id = 0U;
+    uint8_t command_id = 0U;
     uint32_t now_ms = 100U;
     core_real_t direction = (side > 0) ? 1.0 : -1.0;
     const motion_kind_t kinds[TEST_BYPASS_STEPS] =
@@ -718,8 +787,11 @@ static void test_vehicle_turn_guard (void)
 /** @brief Use real motion completion rather than injecting completion events.
  * Wheel counts follow the requested geometry, not a simulated motor plant.
  * This validates API/lease/state coordination, not PID tracking accuracy.
+ * With b_packed both shared messages are packed as robot_app.c packs them
+ * (request: Vehicle -> Motion; snapshot: Motion -> Vehicle), and the same
+ * scenario must end the same way.
  */
-static void test_integrated_sequence (void)
+static void test_integrated_sequence (bool b_packed)
 {
     motion_t motion;
     vehicle_t vehicle;
@@ -727,6 +799,7 @@ static void test_integrated_sequence (void)
     vehicle_config_t config = vehicle_fixture();
     vehicle_input_t input = vehicle_inputs();
     vehicle_output_t output;
+    motion_snapshot_t snapshot;
     uint32_t sample = 0U;
     uint32_t completions = 0U;
     uint32_t previous_complete = 0U;
@@ -740,6 +813,7 @@ static void test_integrated_sequence (void)
     CHECK(MOTION_OK == motion_init(&motion, &motion_config));
     CHECK(vehicle_init(&vehicle, &config));
     memset(&output, 0, sizeof(output));
+    memset(&snapshot, 0, sizeof(snapshot));
     input.b_bypass_clearance = true;
     input.bypass_side = 1;
     input.bypass_offset_m = 0.3;
@@ -747,6 +821,11 @@ static void test_integrated_sequence (void)
     for (sample = 1U; sample <= TEST_INTEGRATION_LIMIT; sample += 1U)
     {
         input.motion = motion.output;
+        if (b_packed)
+        {
+            motion_snapshot_pack(&motion.output, &snapshot);
+            motion_snapshot_unpack(&snapshot, &input.motion);
+        }
         input.b_start = (2U == sample);
         input.b_obstacle = (4U == sample);
         input.navigation = (4U == sample) ?
@@ -759,7 +838,9 @@ static void test_integrated_sequence (void)
             (VEHICLE_FOLLOW == vehicle.state) &&
             (VEHICLE_NAV_NONE != vehicle.pending_nav);
         if ((!vehicle_step(&vehicle, sample * 10U, &input, &output)) ||
-            (!integrated_motion_tick(&motion, &output, sample * 10U)))
+            (!(b_packed ?
+               packed_motion_tick(&motion, &output, sample * 10U) :
+               integrated_motion_tick(&motion, &output, sample * 10U))))
         {
             b_sequence_ok = false;
             break;
@@ -839,6 +920,23 @@ static bool integrated_motion_tick (motion_t * p_motion,
     }
     return (MOTION_OK == motion_step(p_motion, now_ms, 0.01,
                                      left_delta, right_delta, &feedback));
+}
+
+/** @brief integrated_motion_tick through the shared request message:
+ * Vehicle packs its own request and Motion submits the unpacked copy, as
+ * robot_app_vehicle_step and robot_app_motion_step do.
+ */
+static bool packed_motion_tick (motion_t * p_motion,
+                                const vehicle_output_t * p_output,
+                                uint32_t now_ms)
+{
+    vehicle_output_t shared = *p_output;
+    motion_request_packed_t packed;
+
+    memset(&packed, 0, sizeof(packed));
+    motion_request_pack(&p_output->request, &packed);
+    motion_request_unpack(&packed, &shared.request);
+    return integrated_motion_tick(p_motion, &shared, now_ms);
 }
 
 /** @brief A partly executed junction turn must not be replayed after bypass.
@@ -1517,6 +1615,836 @@ static void test_motion_speed_intervals (void)
     CHECK(MOTION_OK == motion_step(&motion, 100U, 0.1, 10, 10, &output));
     CHECK(near_value(output.left_speed_mps, 0.1));
     CHECK(near_value(output.pose.x_m, 0.01));
+}
+
+/** @brief Production limits (app_cfg.c with robot_config.h): 0.15 m/s,
+ * 1.0 rad/s, 0.005 m and 0.03 rad tolerances, 140 mm track. Saturated
+ * request fields stay rejected only below 0.255 m/s and 1.023 rad/s, so
+ * equivalence is shown on these limits, not on the wide fixture.
+ */
+static motion_config_t motion_production (void)
+{
+    motion_config_t config;
+
+    memset(&config, 0, sizeof(config));
+    config.odometry.left_radius_m = 0.0325;
+    config.odometry.right_radius_m = 0.0325;
+    config.odometry.track_width_m = 0.140;
+    config.odometry.left_counts_per_revolution = 360U;
+    config.odometry.right_counts_per_revolution = 360U;
+    config.wheel_pid.proportional_gain = 1.0;
+    config.wheel_pid.integral_gain = 0.3;
+    config.wheel_pid.derivative_gain = 0.0;
+    config.wheel_pid.output_min = -0.35;
+    config.wheel_pid.output_max = 0.35;
+    config.wheel_pid.max_dt_s = 0.025;
+    config.max_wheel_mps = 0.15;
+    config.max_yaw_rps = 1.0;
+    config.distance_tolerance_m = 0.005;
+    config.turn_tolerance_rad = 0.03;
+    config.stationary_mps = 0.012;
+    config.primitive_timeout_ms = 15000U;
+    config.b_calibration_confirmed = true;
+    return config;
+}
+
+/** @brief The request Motion receives: the shared message, unpacked. */
+static motion_request_t request_shared (const motion_request_t * p_request)
+{
+    motion_request_packed_t packed;
+    motion_request_t shared;
+
+    memset(&packed, 0, sizeof(packed));
+    memset(&shared, 0, sizeof(shared));
+    motion_request_pack(p_request, &packed);
+    motion_request_unpack(&packed, &shared);
+    return shared;
+}
+
+/** @brief Pack one request with ID 1 and return the shared record. */
+static motion_request_packed_t request_packed (motion_kind_t kind,
+                                               core_real_t forward_mps,
+                                               core_real_t yaw_rps,
+                                               core_real_t target)
+{
+    motion_request_t request = {1U, MOTION_VELOCITY, 0.0, 0.0, 0.0};
+    motion_request_packed_t packed;
+
+    memset(&packed, 0, sizeof(packed));
+    request.kind = kind;
+    request.forward_mps = forward_mps;
+    request.yaw_rps = yaw_rps;
+    request.target = target;
+    motion_request_pack(&request, &packed);
+    return packed;
+}
+
+/** @brief Signed forward, yaw and target codes of one packed request. */
+static void request_codes (motion_kind_t kind, core_real_t forward_mps,
+                           core_real_t yaw_rps, core_real_t target,
+                           int32_t * p_codes)
+{
+    motion_request_packed_t packed =
+        request_packed(kind, forward_mps, yaw_rps, target);
+
+    p_codes[0] = bitpack_extend(packed.forward_mm_s, MOTION_FORWARD_BITS);
+    p_codes[1] = bitpack_extend(packed.yaw_mrad_s, MOTION_YAW_BITS);
+    p_codes[2] = bitpack_extend(packed.target, MOTION_TARGET_BITS);
+}
+
+/** @brief Signed snapshot code of one speed on both wheels; INT32_MIN if
+ * the two wheels disagree.
+ */
+static int32_t speed_code (core_real_t speed_mps)
+{
+    motion_output_t output;
+    motion_snapshot_t snapshot;
+    int32_t left = 0;
+
+    memset(&output, 0, sizeof(output));
+    memset(&snapshot, 0, sizeof(snapshot));
+    output.left_speed_mps = speed_mps;
+    output.right_speed_mps = speed_mps;
+    motion_snapshot_pack(&output, &snapshot);
+    left = bitpack_extend(snapshot.left_mm_s, MOTION_SPEED_BITS);
+    return (left == bitpack_extend(snapshot.right_mm_s, MOTION_SPEED_BITS)) ?
+           left : INT32_MIN;
+}
+
+/** @brief Status of the first submit to a freshly initialised owner;
+ * STOPPED (never expected here) if the configuration is refused.
+ */
+static motion_status_t submit_fresh (const motion_config_t * p_config,
+                                     const motion_request_t * p_request)
+{
+    motion_t motion;
+
+    if (MOTION_OK != motion_init(&motion, p_config))
+    {
+        return MOTION_STOPPED;
+    }
+    return motion_submit(&motion, p_request, 0U);
+}
+
+/** @brief 8-bit IDs: serial order modulo 256 with a 128 half-range; 0 is
+ * reserved; a same-ID renewal keeps the running primitive.
+ */
+static void test_motion_ids (void)
+{
+    motion_t motion;
+    motion_config_t config = motion_fixture();
+    motion_request_t request = {200U, MOTION_VELOCITY, 0.1, 0.0, 0.0};
+
+    CHECK(MOTION_OK == motion_init(&motion, &config));
+    CHECK(MOTION_OK == motion_submit(&motion, &request, 0U));
+    CHECK(MOTION_OK == motion_submit(&motion, &request, 5U));
+    CHECK((0U == motion.started_ms) && (5U == motion.renewed_ms));
+    /* 72 - 200 = 128 (mod 256): exactly half-range, so stale. */
+    request.command_id = 72U;
+    CHECK(MOTION_REJECTED == motion_submit(&motion, &request, 10U));
+    CHECK(200U == motion.output.command_id);
+    /* 71 - 200 = 127 (mod 256): the newest ID still accepted. */
+    request.command_id = 71U;
+    CHECK(MOTION_OK == motion_submit(&motion, &request, 15U));
+    CHECK((71U == motion.output.command_id) && (15U == motion.started_ms));
+    /* 200 is now 129 ahead of 71: stale. 0 is never accepted. */
+    request.command_id = 200U;
+    CHECK(MOTION_REJECTED == motion_submit(&motion, &request, 20U));
+    request.command_id = 0U;
+    CHECK(MOTION_INVALID == motion_submit(&motion, &request, 25U));
+    /* 71 -> 198 -> 255 -> 1: the wrap skips 0 and is two ahead. */
+    request.command_id = 198U;
+    CHECK(MOTION_OK == motion_submit(&motion, &request, 30U));
+    request.command_id = 255U;
+    CHECK(MOTION_OK == motion_submit(&motion, &request, 35U));
+    request.command_id = 1U;
+    CHECK(MOTION_OK == motion_submit(&motion, &request, 40U));
+    CHECK((1U == motion.output.command_id) && (40U == motion.started_ms));
+    /* 255 after 1 is 254 ahead: stale. Renewing 1 still works. */
+    request.command_id = 255U;
+    CHECK(MOTION_REJECTED == motion_submit(&motion, &request, 45U));
+    request.command_id = 1U;
+    CHECK(MOTION_OK == motion_submit(&motion, &request, 50U));
+    CHECK((40U == motion.started_ms) && (50U == motion.renewed_ms));
+    CHECK(MOTION_RUNNING == motion.output.state);
+}
+
+/** @brief Speed fields: magnitudes round up (AWAY), saturate symmetrically
+ * at +/-255 mm/s and +/-1023 mrad/s, non-finite takes the reserved code
+ * and decodes as NAN; every ID and kind copies through unchanged.
+ */
+static void test_request_fields (void)
+{
+    const motion_kind_t kinds[] =
+    {
+        MOTION_VELOCITY, MOTION_DISTANCE, MOTION_TURN, MOTION_HALT
+    };
+    const core_real_t tiny = nextafter(0.0, INFINITY);
+    const int32_t forward_reserved = bitpack_extend(
+        bitpack_invalid(MOTION_FORWARD_BITS), MOTION_FORWARD_BITS);
+    const int32_t yaw_reserved = bitpack_extend(
+        bitpack_invalid(MOTION_YAW_BITS), MOTION_YAW_BITS);
+    motion_request_t request = {255U, MOTION_DISTANCE, 0.255, -1.023, 1.0};
+    motion_request_t shared = request_shared(&request);
+    int32_t codes[3] = {0, 0, 0};
+    uint32_t index = 0U;
+    bool b_copied = true;
+
+    CHECK((255U == shared.command_id) && (MOTION_DISTANCE == shared.kind));
+    CHECK(near_value(shared.forward_mps, 0.255));
+    CHECK(near_value(shared.yaw_rps, -1.023));
+    CHECK(near_value(shared.target, 1.0));
+    request_codes(MOTION_VELOCITY, 0.0804, -0.6501, 0.0, codes);
+    CHECK((81 == codes[0]) && (-651 == codes[1]));
+    request_codes(MOTION_VELOCITY, tiny, -tiny, 0.0, codes);
+    CHECK((1 == codes[0]) && (-1 == codes[1]));
+    request_codes(MOTION_VELOCITY, 0.0, 0.0, 0.0, codes);
+    CHECK((0 == codes[0]) && (0 == codes[1]));
+    request_codes(MOTION_VELOCITY, 0.08, 0.65, 0.0, codes);
+    CHECK((80 == codes[0]) && (650 == codes[1]));
+    request_codes(MOTION_VELOCITY, 0.2551, -1.0231, 0.0, codes);
+    CHECK((255 == codes[0]) && (-1023 == codes[1]));
+    request_codes(MOTION_VELOCITY, -DBL_MAX, DBL_MAX, 0.0, codes);
+    CHECK((-255 == codes[0]) && (1023 == codes[1]));
+    request_codes(MOTION_VELOCITY, NAN, INFINITY, 0.0, codes);
+    CHECK((forward_reserved == codes[0]) && (yaw_reserved == codes[1]));
+    request.forward_mps = -INFINITY;
+    request.yaw_rps = NAN;
+    shared = request_shared(&request);
+    CHECK(isnan(shared.forward_mps) && isnan(shared.yaw_rps));
+    for (index = 0U; index <= UINT8_MAX; index += 1U)
+    {
+        /* index <= 255, so the narrowing is exact. */
+        request.command_id = (uint8_t) index;
+        shared = request_shared(&request);
+        b_copied = b_copied && (index == shared.command_id);
+    }
+    for (index = 0U; index < (sizeof(kinds) / sizeof(kinds[0])); index += 1U)
+    {
+        request.kind = kinds[index];
+        shared = request_shared(&request);
+        b_copied = b_copied && (kinds[index] == shared.kind);
+    }
+    CHECK(b_copied);
+}
+
+/** @brief Targets: DISTANCE mm and TURN mrad with AWAY rounding, a TURN
+ * within 2*pi capped at 6283 mrad, +/-8191 saturation, 0 for HALT and a
+ * finite VELOCITY, and the reserved code for other non-finite targets.
+ */
+static void test_request_targets (void)
+{
+    const int32_t reserved = bitpack_extend(
+        bitpack_invalid(MOTION_TARGET_BITS), MOTION_TARGET_BITS);
+    const core_real_t over_turn = nextafter(2.0 * CORE_PI, INFINITY);
+    motion_request_t request = {3U, MOTION_DISTANCE, 0.08, 0.0, 8.191};
+    motion_request_t shared = request_shared(&request);
+    motion_request_packed_t packed =
+        request_packed(MOTION_HALT, 0.0, 0.0, 0.0);
+    int32_t codes[3] = {0, 0, 0};
+
+    CHECK(near_value(shared.target, 8.191));
+    request_codes(MOTION_DISTANCE, 0.08, 0.0, 0.060, codes);
+    CHECK(60 == codes[2]);
+    request_codes(MOTION_DISTANCE, 0.08, 0.0, 0.0601, codes);
+    CHECK(61 == codes[2]);
+    request_codes(MOTION_DISTANCE, 0.08, 0.0, -0.0601, codes);
+    CHECK(-61 == codes[2]);
+    request_codes(MOTION_DISTANCE, 0.08, 0.0, 8.1911, codes);
+    CHECK(8191 == codes[2]);
+    request_codes(MOTION_DISTANCE, 0.08, 0.0, -100.0, codes);
+    CHECK(-8191 == codes[2]);
+    request_codes(MOTION_DISTANCE, 0.08, 0.0, NAN, codes);
+    CHECK(reserved == codes[2]);
+    request_codes(MOTION_TURN, 0.0, 0.65, 0.5 * CORE_PI, codes);
+    CHECK(1571 == codes[2]);
+    request_codes(MOTION_TURN, 0.0, 0.65, -CORE_PI, codes);
+    CHECK(-3142 == codes[2]);
+    request_codes(MOTION_TURN, 0.0, 0.65, 2.0 * CORE_PI, codes);
+    CHECK(6283 == codes[2]);
+    request_codes(MOTION_TURN, 0.0, 0.65, -2.0 * CORE_PI, codes);
+    CHECK(-6283 == codes[2]);
+    request_codes(MOTION_TURN, 0.0, 0.65, over_turn, codes);
+    CHECK(6284 == codes[2]);
+    request_codes(MOTION_TURN, 0.0, 0.65, 9.0, codes);
+    CHECK(8191 == codes[2]);
+    request_codes(MOTION_TURN, 0.0, 0.65, -INFINITY, codes);
+    CHECK(reserved == codes[2]);
+    request_codes(MOTION_HALT, 0.0, 0.0, 5.0, codes);
+    CHECK(0 == codes[2]);
+    request_codes(MOTION_HALT, 0.0, 0.0, NAN, codes);
+    CHECK(0 == codes[2]);
+    request_codes(MOTION_VELOCITY, 0.0, 0.0, 5.0, codes);
+    CHECK(0 == codes[2]);
+    request_codes(MOTION_VELOCITY, 0.0, 0.0, NAN, codes);
+    CHECK(reserved == codes[2]);
+    request.target = NAN;
+    shared = request_shared(&request);
+    CHECK(isnan(shared.target));
+    /* Two bits would alias kind 4 onto VELOCITY: reserved target instead. */
+    packed = request_packed((motion_kind_t) 4, 0.08, 0.0, 0.0);
+    CHECK((MOTION_VELOCITY == packed.kind) &&
+          (bitpack_invalid(MOTION_TARGET_BITS) == packed.target));
+    /* NULL arguments have no effect. */
+    shared.target = 9.0;
+    motion_request_unpack(NULL, &shared);
+    CHECK(near_value(shared.target, 9.0));
+    motion_request_unpack(&packed, NULL);
+    packed = request_packed(MOTION_TURN, 0.0, 0.65, CORE_PI);
+    motion_request_pack(NULL, &packed);
+    CHECK((MOTION_TURN == packed.kind) && (650U == packed.yaw_mrad_s));
+    motion_request_pack(&request, NULL);
+}
+
+/** @brief Under production limits the unpacked copy gets exactly the
+ * original's submit status at every validity threshold, its double
+ * neighbours, saturated and non-finite values (spec rule 5).
+ */
+static void test_request_equivalence (void)
+{
+    const motion_config_t config = motion_production();
+    const test_request_case_t cases[] =
+    {
+        {MOTION_VELOCITY, 0.0, 1.0, 0.0, MOTION_OK},
+        {MOTION_VELOCITY, 0.0, nextafter(1.0, INFINITY), 0.0, MOTION_INVALID},
+        {MOTION_VELOCITY, 0.0, -1.0, 0.0, MOTION_OK},
+        {MOTION_VELOCITY, 0.0, nextafter(-1.0, -INFINITY), 0.0,
+         MOTION_INVALID},
+        {MOTION_VELOCITY, 0.0, 1.0004, 0.0, MOTION_INVALID},
+        {MOTION_VELOCITY, 0.15, 0.0, 0.0, MOTION_OK},
+        {MOTION_VELOCITY, nextafter(0.15, INFINITY), 0.0, 0.0,
+         MOTION_INVALID},
+        {MOTION_VELOCITY, -0.15, 0.0, 0.0, MOTION_OK},
+        {MOTION_VELOCITY, 0.1504, 0.0, 0.0, MOTION_INVALID},
+        {MOTION_VELOCITY, 0.08, 0.65, 0.0, MOTION_OK},
+        {MOTION_VELOCITY, 1.0, 0.0, 0.0, MOTION_INVALID},
+        {MOTION_VELOCITY, -DBL_MAX, 0.0, 0.0, MOTION_INVALID},
+        {MOTION_VELOCITY, 0.0, 5.0, 0.0, MOTION_INVALID},
+        {MOTION_VELOCITY, NAN, 0.0, 0.0, MOTION_INVALID},
+        {MOTION_VELOCITY, 0.0, INFINITY, 0.0, MOTION_INVALID},
+        {MOTION_VELOCITY, 0.08, 0.0, NAN, MOTION_INVALID},
+        {MOTION_DISTANCE, 0.08, 0.0, 0.005, MOTION_INVALID},
+        {MOTION_DISTANCE, 0.08, 0.0, nextafter(0.005, INFINITY), MOTION_OK},
+        {MOTION_DISTANCE, 0.08, 0.0, -0.005, MOTION_INVALID},
+        {MOTION_DISTANCE, 0.08, 0.0, nextafter(-0.005, -INFINITY),
+         MOTION_OK},
+        {MOTION_DISTANCE, 0.08, 0.0, 0.0054, MOTION_OK},
+        {MOTION_DISTANCE, 0.08, 0.0, 0.0049996, MOTION_INVALID},
+        {MOTION_DISTANCE, nextafter(0.0, INFINITY), 0.0, 0.06, MOTION_OK},
+        {MOTION_DISTANCE, 0.0, 0.0, 0.06, MOTION_INVALID},
+        {MOTION_DISTANCE, -0.08, 0.0, 0.06, MOTION_INVALID},
+        {MOTION_DISTANCE, 0.08, 0.0, 0.60, MOTION_OK},
+        {MOTION_DISTANCE, 0.08, 0.0, 1.20, MOTION_OK},
+        {MOTION_DISTANCE, 0.08, 0.0, 100.0, MOTION_OK},
+        {MOTION_TURN, 0.0, 0.65, 0.03, MOTION_INVALID},
+        {MOTION_TURN, 0.0, 0.65, nextafter(0.03, INFINITY), MOTION_OK},
+        {MOTION_TURN, 0.0, 0.65, 0.0304, MOTION_OK},
+        {MOTION_TURN, 0.0, 0.65, -0.5 * CORE_PI, MOTION_OK},
+        {MOTION_TURN, 0.0, 0.65, CORE_PI, MOTION_OK},
+        {MOTION_TURN, 0.0, 0.65, 2.0 * CORE_PI, MOTION_OK},
+        {MOTION_TURN, 0.0, 0.65, nextafter(2.0 * CORE_PI, INFINITY),
+         MOTION_INVALID},
+        {MOTION_TURN, 0.0, 0.65, -2.0 * CORE_PI, MOTION_OK},
+        {MOTION_TURN, 0.0, 0.65, nextafter(-2.0 * CORE_PI, -INFINITY),
+         MOTION_INVALID},
+        {MOTION_TURN, 0.0, 0.65, 6.2834, MOTION_INVALID},
+        {MOTION_TURN, 0.0, 0.65, 9.0, MOTION_INVALID},
+        {MOTION_TURN, 0.0, nextafter(0.0, INFINITY), CORE_PI, MOTION_OK},
+        {MOTION_TURN, 0.0, -0.65, CORE_PI, MOTION_INVALID},
+        {MOTION_TURN, 0.0, 0.0, CORE_PI, MOTION_INVALID},
+        {MOTION_HALT, NAN, NAN, NAN, MOTION_OK},
+        {(motion_kind_t) 4, 0.08, 0.0, 0.0, MOTION_INVALID}
+    };
+    motion_request_t request = {1U, MOTION_VELOCITY, 0.0, 0.0, 0.0};
+    motion_request_t shared = request;
+    unsigned int index = 0U;
+    bool b_match = true;
+
+    for (index = 0U; index < (sizeof(cases) / sizeof(cases[0])); index += 1U)
+    {
+        request.kind = cases[index].kind;
+        request.forward_mps = cases[index].forward_mps;
+        request.yaw_rps = cases[index].yaw_rps;
+        request.target = cases[index].target;
+        shared = request_shared(&request);
+        b_match = (cases[index].expected ==
+                   submit_fresh(&config, &request)) &&
+                  (cases[index].expected == submit_fresh(&config, &shared));
+        CHECK(b_match);
+        if (!b_match)
+        {
+            /* Diagnostic only: the failure is already counted. */
+            (void) fprintf(stderr, "request case %u\n", index);
+        }
+    }
+    request.kind = MOTION_DISTANCE;
+    request.forward_mps = 0.08;
+    request.target = 0.06;
+    request.command_id = 0U;
+    shared = request_shared(&request);
+    CHECK((MOTION_INVALID == submit_fresh(&config, &request)) &&
+          (MOTION_INVALID == submit_fresh(&config, &shared)));
+}
+
+/** @brief The bounded side of AWAY (INTEGRATION.md (d)): a valid request
+ * within one unit of a limit may become INVALID, never the reverse; every
+ * production follow request is far from it.
+ */
+static void test_request_bounded (void)
+{
+    const motion_config_t config = motion_production();
+    motion_request_t request = {1U, MOTION_VELOCITY, 0.0795, 1.0, 0.0};
+    motion_request_t shared = request_shared(&request);
+    core_real_t line = 0.0;
+    int32_t code = 0;
+    bool b_valid = true;
+
+    /* Envelope: 0.0795 + 0.07 * 1.0 < 0.15, but 0.080 + 0.070 > 0.15. */
+    CHECK(MOTION_OK == submit_fresh(&config, &request));
+    CHECK(MOTION_INVALID == submit_fresh(&config, &shared));
+    /* A cross component in (0, 1e-12) becomes one whole unit. */
+    request.kind = MOTION_DISTANCE;
+    request.forward_mps = 0.08;
+    request.yaw_rps = 1.0e-13;
+    request.target = 0.06;
+    shared = request_shared(&request);
+    CHECK(MOTION_OK == submit_fresh(&config, &request));
+    CHECK(MOTION_INVALID == submit_fresh(&config, &shared));
+    request.kind = MOTION_TURN;
+    request.forward_mps = 1.0e-13;
+    request.yaw_rps = 0.65;
+    request.target = 0.5 * CORE_PI;
+    shared = request_shared(&request);
+    CHECK(MOTION_OK == submit_fresh(&config, &request));
+    CHECK(MOTION_INVALID == submit_fresh(&config, &shared));
+    /* robot_app_vehicle_input: Q7 steering, 0.08 m/s, gain 0.75 rad/s,
+     * clamp 0.65 rad/s. Its envelope peaks at 0.0908 m/s, so every follow
+     * request stays valid either way.
+     */
+    request.kind = MOTION_VELOCITY;
+    request.target = 0.0;
+    for (code = -TEST_STEER_CODES; code <= TEST_STEER_CODES; code += 1)
+    {
+        line = (core_real_t) code / 127.0;
+        request.forward_mps = 0.08 * (1.0 - (0.5 * fabs(line)));
+        request.yaw_rps = -fmax(-0.65, fmin(0.65, line * 0.75));
+        shared = request_shared(&request);
+        b_valid = b_valid && (MOTION_OK == submit_fresh(&config, &request)) &&
+                  (MOTION_OK == submit_fresh(&config, &shared));
+    }
+    CHECK(b_valid);
+}
+
+/** @brief Renewals through the shared message stay one primitive: a
+ * producer request always packs to the same bits, and Motion compares
+ * decoded values with decoded values (robot_app.c submits only those).
+ */
+static void test_request_renewal (void)
+{
+    const motion_config_t config = motion_production();
+    motion_t motion;
+    motion_request_t request = {7U, MOTION_TURN, 0.0, 0.65, 0.5 * CORE_PI};
+    motion_request_t shared = request_shared(&request);
+    motion_request_packed_t first =
+        request_packed(MOTION_TURN, 0.0, 0.65, 0.5 * CORE_PI);
+    motion_request_packed_t second =
+        request_packed(MOTION_TURN, 0.0, 0.65, 0.5 * CORE_PI);
+
+    CHECK((first.forward_mm_s == second.forward_mm_s) &&
+          (first.yaw_mrad_s == second.yaw_mrad_s) &&
+          (first.command_id == second.command_id) &&
+          (first.kind == second.kind) && (first.target == second.target));
+    CHECK(MOTION_OK == motion_init(&motion, &config));
+    CHECK(MOTION_OK == motion_submit(&motion, &shared, 0U));
+    shared = request_shared(&request);
+    CHECK(MOTION_OK == motion_submit(&motion, &shared, 10U));
+    CHECK((MOTION_RUNNING == motion.output.state) &&
+          (0U == motion.started_ms) && (10U == motion.renewed_ms));
+    /* Mixing paths is no renewal: 1.571 differs from pi/2 by 2e-4. */
+    CHECK(MOTION_REJECTED == motion_submit(&motion, &request, 20U));
+    /* An off-grid DISTANCE (a computed bypass length) renews the same way.
+     */
+    request.command_id = 8U;
+    request.kind = MOTION_DISTANCE;
+    request.forward_mps = 0.08;
+    request.yaw_rps = 0.0;
+    request.target = 0.3004;
+    shared = request_shared(&request);
+    CHECK(MOTION_OK == motion_submit(&motion, &shared, 30U));
+    shared = request_shared(&request);
+    CHECK(MOTION_OK == motion_submit(&motion, &shared, 40U));
+    CHECK((30U == motion.started_ms) && (40U == motion.renewed_ms));
+    CHECK(near_value(motion.request.target, 0.301));
+    /* A same-ID VELOCITY renewal may still change its speed. */
+    request.command_id = 9U;
+    request.kind = MOTION_VELOCITY;
+    request.forward_mps = 0.05;
+    request.target = 0.0;
+    shared = request_shared(&request);
+    CHECK(MOTION_OK == motion_submit(&motion, &shared, 50U));
+    request.forward_mps = 0.0604;
+    shared = request_shared(&request);
+    CHECK(MOTION_OK == motion_submit(&motion, &shared, 60U));
+    CHECK(near_value(motion.request.forward_mps, 0.061));
+}
+
+/** @brief Snapshot: every state and reason, the 8-bit ID, the flag and the
+ * pose round-trip; duties, centre path and step distance unpack as 0.
+ */
+static void test_snapshot_pack (void)
+{
+    const motion_state_t states[] =
+    {
+        MOTION_IDLE, MOTION_RUNNING, MOTION_COMPLETE, MOTION_INHIBITED
+    };
+    const motion_status_t reasons[] =
+    {
+        MOTION_OK, MOTION_INVALID, MOTION_REJECTED, MOTION_EXPIRED,
+        MOTION_TIMED_OUT, MOTION_SENSOR_FAULT, MOTION_STOPPED
+    };
+    motion_output_t output;
+    motion_output_t shared;
+    motion_snapshot_t snapshot;
+    uint32_t state = 0U;
+    uint32_t reason = 0U;
+    bool b_enums = true;
+
+    memset(&output, 0, sizeof(output));
+    memset(&shared, 0, sizeof(shared));
+    memset(&snapshot, 0, sizeof(snapshot));
+    output.command_id = 255U;
+    output.pose.x_m = 1.2344;
+    output.pose.y_m = -0.5;
+    output.pose.yaw_rad = 0.7854;
+    output.pose.centre_path_m = 12.0;
+    output.left_duty = 0.3;
+    output.right_duty = -0.2;
+    output.left_speed_mps = 0.1234;
+    output.right_speed_mps = -0.0456;
+    output.signed_distance_m = 0.002;
+    output.b_stationary = true;
+    for (state = 0U; state < (sizeof(states) / sizeof(states[0])); ++state)
+    {
+        for (reason = 0U; reason < (sizeof(reasons) / sizeof(reasons[0]));
+             ++reason)
+        {
+            output.state = states[state];
+            output.reason = reasons[reason];
+            motion_snapshot_pack(&output, &snapshot);
+            motion_snapshot_unpack(&snapshot, &shared);
+            b_enums = b_enums && (states[state] == shared.state) &&
+                      (reasons[reason] == shared.reason);
+        }
+    }
+    CHECK(b_enums);
+    CHECK((255U == shared.command_id) && shared.b_stationary);
+    CHECK(near_value(shared.pose.x_m, 1.234));
+    CHECK(near_value(shared.pose.y_m, -0.5));
+    CHECK(near_value(shared.pose.yaw_rad, 0.785));
+    CHECK(near_value(shared.left_speed_mps, 0.123));
+    CHECK(near_value(shared.right_speed_mps, -0.046));
+    CHECK(near_value(shared.left_duty, 0.0));
+    CHECK(near_value(shared.right_duty, 0.0));
+    CHECK(near_value(shared.pose.centre_path_m, 0.0));
+    CHECK(near_value(shared.signed_distance_m, 0.0));
+    output.command_id = 0U;
+    output.b_stationary = false;
+    output.pose.yaw_rad = NAN;
+    motion_snapshot_pack(&output, &snapshot);
+    motion_snapshot_unpack(&snapshot, &shared);
+    CHECK((0U == shared.command_id) && (!shared.b_stationary));
+    CHECK(isnan(shared.pose.x_m) && isnan(shared.pose.yaw_rad));
+    /* NULL arguments have no effect. */
+    motion_snapshot_unpack(NULL, &shared);
+    CHECK(0U == shared.command_id);
+    motion_snapshot_unpack(&snapshot, NULL);
+    motion_snapshot_pack(NULL, &snapshot);
+    motion_snapshot_pack(&output, NULL);
+    CHECK(0U == snapshot.command_id);
+}
+
+/** @brief Wheel speeds: nearest mm/s, symmetric +/-511 saturation, and the
+ * reserved code for non-finite speeds, which decodes as NAN.
+ */
+/** @brief D5: the IMU task's two consumers of the packed wheel speeds,
+ * |mean - imu| < 0.15 m/s and |(vr - vl) / 0.14| > 0.25 rad/s, can change
+ * only inside the rounding band (0.5 mm/s and 1 mm/s / 0.14 m), in either
+ * direction. Each sweep must cross its threshold, so the test is not
+ * vacuous.
+ */
+static void test_snapshot_speed_bound (void)
+{
+    const core_real_t imu_mps = 0.05;
+    const core_real_t yaw_band = (0.001 / TEST_TRACK_WIDTH_M) + 1e-12;
+    motion_output_t raw;
+    motion_output_t decoded;
+    motion_snapshot_t snapshot;
+    core_real_t raw_value = 0.0;
+    core_real_t packed_value = 0.0;
+    uint32_t step = 0U;
+    uint32_t seen = 0U;
+    bool b_bounded = true;
+
+    memset(&raw, 0, sizeof(raw));
+    for (step = 0U; step <= TEST_BOUND_STEPS; ++step)
+    {
+        /* Mean speed crosses imu + 0.15 with unequal wheels. */
+        raw.left_speed_mps = 0.1948 + ((0.01 * step) / TEST_BOUND_STEPS);
+        raw.right_speed_mps = raw.left_speed_mps + 0.0003;
+        motion_snapshot_pack(&raw, &snapshot);
+        motion_snapshot_unpack(&snapshot, &decoded);
+        raw_value = ((raw.left_speed_mps + raw.right_speed_mps) / 2.0) -
+                    imu_mps;
+        packed_value = ((decoded.left_speed_mps + decoded.right_speed_mps) /
+                        2.0) - imu_mps;
+        seen |= (fabs(raw_value) < TEST_QUASI_LIMIT_MPS) ? 1U : 2U;
+        if ((fabs(raw_value) < TEST_QUASI_LIMIT_MPS) !=
+            (fabs(packed_value) < TEST_QUASI_LIMIT_MPS))
+        {
+            b_bounded = b_bounded &&
+                (fabs(fabs(raw_value) - TEST_QUASI_LIMIT_MPS) <=
+                 (0.0005 + 1e-12));
+        }
+        /* Yaw rate crosses +0.25 and -0.25 rad/s from a moving base. */
+        raw.left_speed_mps = 0.0004 + ((0.05 * step) / TEST_BOUND_STEPS);
+        raw.right_speed_mps = raw.left_speed_mps + 0.0340 +
+            ((0.002 * step) / TEST_BOUND_STEPS);
+        if (0U != (step & 1U))
+        {
+            raw.right_speed_mps = raw.left_speed_mps -
+                (raw.right_speed_mps - raw.left_speed_mps);
+        }
+        motion_snapshot_pack(&raw, &snapshot);
+        motion_snapshot_unpack(&snapshot, &decoded);
+        raw_value = (raw.right_speed_mps - raw.left_speed_mps) /
+                    TEST_TRACK_WIDTH_M;
+        packed_value = (decoded.right_speed_mps - decoded.left_speed_mps) /
+                       TEST_TRACK_WIDTH_M;
+        seen |= (fabs(raw_value) > TEST_TURNING_RPS) ? 4U : 8U;
+        if ((fabs(raw_value) > TEST_TURNING_RPS) !=
+            (fabs(packed_value) > TEST_TURNING_RPS))
+        {
+            b_bounded = b_bounded &&
+                (fabs(fabs(raw_value) - TEST_TURNING_RPS) <= yaw_band);
+        }
+    }
+    CHECK(15U == seen);
+    CHECK(b_bounded);
+}
+
+static void test_snapshot_speeds (void)
+{
+    const int32_t reserved = bitpack_extend(
+        bitpack_invalid(MOTION_SPEED_BITS), MOTION_SPEED_BITS);
+    motion_output_t output;
+    motion_snapshot_t snapshot;
+
+    CHECK(123 == speed_code(0.1234));
+    CHECK(124 == speed_code(0.1236));
+    CHECK(-123 == speed_code(-0.1234));
+    CHECK(-124 == speed_code(-0.1236));
+    CHECK(0 == speed_code(-0.0004));
+    CHECK(150 == speed_code(0.15));
+    CHECK(511 == speed_code(0.511));
+    CHECK(511 == speed_code(0.5114));
+    CHECK(511 == speed_code(0.5116));
+    CHECK(-511 == speed_code(-0.6));
+    CHECK(511 == speed_code(DBL_MAX));
+    CHECK(reserved == speed_code(NAN));
+    CHECK(reserved == speed_code(-INFINITY));
+    memset(&output, 0, sizeof(output));
+    memset(&snapshot, 0, sizeof(snapshot));
+    output.left_speed_mps = INFINITY;
+    output.right_speed_mps = 0.511;
+    motion_snapshot_pack(&output, &snapshot);
+    output.left_speed_mps = 0.0;
+    motion_snapshot_unpack(&snapshot, &output);
+    CHECK(isnan(output.left_speed_mps));
+    CHECK(near_value(output.right_speed_mps, 0.511));
+}
+
+/** @brief Over 255 primitives through Vehicle, both shared messages and
+ * Motion: STRAIGHT junction cycles issue a VELOCITY and a DISTANCE ID each.
+ * IDs run 1..255 and wrap to 1, never 0; Motion accepts every one, and
+ * completion still matches on the 8-bit ID after the wrap.
+ */
+static void test_vehicle_id_wrap (void)
+{
+    motion_t motion;
+    vehicle_t vehicle;
+    motion_config_t motion_config = motion_fixture();
+    vehicle_config_t config = vehicle_fixture();
+    vehicle_input_t input = vehicle_inputs();
+    vehicle_output_t output;
+    motion_snapshot_t snapshot;
+    uint32_t sample = 0U;
+    uint32_t issued = 0U;
+    uint32_t approaches = 0U;
+    uint8_t last_id = 0U;
+    bool b_ok = true;
+    bool b_zero = false;
+    bool b_wrapped = false;
+
+    /* A 20 mm approach completes in about ten 10 ms samples. */
+    config.junction_distance_m = 0.02;
+    CHECK(MOTION_OK == motion_init(&motion, &motion_config));
+    CHECK(vehicle_init(&vehicle, &config));
+    memset(&output, 0, sizeof(output));
+    memset(&snapshot, 0, sizeof(snapshot));
+    for (sample = 1U; b_ok && (sample <= TEST_WRAP_LIMIT) &&
+                      (issued < TEST_WRAP_PRIMITIVES); sample += 1U)
+    {
+        motion_snapshot_pack(&motion.output, &snapshot);
+        motion_snapshot_unpack(&snapshot, &input.motion);
+        input.b_start = (2U == sample);
+        input.navigation = ((VEHICLE_FOLLOW == vehicle.state) &&
+                            vehicle.b_active &&
+                            (VEHICLE_NAV_NONE == vehicle.pending_nav)) ?
+                           VEHICLE_NAV_STRAIGHT : VEHICLE_NAV_NONE;
+        input.b_junction_edge = (VEHICLE_FOLLOW == vehicle.state) &&
+                                (VEHICLE_NAV_NONE != vehicle.pending_nav);
+        input.b_original_line_verified =
+            (VEHICLE_REACQUIRE == vehicle.state);
+        b_ok = vehicle_step(&vehicle, sample * 10U, &input, &output) &&
+               (VEHICLE_FAULT != output.state);
+        if (output.b_issue_motion && (MOTION_HALT != output.request.kind) &&
+            (last_id != output.request.command_id))
+        {
+            b_zero = b_zero || (0U == output.request.command_id);
+            b_wrapped = b_wrapped || ((UINT8_MAX == last_id) &&
+                                      (1U == output.request.command_id));
+            approaches += (MOTION_DISTANCE == output.request.kind) ? 1U : 0U;
+            last_id = output.request.command_id;
+            issued += 1U;
+        }
+        b_ok = b_ok && packed_motion_tick(&motion, &output, sample * 10U);
+    }
+    CHECK(b_ok);
+    CHECK(issued >= TEST_WRAP_PRIMITIVES);
+    CHECK(!b_zero);
+    CHECK(b_wrapped);
+    /* Every second ID was a junction approach that Motion completed. */
+    CHECK(approaches >= ((TEST_WRAP_PRIMITIVES / 2U) - 1U));
+    CHECK(!motion.b_stop_latched);
+}
+
+/** @brief The bounded completion change (INTEGRATION.md (d)) on production
+ * geometry, one count per wheel per sample: whole-unit targets finish on
+ * the same sample; an off-grid target rounded up finishes at most one
+ * sample later, never earlier. pi -> 3142 mrad is the U-turn case.
+ */
+static void test_completion_bound (void)
+{
+    motion_request_t request = {1U, MOTION_TURN, 0.0, 0.65, 0.5 * CORE_PI};
+    motion_request_t shared = request_shared(&request);
+    uint32_t original = completion_steps(&request, -1, 1);
+
+    CHECK((0U != original) && (original == completion_steps(&shared, -1, 1)));
+    request.target = -CORE_PI;
+    shared = request_shared(&request);
+    original = completion_steps(&request, 1, -1);
+    CHECK((0U != original) &&
+          ((original + 1U) == completion_steps(&shared, 1, -1)));
+    request.kind = MOTION_DISTANCE;
+    request.forward_mps = 0.08;
+    request.yaw_rps = 0.0;
+    request.target = 0.060;
+    shared = request_shared(&request);
+    original = completion_steps(&request, 1, 1);
+    CHECK((0U != original) && (original == completion_steps(&shared, 1, 1)));
+    request.target = 0.3004;
+    shared = request_shared(&request);
+    original = completion_steps(&request, 1, 1);
+    CHECK((0U != original) &&
+          ((original + 1U) == completion_steps(&shared, 1, 1)));
+}
+
+/** @brief Samples until a renewed primitive completes under production
+ * limits with fixed deltas each 10 ms; 0 if it never completes.
+ */
+static uint32_t completion_steps (const motion_request_t * p_request,
+                                  int32_t left_delta, int32_t right_delta)
+{
+    const motion_config_t config = motion_production();
+    motion_t motion;
+    motion_output_t output;
+    uint32_t sample = 0U;
+
+    memset(&output, 0, sizeof(output));
+    if ((MOTION_OK != motion_init(&motion, &config)) ||
+        (MOTION_OK != motion_submit(&motion, p_request, 0U)))
+    {
+        return 0U;
+    }
+    for (sample = 1U; sample <= TEST_WRAP_LIMIT; sample += 1U)
+    {
+        if ((MOTION_OK != motion_submit(&motion, p_request, sample * 10U)) ||
+            (MOTION_OK != motion_step(&motion, sample * 10U, 0.01,
+                                      left_delta, right_delta, &output)))
+        {
+            return 0U;
+        }
+        if (MOTION_COMPLETE == output.state)
+        {
+            return sample;
+        }
+    }
+    return 0U;
+}
+
+/** @brief The bounded direction-change case (INTEGRATION.md (d)): a wheel
+ * target within about 1.07 mm/s of zero can change sign class only after
+ * quantisation. Its one effect is a reset of the wheel loops and speed
+ * window on a same-ID VELOCITY renewal; no safety decision depends on it.
+ */
+static void test_request_direction (void)
+{
+    motion_request_t first = {5U, MOTION_VELOCITY, 0.0698, 1.0, 0.0};
+    motion_request_t renewal = {5U, MOTION_VELOCITY, 0.0689, 1.0, 0.0};
+    motion_request_t first_shared = request_shared(&first);
+    motion_request_t renewal_shared = request_shared(&renewal);
+
+    /* Left wheel -0.2 -> -1.1 mm/s: same sign, no reset. Decoded:
+     * 0 -> -1 mm/s, which motion_direction_changed treats as a reversal.
+     */
+    CHECK(0 == renewal_resets(&first, &renewal));
+    CHECK(1 == renewal_resets(&first_shared, &renewal_shared));
+    /* Away from zero the decoded renewal behaves as the original: the
+     * right wheel reverses (+120 -> -5 mm/s), then no wheel does.
+     */
+    first.forward_mps = 0.05;
+    renewal.forward_mps = -0.075;
+    first_shared = request_shared(&first);
+    renewal_shared = request_shared(&renewal);
+    CHECK(1 == renewal_resets(&first, &renewal));
+    CHECK(1 == renewal_resets(&first_shared, &renewal_shared));
+    renewal.forward_mps = 0.06;
+    renewal_shared = request_shared(&renewal);
+    CHECK(0 == renewal_resets(&first, &renewal));
+    CHECK(0 == renewal_resets(&first_shared, &renewal_shared));
+}
+
+/** @brief 1 if a same-ID renewal reset the wheel loops, 0 if it kept them,
+ * -1 if it was not an accepted renewal (production limits; one sample
+ * between submit and renewal).
+ */
+static int32_t renewal_resets (const motion_request_t * p_first,
+                               const motion_request_t * p_renewal)
+{
+    const motion_config_t config = motion_production();
+    motion_t motion;
+    motion_output_t output;
+
+    memset(&output, 0, sizeof(output));
+    if ((MOTION_OK != motion_init(&motion, &config)) ||
+        (MOTION_OK != motion_submit(&motion, p_first, 0U)) ||
+        (MOTION_OK != motion_step(&motion, 5U, 0.005, 0, 0, &output)) ||
+        (!motion.left_pid.b_has_previous_measurement) ||
+        (MOTION_OK != motion_submit(&motion, p_renewal, 10U)))
+    {
+        return -1;
+    }
+    return motion.left_pid.b_has_previous_measurement ? 0 : 1;
 }
 
 /** End of file. */

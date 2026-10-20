@@ -1,4 +1,4 @@
-/** @file test_telemetry_main.h @brief Hosted JSON telemetry test entry. */
+/** @file test_telemetry_main.h @brief Hosted binary telemetry test entry. */
 #ifndef TEST_TELEMETRY_MAIN_H
 #define TEST_TELEMETRY_MAIN_H
 

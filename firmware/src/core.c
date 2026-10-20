@@ -5,9 +5,22 @@
  */
 #include "core.h"
 
+#include "bitpack.h"
+
 #include <math.h>
 #include <stddef.h>
 
+#define CORE_MILLI (1000.0)
+/* Two's complement x/y repeat every 2^16 mm. */
+#define CORE_POSE_XY_SPAN  (65536.0)
+#define CORE_POSE_XY_LIMIT (65536)
+#define CORE_POSE_XY_MASK  ((UINT32_C(1) << CORE_POSE_XY_BITS) - 1U)
+#define CORE_POSE_YAW_MASK ((UINT32_C(1) << CORE_POSE_YAW_BITS) - 1U)
+#define CORE_RANGE_MM_MASK ((UINT32_C(1) << CORE_RANGE_MM_BITS) - 1U)
+
+/** @brief Round metres to whole millimetres modulo 2^16; false if infinite.
+ */
+static bool pose_wrap_mm (core_real_t value_m, uint32_t * p_field);
 /** @brief Clamp a finite value to inclusive finite limits. */
 static core_real_t clamp_value (core_real_t value, core_real_t lower,
                                 core_real_t upper);
@@ -356,6 +369,206 @@ core_status_t core_stopping_clearance (
 
     *p_clearance_m = distance;
     return CORE_OK;
+}
+
+/** @copydoc core_pose_pack */
+void core_pose_pack (const core_pose_t * p_pose,
+                     core_pose_packed_t * p_packed)
+{
+    uint32_t x_field = 0U;
+    uint32_t y_field = 0U;
+    int32_t  yaw_mrad = 0;
+    int32_t  yaw_limit = bitpack_signed_max(CORE_POSE_YAW_BITS);
+
+    if ((NULL == p_pose) || (NULL == p_packed))
+    {
+        return;
+    }
+    /* remainder() is exact, so a finite yaw always lands in [-pi, pi]. */
+    if ((!pose_wrap_mm(p_pose->x_m, &x_field)) ||
+        (!pose_wrap_mm(p_pose->y_m, &y_field)) ||
+        (!isfinite(p_pose->yaw_rad)) ||
+        (!bitpack_quantise(remainder(p_pose->yaw_rad, 2.0 * CORE_PI),
+                           CORE_MILLI, BITPACK_NEAREST, -yaw_limit,
+                           yaw_limit, &yaw_mrad)))
+    {
+        /* Never reached from core_odometry_step output; stored
+         * deterministically as an invalid pose.
+         */
+        p_packed->x_mm     = 0U;
+        p_packed->y_mm     = 0U;
+        p_packed->yaw_mrad =
+            bitpack_invalid(CORE_POSE_YAW_BITS) & CORE_POSE_YAW_MASK;
+        return;
+    }
+    p_packed->x_mm     = x_field & CORE_POSE_XY_MASK;
+    p_packed->y_mm     = y_field & CORE_POSE_XY_MASK;
+    p_packed->yaw_mrad =
+        bitpack_signed(yaw_mrad, CORE_POSE_YAW_BITS) & CORE_POSE_YAW_MASK;
+}
+
+/** @copydoc core_pose_unpack */
+void core_pose_unpack (const core_pose_packed_t * p_packed,
+                       core_pose_t * p_pose)
+{
+    if ((NULL == p_packed) || (NULL == p_pose))
+    {
+        return;
+    }
+    p_pose->centre_path_m = 0.0;
+    if (bitpack_invalid(CORE_POSE_YAW_BITS) == p_packed->yaw_mrad)
+    {
+        p_pose->x_m     = NAN;
+        p_pose->y_m     = NAN;
+        p_pose->yaw_rad = NAN;
+        return;
+    }
+    p_pose->x_m = (core_real_t) bitpack_extend(p_packed->x_mm,
+                                               CORE_POSE_XY_BITS) /
+                  CORE_MILLI;
+    p_pose->y_m = (core_real_t) bitpack_extend(p_packed->y_mm,
+                                               CORE_POSE_XY_BITS) /
+                  CORE_MILLI;
+    p_pose->yaw_rad = (core_real_t) bitpack_extend(p_packed->yaw_mrad,
+                                                   CORE_POSE_YAW_BITS) /
+                      CORE_MILLI;
+}
+
+/** @copydoc core_pose_delta */
+void core_pose_delta (const core_pose_packed_t * p_to,
+                      const core_pose_packed_t * p_from,
+                      core_real_t * p_dx_m, core_real_t * p_dy_m,
+                      core_real_t * p_dyaw_rad)
+{
+    core_real_t dx_m = NAN;
+    core_real_t dy_m = NAN;
+    core_real_t dyaw_rad = NAN;
+    uint32_t    invalid = bitpack_invalid(CORE_POSE_YAW_BITS);
+    int32_t     dyaw_mrad = 0;
+
+    if ((NULL != p_to) && (NULL != p_from) &&
+        (invalid != p_to->yaw_mrad) && (invalid != p_from->yaw_mrad))
+    {
+        /* The modulo-2^16 difference read as int16 is wrap-safe below
+         * 32.767 m.
+         */
+        dx_m = (core_real_t) bitpack_extend(
+                   ((uint32_t) p_to->x_mm - (uint32_t) p_from->x_mm) &
+                   CORE_POSE_XY_MASK, CORE_POSE_XY_BITS) / CORE_MILLI;
+        dy_m = (core_real_t) bitpack_extend(
+                   ((uint32_t) p_to->y_mm - (uint32_t) p_from->y_mm) &
+                   CORE_POSE_XY_MASK, CORE_POSE_XY_BITS) / CORE_MILLI;
+        /* Both yaws are within +/-4095 mrad, so the difference fits. */
+        dyaw_mrad = bitpack_extend(p_to->yaw_mrad, CORE_POSE_YAW_BITS) -
+                    bitpack_extend(p_from->yaw_mrad, CORE_POSE_YAW_BITS);
+        dyaw_rad = remainder((core_real_t) dyaw_mrad / CORE_MILLI,
+                             2.0 * CORE_PI);
+    }
+    if (NULL != p_dx_m)
+    {
+        *p_dx_m = dx_m;
+    }
+    if (NULL != p_dy_m)
+    {
+        *p_dy_m = dy_m;
+    }
+    if (NULL != p_dyaw_rad)
+    {
+        *p_dyaw_rad = dyaw_rad;
+    }
+}
+
+/** @copydoc core_range_pack */
+void core_range_pack (const core_range_sample_t * p_sample,
+                      core_range_packed_t * p_packed)
+{
+    int32_t distance_mm = 0;
+
+    if ((NULL == p_sample) || (NULL == p_packed))
+    {
+        return;
+    }
+    p_packed->state       = CORE_RANGE_UNKNOWN;
+    p_packed->distance_mm = 0U;
+    switch (p_sample->state)
+    {
+        case CORE_RANGE_VALID:
+            if (isfinite(p_sample->distance_m))
+            {
+                /* CEIL keeps d <= T and d > T exact on whole millimetres.
+                 * The 12-bit maximum 4095 converts to int32_t exactly.
+                 */
+                if (!bitpack_quantise(p_sample->distance_m, CORE_MILLI,
+                                      BITPACK_CEIL, 0,
+                                      (int32_t) CORE_RANGE_MM_MASK,
+                                      &distance_mm))
+                {
+                    /* Only a product beyond DBL_MAX fails: saturate. */
+                    distance_mm = (p_sample->distance_m > 0.0) ?
+                                  (int32_t) CORE_RANGE_MM_MASK : 0;
+                }
+                p_packed->state = CORE_RANGE_VALID;
+                /* Clamped to 0..4095, so the conversion is exact. */
+                p_packed->distance_mm =
+                    (uint32_t) distance_mm & CORE_RANGE_MM_MASK;
+            }
+        break;
+        case CORE_RANGE_OUT_OF_RANGE:
+            p_packed->state = CORE_RANGE_OUT_OF_RANGE;
+        break;
+        case CORE_RANGE_UNKNOWN:
+        default:
+            /* Unknown, or an undefined state, is never a measurement. */
+        break;
+    }
+}
+
+/** @copydoc core_range_unpack */
+void core_range_unpack (const core_range_packed_t * p_packed,
+                        core_range_sample_t * p_sample)
+{
+    if ((NULL == p_packed) || (NULL == p_sample))
+    {
+        return;
+    }
+    p_sample->state      = CORE_RANGE_UNKNOWN;
+    p_sample->distance_m = NAN;
+    if (CORE_RANGE_VALID == p_packed->state)
+    {
+        p_sample->state      = CORE_RANGE_VALID;
+        p_sample->distance_m =
+            (core_real_t) p_packed->distance_mm / CORE_MILLI;
+    }
+    else if (CORE_RANGE_OUT_OF_RANGE == p_packed->state)
+    {
+        p_sample->state = CORE_RANGE_OUT_OF_RANGE;
+    }
+    else
+    {
+        /* UNKNOWN, and the unused fourth code, read as unknown. */
+    }
+}
+
+static bool pose_wrap_mm (core_real_t value_m, uint32_t * p_field)
+{
+    core_real_t scaled_mm = value_m * CORE_MILLI;
+    int32_t     rounded = 0;
+
+    /* fmod() is exact and keeps the sign, so nearest rounding of the
+     * remainder equals nearest rounding of the whole value modulo 2^16.
+     */
+    if ((!isfinite(scaled_mm)) ||
+        (!bitpack_quantise(fmod(scaled_mm, CORE_POSE_XY_SPAN), 1.0,
+                           BITPACK_NEAREST, -CORE_POSE_XY_LIMIT,
+                           CORE_POSE_XY_LIMIT, &rounded)))
+    {
+        return false;
+    }
+    /* C99 6.3.1.3: conversion to uint32_t is modulo 2^32; the caller keeps
+     * the low 16 bits, which is the value modulo 2^16.
+     */
+    *p_field = (uint32_t) rounded;
+    return true;
 }
 
 static core_real_t clamp_value (core_real_t value, core_real_t lower,

@@ -1,6 +1,31 @@
 /**
  * @file telemetry.h
- * @brief Bounded integer-only JSON snapshots; no printf or allocation.
+ * @brief Compact binary telemetry frames; no printf, text or allocation.
+ * @details Each frame is a little-endian, least-significant-bit-first
+ * stream (bitpack.h) that starts with a 4-bit header: version (2 bits) then
+ * frame type (2 bits). Fields follow in the order of the tables below.
+ * Unsigned fields saturate at their largest code. Signed fields are two's
+ * complement, saturate at +/-(2^(n-1)-1), and use the most negative code
+ * only for TELEMETRY_INVALID (non-finite or unavailable). Padding bits in
+ * the last byte are zero. scripts/telemetry_codec.py implements the same
+ * contract; change TELEMETRY_VERSION with any layout change.
+ *
+ * Status, every 200 ms, 131 bits in 17 bytes:
+ *   seq 8 (0..249) | ms 32 | drop 8 | ign 8 | age 10 ms (1023 = older) |
+ *   st 4 (vehicle_state_t) | vl 10, vr 10 mm/s | pt 12 mrad | pk 9 mm |
+ *   rg 12 mm (read only with rv) | stop 1 | fault 1 | hv 1 | rv 1
+ * Perception, when seq % 5 == 0, 126 bits in 16 bytes:
+ *   seq 8 | ms 32 | run 8 | cal 8 | ba 3 (barcode_action_t) | bl 4
+ *   (codebook index, read only with ba != 0) | yr 13 mrad/s | mc 4
+ *   (terrain_motion_t) | sw 12 mm (read only with so) | sn 12 mm (read
+ *   only with sv > 0) | ss 2 (scanner_side_t) | sv 6 | su 6 | tv 1 | ha 1 |
+ *   sc 1 | so 1
+ * Diagnostic, with the perception frame, 132 bits in 17 bytes:
+ *   seq 8 | ms 32 | run 8 | fc 4 (robot_app_fault_t) | fm 32 ms | bu 8 |
+ *   br 8 | mp 9 mm | mv 1 | mask 16 (active fault bits) | src 2 (bit 0
+ *   local STOP, bit 1 remote STOP)
+ * Perception and diagnostic frames reuse the status seq, so a missing one
+ * is a status seq divisible by 5 without its partner frame.
  */
 #ifndef TELEMETRY_H
 #define TELEMETRY_H
@@ -9,118 +34,115 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define TELEMETRY_BUFFER_SIZE 256U
+#define TELEMETRY_VERSION          (1U)
+#define TELEMETRY_STATUS_BYTES     (17U)
+#define TELEMETRY_PERCEPTION_BYTES (16U)
+#define TELEMETRY_DIAGNOSTIC_BYTES (17U)
+#define TELEMETRY_FRAME_MAX        (17U)
+#define TELEMETRY_SEQUENCE_MODULO  (250U)
+/** Field value meaning "invalid"; encoded as the reserved signed code. */
+#define TELEMETRY_INVALID          (INT16_MIN)
 
+typedef enum
+{
+    TELEMETRY_FRAME_STATUS = 0,
+    TELEMETRY_FRAME_PERCEPTION,
+    TELEMETRY_FRAME_DIAGNOSTIC
+} telemetry_frame_t;
+
+/** @brief Status fields in wire units; see the layout above. */
 typedef struct
 {
-    uint32_t seq;
     uint32_t now_ms;
-    uint32_t dropped;
-    uint32_t ignored;
-    uint32_t range_age_ms;
-    int32_t  state;
-    int32_t  vleft_mm_s;
-    int32_t  vright_mm_s;
-    int32_t  pitch_mrad;
-    int32_t  peak_mm;
-    int32_t  range_mm;
+    uint16_t range_age_ms;
+    int16_t  vleft_mm_s;
+    int16_t  vright_mm_s;
+    int16_t  pitch_mrad;
+    uint16_t peak_mm;
+    uint16_t range_mm;
+    uint8_t  seq;
+    uint8_t  dropped;
+    uint8_t  ignored;
+    uint8_t  state;
     bool     b_stop;
     bool     b_hardfault;
     bool     b_heightvalid;
     bool     b_rangevalid;
 } telemetry_status_t;
 
-/** @brief Perception snapshot; sign and units are explicit in field names. */
+/** @brief Perception fields in wire units; see the layout above. */
 typedef struct
 {
-    uint32_t seq;
     uint32_t now_ms;
-    uint32_t run_id;
-    uint32_t cal_version;
-    int32_t  barcode_action;
-    int32_t  barcode_label;
-    int32_t  yaw_mrad_s;
-    int32_t  motion_class;
-    int32_t  scan_width_mm;
-    int32_t  scan_nearest_mm;
-    int32_t  scan_side;
-    uint32_t scan_valid;
-    uint32_t scan_unknown;
+    int16_t  yaw_mrad_s;
+    uint16_t scan_width_mm;
+    uint16_t scan_nearest_mm;
+    uint8_t  seq;
+    uint8_t  run_id;
+    uint8_t  cal_version;
+    uint8_t  barcode_action;
+    uint8_t  barcode_symbol;
+    uint8_t  motion_class;
+    uint8_t  scan_side;
+    uint8_t  scan_valid;
+    uint8_t  scan_unknown;
     bool     b_tilt_valid;
     bool     b_hump_active;
     bool     b_scan_valid;
+    bool     b_obstacle_seen;
 } telemetry_perception_t;
 
-/** @brief First-fault reason and occurrence time, separate from live state. */
+/** @brief First-fault and fault-mask fields; see the layout above. */
 typedef struct
 {
-    uint32_t seq;
     uint32_t now_ms;
-    uint32_t run_id;
-    int32_t  fault_code;
     uint32_t first_fault_ms;
-    uint32_t barcode_unknown;
-    uint32_t barcode_rejected;
-    int32_t  mission_peak_mm;
+    uint16_t fault_mask;
+    uint16_t mission_peak_mm;
+    uint8_t  seq;
+    uint8_t  run_id;
+    uint8_t  fault_code;
+    uint8_t  stop_source;
+    uint8_t  barcode_unknown;
+    uint8_t  barcode_rejected;
     bool     b_mission_valid;
 } telemetry_diagnostic_t;
 
-/**
- * Format one JSON object, returning its byte count excluding the final NUL.
- * All uint32_t/int32_t values, including INT32_MIN, are supported. Compact
- * keys: seq, ms, drop, ign, age, st, vl, vr, pt, pk, rg, stop, fault, hv, rv.
- * Units match the fields; age is milliseconds. Booleans are true/false.
- * Invalid sensors keep their numeric fields. The application encodes a
- * non-finite value (NaN pitch/speed/range) as 0, so read rg only with rv,
- * and pt only with the latest perception frame's tv; this frame has no tilt
- * flag. hv is the validity of the last completed hump, not of pk: pk is the
- * run's maximum valid hump, so pk > 0 is valid even while hv is false.
- * drop counts only application enqueue/format failures. Radio-side discards
- * (offline newest-only drain, publish errors) and rejected or overflowing
- * commands are not counted; detect lost status frames from seq gaps. A lost
- * perception or diagnostic frame leaves no seq gap (both reuse the status
- * seq): detect it as a status frame whose seq is a multiple of 5 without a
- * matching ba/fc frame with the same seq.
- * Return 0 for NULL arguments, zero capacity or insufficient capacity.
- * If p_text is non-NULL and capacity>0, failure writes p_text[0]='\0'.
- * A 256-byte buffer holds every representable snapshot and the final NUL.
- * Snapshot and destination must not overlap; caller supplies an owned copy.
+/** @brief Encode one status frame; return its byte count, or 0 for NULL
+ * arguments or capacity below TELEMETRY_STATUS_BYTES (nothing written).
  */
-size_t telemetry_format (const telemetry_status_t * p_status,
-                         char * p_text, size_t capacity);
+size_t telemetry_encode_status (const telemetry_status_t * p_status,
+                                uint8_t * p_frame, size_t capacity);
 
-/**
- * Format perception JSON with the same capacity/failure contract as above.
- * Keys: seq/ms/run/cal/ba/bl/yr/mc/sw/sn/ss/sv/su/tv/ha/sc, in field order.
- * bl is the barcode label's integer ASCII code; yr is estimated milliradians
- * per second. sw/sn are millimetres. sv/su count valid/unknown scan samples.
- * Enum values ba/mc/ss use their source modules' documented numeric values.
- * tv/ha/sc are JSON Booleans for tilt validity, active hump and valid scan.
- * A non-finite yaw rate is encoded as 0 and occurs only with mc 0
- * (TERRAIN_INVALID) in the same frame; read yr only when mc is nonzero.
- * The worst representation is 252 bytes plus NUL, within the 256-byte buffer.
- * Frames are distinguished by schema: ba occurs only in perception frames.
- */
-size_t telemetry_format_perception (
-    const telemetry_perception_t * p_status, char * p_text, size_t capacity);
+/** @brief Encode one perception frame with the same contract. */
+size_t telemetry_encode_perception (
+    const telemetry_perception_t * p_status, uint8_t * p_frame,
+    size_t capacity);
 
-/**
- * Format diagnostic JSON with the same capacity/failure contract as above.
- * Keys: seq/ms/run/fc/fm/bu/br/mp/mv. fc is the first-fault enum value;
- * zero means no latched fault. fm is the occurrence time in milliseconds,
- * not the current frame time. An approved reset clears the application
- * latch; it is refused while a hard fault is latched (reboot and review).
- * fc distinguishes this schema from status and perception frames.
- * bu/br are saturating unknown/rejected barcode counts since power-up; br
- * also counts a partly read frame discarded when FOLLOW ends mid-frame,
- * including one opened by a dark non-barcode feature, such as a junction
- * crossbar under the side sensor as NAVIGATE starts (rule pending, T-55).
- * mp/mv are the maximum completed valid hump in this power session and its
- * validity; local reset/start preserves them. Status pk remains run-local.
- * The worst representation is 144 bytes plus NUL, within the 256-byte buffer.
+/** @brief Encode one diagnostic frame with the same contract. */
+size_t telemetry_encode_diagnostic (
+    const telemetry_diagnostic_t * p_status, uint8_t * p_frame,
+    size_t capacity);
+
+/** @brief Frame type of a received frame of this version; false for NULL,
+ * an empty frame, another version or the reserved type 3.
  */
-size_t telemetry_format_diagnostic (
-    const telemetry_diagnostic_t * p_status, char * p_text, size_t capacity);
+bool telemetry_frame_type (const uint8_t * p_frame, size_t length,
+                           telemetry_frame_t * p_type);
+
+/** @brief Decode a status frame. False, leaving *p_status unchanged, for a
+ * wrong length, version, type or nonzero padding.
+ */
+bool telemetry_decode_status (const uint8_t * p_frame, size_t length,
+                              telemetry_status_t * p_status);
+
+/** @brief Decode a perception frame with the same contract. */
+bool telemetry_decode_perception (const uint8_t * p_frame, size_t length,
+                                  telemetry_perception_t * p_status);
+
+/** @brief Decode a diagnostic frame with the same contract. */
+bool telemetry_decode_diagnostic (const uint8_t * p_frame, size_t length,
+                                  telemetry_diagnostic_t * p_status);
 
 #endif /* TELEMETRY_H */
 

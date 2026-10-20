@@ -15,17 +15,21 @@ is written in C using the Pico SDK and the supplied micro T-Kernel RP2040 port.
 | Material | File |
 |---|---|
 | Week 6 design report | [Word document](Week6_Report/INF2004_Week6_Design_Review.docx) · [PDF](Week6_Report/INF2004_Week6_Design_Review.pdf) |
-| Pre-Tribunal | [IS29_Pre-Tribunal1.docx](Tribunal1/IS29_Pre-Tribunal1.docx) |
+| Tribunal 1 | [Pre-Tribunal](Tribunal1/IS29_Pre-Tribunal1.docx) · [Immediately after](Tribunal1/IS29_Imm-Tribunal1.docx) · [Post-Tribunal](Tribunal1/IS29_Post-Tribunal1.docx) |
+| Change requirement 1 | [Minimum-bit data representation](<References/Change Requirement.docx>) · [Week 13 evidence](ChangeRequirement/README.md) |
 | Week 6 report feedback | [Original lecturer feedback](<Tribunal1/Sources/IS29_feedback for our week 6 report.txt>) |
 | Tribunal briefing | [Notice](Tribunal1/Sources/tribunal.txt) · [Portal screenshot](<Tribunal1/Sources/Screenshot 2026-10-15 221220.png>) |
 | Official tribunal template | [Week8_Tribunal1_Template.docx](Tribunal1/Sources/Week8_Tribunal1_Template.docx) |
-| Assignment requirements | [Project Write-up](<References/Project Write-up(2).pdf>) · [Project Briefing](<References/Project Briefing(1).pdf>) |
+| Assignment requirements | [Project Write-up](<References/Project Write-up.pdf>) · [Project Briefing](<References/Project Briefing.pdf>) |
 | Module and assessment overview | [W0 Module Overview](<References/W0_Module Overview.pdf>) |
-| Track and barcode requirements | [Barcode & Line Specification](<References/Barcode & Line Specification(1).pdf>) · [Barcode Sample](<References/Barcode Sample.pdf>) |
+| Track and barcode requirements | [Barcode & Line Specification](<References/Barcode & Line Specification.pdf>) · [Barcode Sample](<References/Barcode Sample.pdf>) |
 | Reference index | [Project sources](References/README.md) · [Hardware and device guides](References/Device_Guides/README.md) |
 
-The official tribunal template includes the assessment stages. The prepared
-tribunal document supplied here is the Pre-Tribunal.
+The official tribunal template includes the assessment stages. Tribunal 1
+has three submissions: the Pre-Tribunal (Version A), the document written
+immediately after the live session (Version B), and the Post-Tribunal, which
+repeats A and B and adds the AI-vetted gap check (Version C), the final
+summary and the implementation evidence.
 
 ## Repository layout
 
@@ -81,12 +85,19 @@ Run these commands after setup, from the repository root:
 
 | Command | Purpose |
 |---|---|
-| `bash scripts/dev.sh host-tests` | Portable module tests in release and sanitizer configurations. |
-| `bash scripts/dev.sh style` | Selected BARR-C coding checks. |
+| `bash scripts/dev.sh host-tests` | Portable module tests in release and sanitizer configurations, plus the Python telemetry decoder's golden vectors. |
+| `bash scripts/dev.sh style` | Selected BARR-C coding checks and the lock-discipline check for shared packed data. |
 | `bash scripts/dev.sh app-tests` | Application scenarios using simulated inputs. |
 | `bash scripts/dev.sh integration` | Board, installer, image, build-script, radio and network integration fixtures. |
 | `bash scripts/dev.sh build offline` | Build the offline firmware profile. |
 | `bash scripts/dev.sh build mqtt --compile-only` | Build the MQTT profile with placeholder network settings. |
+
+Telemetry and commands on MQTT are compact binary frames (see
+[ChangeRequirement/README.md](ChangeRequirement/README.md)). Decode them on the
+laptop with `mosquitto_sub -t <telemetry topic> -F %x | python3
+firmware/scripts/telemetry_codec.py decode -`, and send a command byte with
+`python3 firmware/scripts/telemetry_codec.py command STOP --raw |
+mosquitto_pub -t <command topic> -s`.
 
 Local check records are written under `firmware/validation/local/`; target build
 outputs are under `build-target/offline/` and `build-target/mqtt/`. These generated

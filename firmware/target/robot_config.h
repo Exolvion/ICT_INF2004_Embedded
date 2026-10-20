@@ -40,18 +40,28 @@
 #define ROBOT_SERVO_ANGLE_SIGN 1
 #define ROBOT_SERVO_MAX_US 2000U
 
-/* Pico GPIO numbers, not physical header pins. UART0 keeps GP0 and GP1.
- * Each device sits on one Robo Pico connector: Grove 3 = left encoder A/B,
- * Grove 4 = right encoder A/B, Grove 2 or Maker port = IMU on I2C1, Grove
- * 5/6/7 = IR analogue outputs on ADC0..2 (Grove 6: GP27 contact only; its
- * GP26 contact stays open), servo port 1 = scan servo, and the GP14/GP15
- * breakout pair = HC-SR04 TRIG/ECHO (5 V module: the ECHO divider is
- * mandatory). Wire Grove contacts by silkscreen GPIO label, not pin number.
+/* Pico GPIO numbers, not physical header pins. Each device sits on one Robo
+ * Pico connector: Grove 1 = HC-SR04 TRIG GP0 / ECHO GP1 (5 V module: the
+ * ECHO divider is mandatory), Grove 2 = left wheel encoder A/B, Grove 3 =
+ * accelerometer on I2C0 (GP4 SDA, GP5 SCL), Grove 4 = right wheel encoder
+ * A/B (swap the two encoder pairs here if the wheels are wired the other
+ * way), motor driver M1 = GP8/GP9 (left wheel, PWM slice 4) and M2 =
+ * GP10/GP11 (right wheel, PWM slice 5), so the Grove 2 encoder must sit on
+ * the M1 wheel, Grove 5/6/7 = IR analogue outputs on ADC0..2 and servo port 1
+ * (GP12) = scan servo. Grove 5 and Grove 6 both carry GP26, so Grove 6's
+ * second contact is rewired to GP13; the firmware reads only the analogue
+ * outputs. GP14 and GP15 are kept for servos. GP0/GP1 are also the UART0
+ * console pins: the console owns them until board_init() hands them to the
+ * sonar, and a start-up refusal returns them to UART0 to print its reason.
+ * Kernel fault messages after start-up reach no UART pin: use SWD.
+ * TRIG must sit on the console TX pin and ECHO on RX, so the boot console
+ * never drives against the sensor's ECHO output; board.c checks this.
+ * Wire Grove contacts by silkscreen GPIO label, not pin number.
  * Both encoder inputs of one wheel must share an IO_BANK0 interrupt bank
  * (GPIO 0-7, 8-15, 16-23); board.c checks this.
  */
-#define ROBOT_PIN_ENCODER_LEFT_A 4U
-#define ROBOT_PIN_ENCODER_LEFT_B 5U
+#define ROBOT_PIN_ENCODER_LEFT_A 2U
+#define ROBOT_PIN_ENCODER_LEFT_B 3U
 #define ROBOT_PIN_ENCODER_RIGHT_A 16U
 #define ROBOT_PIN_ENCODER_RIGHT_B 17U
 #define ROBOT_PIN_MOTOR_LEFT_A 8U
@@ -59,15 +69,19 @@
 #define ROBOT_PIN_MOTOR_RIGHT_A 10U
 #define ROBOT_PIN_MOTOR_RIGHT_B 11U
 #define ROBOT_PIN_SERVO 12U
-#define ROBOT_PIN_IMU_SDA 2U
-#define ROBOT_PIN_IMU_SCL 3U
-#define ROBOT_PIN_TRIGGER 14U
-#define ROBOT_PIN_ECHO 15U
+#define ROBOT_PIN_IMU_SDA 4U
+#define ROBOT_PIN_IMU_SCL 5U
+#define ROBOT_PIN_TRIGGER 0U
+#define ROBOT_PIN_ECHO 1U
+#define ROBOT_PIN_CONSOLE_TX 0U
+#define ROBOT_PIN_CONSOLE_RX 1U
 #define ROBOT_PIN_STOP 20U
 #define ROBOT_PIN_START 21U
 #define ROBOT_PIN_IR_LEFT 26U
 #define ROBOT_PIN_IR_RIGHT 27U
 #define ROBOT_PIN_IR_BARCODE 28U
+/* Grove 6 second contact, rewired from GP26; not read by the firmware. */
+#define ROBOT_PIN_IR_RIGHT_AUX 13U
 
 /* Mechanical hypotheses: replace with measured loaded-wheel parameters.
  * Counts/revolution means decoded edges at the WHEEL shaft: x4 for two
@@ -121,7 +135,11 @@
 #define ROBOT_TRIGGER_INTERVAL_US 65000U
 #define ROBOT_TRIGGER_PULSE_US 10U
 #define ROBOT_SERVO_SETTLE_MS 180U
-#define ROBOT_FRONT_STOP_DISTANCE_M 0.25
+/* Integer limits compare with shared fields that are rounded up (ceil mm,
+ * magnitude-up mrad), which keeps the original double decisions exact;
+ * MM / 1000.0 is the same double as the former 0.25 literal. */
+#define ROBOT_FRONT_STOP_DISTANCE_MM 250U
+#define ROBOT_FRONT_STOP_DISTANCE_M (ROBOT_FRONT_STOP_DISTANCE_MM / 1000.0)
 #define ROBOT_ROBOT_WIDTH_M 0.18
 #define ROBOT_OBSTACLE_MARGIN_M 0.06
 #define ROBOT_REACQUIRE_DISTANCE_M 0.60
@@ -153,7 +171,8 @@
  * it if breakaway duty exceeds about 0.16; measure breakaway (T-59).
  */
 #define ROBOT_STALL_DUTY 0.15
-#define ROBOT_TILT_LIMIT_RAD 0.60
+#define ROBOT_TILT_LIMIT_MRAD 600
+#define ROBOT_TILT_LIMIT_RAD (ROBOT_TILT_LIMIT_MRAD / 1000.0)
 #define ROBOT_IMU_REFERENCE_X_MG 0
 #define ROBOT_IMU_REFERENCE_Y_MG 0
 #define ROBOT_IMU_REFERENCE_Z_MG 1000

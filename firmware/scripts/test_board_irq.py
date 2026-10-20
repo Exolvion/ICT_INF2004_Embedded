@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """Run actual board ISR/acquisition with SDK types and host MMIO/I2C doubles.
 
-This regression exercises encoder IRQ and accelerometer sample status. It is
-not an ARM build, hardware test, IRQ latency test or GPIO electrical model.
+This regression exercises the packed encoder/echo ISR words, the lock
+discipline of their task-side read-and-clear (PRIMASK double), the narrowed
+motor command and accelerometer sample status. It is not an ARM build,
+hardware test, IRQ latency test or GPIO electrical model. board.c is built
+with the project's strict host warning set (-Wconversion proves bit-field
+widths). The commissioned variant opens the wiring and calibration gates in
+its temporary configuration copy only; shipped gates stay 0.
 
 Logs go to --output, else $ROBOT_VALIDATION_DIR/board_irq, else the
 git-ignored firmware/validation/local/board_irq; never into dated evidence.
@@ -30,6 +35,33 @@ SDK_INCLUDES = (
     "rp2_common/hardware_timer", "rp2_common/hardware_sync",
     "rp2_common/hardware_sync_spin_lock",
 )
+# Same warning set as firmware/run_tests.sh (rule: warnings are errors).
+STRICT_WARNINGS = (
+    "-Wall", "-Wextra", "-Wpedantic", "-Werror", "-Wconversion",
+    "-Wsign-conversion", "-Wshadow", "-Wstrict-prototypes",
+    "-Wmissing-prototypes", "-Wformat=2", "-Wundef", "-Wcast-qual",
+    "-Wwrite-strings", "-Wswitch-enum", "-Wnull-dereference",
+)
+# name, encoder channels, one-channel direction confirmed, gates opened
+VARIANTS = (("quadrature", 2, 0, 0), ("single_unconfirmed", 1, 0, 0),
+            ("single_confirmed", 1, 1, 0), ("single_commissioned", 1, 1, 1))
+
+
+def configure(config: str, channels: int, confirmed: int,
+              commissioned: int) -> str:
+    """Rewrite the copied configuration; every edited line must exist."""
+    for name, value in (("ROBOT_ENCODER_CHANNELS", channels),
+                        ("ROBOT_SINGLE_CHANNEL_DIRECTION_CONFIRMED",
+                         confirmed),
+                        ("ROBOT_WIRING_CONFIRMED", commissioned),
+                        ("ROBOT_CALIBRATION_CONFIRMED", commissioned)):
+        shipped = "#define " + name + " "
+        lines = [line for line in config.splitlines()
+                 if line.startswith(shipped)]
+        if len(lines) != 1:
+            raise ValueError("Expected one shipped line for " + name)
+        config = config.replace(lines[0], shipped + str(value))
+    return config
 
 
 def main() -> None:
@@ -85,7 +117,7 @@ def main() -> None:
         for key, value in values.items():
             template = template.replace("${" + key + "}", value)
         (generated / "version.h").write_text(template)
-        command = [args.cc, "-std=gnu11", "-Wall", "-Wextra", "-Werror",
+        command = [args.cc, "-std=gnu11", *STRICT_WARNINGS,
                    "-D__unused=__attribute__((__unused__))", "-DNDEBUG",
                    "-DPICO_RP2040=1", "-DPICO_32BIT=1", "-DPICO_ON_DEVICE=1",
                    "-DPICO_NO_HARDWARE=0", "-DTM_WIFI_CYW43=0",
@@ -98,26 +130,20 @@ def main() -> None:
             command += ["-isystem", str(sdk / "src" / relative / "include")]
         command += [str(firmware / "tests/boardirq_test_main.c"),
                     "-Wl,--gc-sections", "-lm"]
-        for variant, channels, confirmed in (("quadrature", 2, 0),
-                                             ("single_unconfirmed", 1, 0),
-                                             ("single_confirmed", 1, 1)):
+        for variant, channels, confirmed, commissioned in VARIANTS:
             # Copy only into a temporary fixture; shipped hardware gates stay 0.
             fixture = temporary / variant
             fixture.mkdir()
             (fixture / "board.c").write_bytes(
                 (firmware / "target/board.c").read_bytes())
-            config = (firmware / "target/robot_config.h").read_text()
-            config = config.replace("#define ROBOT_ENCODER_CHANNELS 2",
-                                    "#define ROBOT_ENCODER_CHANNELS " +
-                                    str(channels))
-            config = config.replace(
-                "#define ROBOT_SINGLE_CHANNEL_DIRECTION_CONFIRMED 0",
-                "#define ROBOT_SINGLE_CHANNEL_DIRECTION_CONFIRMED " +
-                str(confirmed))
+            config = configure(
+                (firmware / "target/robot_config.h").read_text(),
+                channels, confirmed, commissioned)
             (fixture / "robot_config.h").write_text(config)
             for mode, flags in (("release", ["-O2"]),
                                 ("sanitized", ["-O1", "-g",
-                                 "-fsanitize=address,undefined",
+                                 "-fsanitize=address,undefined,"
+                                 "float-cast-overflow",
                                  "-fno-sanitize-recover=all",
                                  "-fno-omit-frame-pointer"])):
                 label = variant + "_" + mode

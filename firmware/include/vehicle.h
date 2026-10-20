@@ -96,22 +96,29 @@ typedef struct
     bool             b_reset_motion;
 } vehicle_output_t;
 
+/* Stored-state field widths: phase holds 0..VEHICLE_BYPASS_PHASES (7) and
+ * bypass_side is a two's complement -1/0/+1 (bitpack_signed/extend).
+ */
+#define VEHICLE_PHASE_BITS (3U)
+#define VEHICLE_SIDE_BITS  (2U)
+
 typedef struct
 {
     vehicle_config_t config;
-    vehicle_state_t  state;
-    vehicle_nav_t    pending_nav;
     motion_request_t active;
-    uint32_t         next_id;
     uint32_t         entered_ms;
     uint32_t         pending_nav_ms;
     uint32_t         range_stationary_ms;
-    uint32_t         phase;
     core_real_t      bypass_offset_m;
     core_real_t      bypass_length_m;
-    int32_t          bypass_side;
-    bool             b_active;
-    bool             b_initialized;
+    /* Primitive IDs run 1..255, then wrap to 1; 0 is never issued. */
+    uint8_t          next_id;
+    vehicle_state_t  state         : 4;
+    vehicle_nav_t    pending_nav   : 3;
+    uint32_t         phase         : 3;
+    uint32_t         bypass_side   : 2;
+    bool             b_active      : 1;
+    bool             b_initialized : 1;
 } vehicle_t;
 
 /** Initialize with reviewed positive bounds; unconfirmed configs stay INIT. */

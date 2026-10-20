@@ -152,6 +152,10 @@ INT usermain (void)
         /* No task can enable motors once this initial task masks interrupts. */
         (void)app_main_lock();
         board_motor_brake();
+        /* GP0/GP1 serve the HC-SR04 after board_init(); give them back to
+         * UART0 so the refusal reason still reaches a console probe.
+         */
+        board_console_restore();
         /* Pinned UART monitor uses bounded polling and preserves PRIMASK.
          * Print after braking/masking so partially started tasks cannot drive.
          * D-ADAPTER: unsigned-byte format is required by the kernel ABI.

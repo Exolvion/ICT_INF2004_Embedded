@@ -8,9 +8,18 @@
 #include "net_mqtt.h"
 #include "net_mqtt_ipc.h"
 #include "mqttcmd.h"
+#include "telemetry.h"
 
 #include <stdint.h>
 #include <string.h>
+
+/* The kernel-side IPC header cannot include the size_t-based contracts. */
+_Static_assert(TELEMETRY_FRAME_MAX <= NET_MQTT_IPC_TX_MAX,
+               "Every telemetry frame must fit one IPC message");
+_Static_assert(MQTTCMD_LENGTH == NET_MQTT_IPC_RX_MAX,
+               "A command is exactly one IPC byte");
+_Static_assert(MQTTCMD_STOP_BYTE == NET_MQTT_IPC_STOP_BYTE,
+               "STOP routing uses the command format's STOP byte");
 
 #if ROBOT_MQTT
 #include "cyw43.h"
@@ -29,6 +38,10 @@
 #define NET_MQTT_KEEPALIVE_S 15U
 #define NET_MQTT_RETAIN_MASK 0x01U
 #define NET_MQTT_TX_DRAIN_LIMIT 4U
+/* Presence on the status topic: one byte, '1' online and '0' offline. */
+#define NET_MQTT_ONLINE "1"
+#define NET_MQTT_OFFLINE "0"
+#define NET_MQTT_PRESENCE_BYTES 1U
 
 static mqtt_client_t * gp_client = NULL;
 static mqttcmd_t       g_command;
@@ -45,7 +58,9 @@ static bool            gb_subscribed;
 static bool            gb_online_pending;
 static bool            gb_wifi_joining;
 static bool            gb_close_pending;
-static char            g_pending_tx[NET_MQTT_IPC_TX_MAX + 1U];
+static bool            gb_command_topic;
+static volatile uint8_t g_rejected_commands;
+static uint8_t         g_pending_tx[NET_MQTT_IPC_TX_MAX];
 static uint32_t        g_pending_length;
 
 static const uint8_t g_wifi_ssid[] = UTK_WIFI_SSID;
@@ -57,7 +72,7 @@ static const struct mqtt_connect_client_info_t g_client_info =
     .client_pass = NET_MQTT_PASSWORD,
     .keep_alive  = NET_MQTT_KEEPALIVE_S,
     .will_topic  = NET_MQTT_STATUS_TOPIC,
-    .will_msg    = "offline",
+    .will_msg    = NET_MQTT_OFFLINE,
     .will_qos    = 0U,
     .will_retain = 0U
 };
@@ -101,24 +116,40 @@ bool net_mqtt_start (void)
 }
 
 /** @brief Validate size_t before converting to the kernel-safe IPC width. */
-bool net_mqtt_send (const char * p_text, size_t length)
+bool net_mqtt_send (const uint8_t * p_frame, size_t length)
 {
     if (length > NET_MQTT_IPC_TX_MAX)
     {
         return false;
     }
-    /* At most 256 bytes, exactly representable in uint32_t. */
-    return net_mqtt_ipc_send(p_text, (uint32_t)length);
+    /* At most 20 bytes, exactly representable in uint32_t. */
+    return net_mqtt_ipc_send(p_frame, (uint32_t)length);
 }
 
-/** @brief Avoid narrowing arbitrary caller capacities across the boundary. */
-size_t net_mqtt_receive (char * p_text, size_t capacity)
+/** @brief One command byte crosses the boundary; STOP is taken first. */
+bool net_mqtt_receive (uint8_t * p_command)
 {
-    if (capacity <= NET_MQTT_IPC_RX_MAX)
-    {
-        return 0U;
-    }
-    return net_mqtt_ipc_receive(p_text, NET_MQTT_IPC_RX_MAX + 1U);
+    return net_mqtt_ipc_receive(p_command);
+}
+
+/** @brief Single-writer session flag; the offline profile has none. */
+bool net_mqtt_online (void)
+{
+#if ROBOT_MQTT
+    return gb_subscribed;
+#else
+    return false;
+#endif
+}
+
+/** @brief Single-writer wrapping count of rejected command payloads. */
+uint8_t net_mqtt_rejected (void)
+{
+#if ROBOT_MQTT
+    return g_rejected_commands;
+#else
+    return 0U;
+#endif
 }
 
 /** @brief Pump bounded protocol work only inside the existing radio owner. */
@@ -215,6 +246,7 @@ static void net_mqtt_retry (uint32_t now)
     gb_close_pending = false;
     g_retry_started = now;
     g_pending_length = 0U;
+    gb_command_topic = false;
     mqttcmd_begin(&g_command, 0U, false);
     if (g_retry_delay < NET_MQTT_RETRY_MIN_MS)
     {
@@ -237,15 +269,16 @@ static void net_mqtt_transmit (uint32_t now)
 
     if (gb_online_pending)
     {
-        result = mqtt_publish(gp_client, NET_MQTT_STATUS_TOPIC, "online",
-                               6U, 0U, 0U, NULL, NULL);
+        result = mqtt_publish(gp_client, NET_MQTT_STATUS_TOPIC,
+                               NET_MQTT_ONLINE, NET_MQTT_PRESENCE_BYTES, 0U,
+                               0U, NULL, NULL);
         gb_online_pending = ERR_OK != result;
     }
     if (0U == g_pending_length)
     {
         return;
     }
-    /* IPC lengths are <=256, exactly representable in lwIP's u16_t. */
+    /* IPC lengths are <=20, exactly representable in lwIP's u16_t. */
     result = mqtt_publish(gp_client, NET_MQTT_TELEMETRY_TOPIC, g_pending_tx,
                            (u16_t)g_pending_length, 0U, 0U, NULL, NULL);
     if (ERR_OK == result)
@@ -268,7 +301,7 @@ static void net_mqtt_take_tx (void)
 {
     uint32_t index;
     uint32_t length;
-    char next_tx[NET_MQTT_IPC_TX_MAX + 1U];
+    uint8_t next_tx[NET_MQTT_IPC_TX_MAX];
 
     if (gb_subscribed)
     {
@@ -405,6 +438,10 @@ static void net_mqtt_publication (void * p_context, const char * p_topic,
     b_topic_matches = gb_subscribed && (!b_retained) &&
                       (NULL != p_topic) &&
                       (0 == strcmp(p_topic, NET_MQTT_COMMAND_TOPIC));
+    /* A rejected payload on the live command topic is counted, so a
+     * malformed or legacy STOP is visible to the operator in "ign".
+     */
+    gb_command_topic = b_topic_matches;
     mqttcmd_begin(&g_command, total_length, b_topic_matches);
 }
 
@@ -419,10 +456,29 @@ static void net_mqtt_fragment (void * p_context, const u8_t * p_data,
     (void)p_context;
     if (mqttcmd_feed(&g_command, p_data, length, b_last))
     {
-        b_queued = net_mqtt_ipc_put_rx(g_command.text, g_command.used);
-        /* Full non-STOP queue drops this command. STOP has its own queue;
-         * a duplicate STOP is already pending and is reported as success. */
-        (void)b_queued;
+        b_queued = net_mqtt_ipc_put_rx(g_command.command);
+        /* STOP has its own queue (a duplicate pending STOP reports success),
+         * so only a valid non-STOP command can find its queue full: it is
+         * dropped and counted with the rejected payloads.
+         */
+        if (!b_queued)
+        {
+            /* Unsigned increment wraps modulo 256; readers difference it. */
+            g_rejected_commands = (uint8_t)(g_rejected_commands + 1U);
+        }
+    }
+    else if (b_last && gb_command_topic)
+    {
+        /* Unsigned increment wraps modulo 256; readers difference it. */
+        g_rejected_commands = (uint8_t)(g_rejected_commands + 1U);
+    }
+    else
+    {
+        /* Non-final fragment, or not a live command-topic publication. */
+    }
+    if (b_last)
+    {
+        gb_command_topic = false;
     }
 }
 #endif
