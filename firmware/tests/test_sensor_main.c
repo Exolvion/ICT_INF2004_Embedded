@@ -125,6 +125,7 @@ static uint32_t m_failures = 0U;
 static void test_sensor_main_check (bool b_condition, const char * p_label);
 static bool test_sensor_main_near (double actual, double expected);
 static void test_sensor_main_config (void);
+static void test_sensor_main_sector (void);
 static void test_sensor_main_timing (void);
 static void test_sensor_main_ranges (void);
 static void test_sensor_main_scan (test_sensor_main_scene_t scene);
@@ -224,6 +225,7 @@ int main (void)
     int printed = 0;
 
     test_sensor_main_config();
+    test_sensor_main_sector();
     test_sensor_main_timing();
     test_sensor_main_ranges();
     test_sensor_main_scan(SENSOR_SCENE_CLEAR);
@@ -306,6 +308,20 @@ static void test_sensor_main_config (void)
     scan_config.range.min_distance_m = 0.001;
     test_sensor_main_check(!scanner_init(&scan_state, &scan_config),
                            "below specified range rejected");
+    scanner_default_config(&scan_config);
+    scan_config.half_angle_deg = 45;
+    test_sensor_main_check(scanner_init(&scan_state, &scan_config),
+                           "45-degree sector (whole coarse steps) valid");
+    scan_config.half_angle_deg = 42;
+    test_sensor_main_check(!scanner_init(&scan_state, &scan_config),
+                           "sector off the coarse grid rejected");
+    scan_config.half_angle_deg = 20;
+    test_sensor_main_check(!scanner_init(&scan_state, &scan_config),
+                           "sector not beyond the side angle rejected");
+    scan_config.half_angle_deg = 65;
+    test_sensor_main_check(!scanner_init(&scan_state, &scan_config),
+                           "sector wider than the table rejected");
+    scanner_default_config(&scan_config);
     test_sensor_main_check(terrain_init(&terrain_state, &terrain_config),
                            "terrain defaults structurally valid");
     test_sensor_main_check(!terrain_reference(&terrain_state, 0.0, 0.0,
@@ -318,6 +334,59 @@ static void test_sensor_main_config (void)
                            "null scanner state rejected");
     test_sensor_main_check(!terrain_init(NULL, &terrain_config),
                            "null terrain state rejected");
+}
+
+/** A narrowed sector commands, samples and refines only within its edges,
+ * then recentres. With no echo every beam is unknown, so the fine pass
+ * covers the whole sector.
+ */
+static void test_sensor_main_sector (void)
+{
+    scanner_config_t config;
+    scanner_state_t state;
+    scanner_output_t output;
+    scanner_echo_t echo = {false, 0U};
+    scanner_sample_t sample = {0, {CORE_RANGE_VALID, 0.0}, false};
+    uint32_t now_ms = 0U;
+    int32_t lowest_deg = 0;
+    int32_t highest_deg = 0;
+    bool b_done = false;
+    bool b_recentred = false;
+
+    scanner_default_config(&config);
+    config.b_calibrated = true;
+    config.half_angle_deg = 40;
+    test_sensor_main_check(scanner_init(&state, &config)
+                           && scanner_start(&state, 0U, true),
+                           "40-degree scan starts");
+    while ((!b_done) && (now_ms < 100000U))
+    {
+        (void)scanner_step(&state, now_ms, true, &echo, &output);
+        if (output.b_set_servo && (!output.b_done))
+        {
+            lowest_deg = (output.angle_deg < lowest_deg) ?
+                         output.angle_deg : lowest_deg;
+            highest_deg = (output.angle_deg > highest_deg) ?
+                          output.angle_deg : highest_deg;
+        }
+        b_done = output.b_done;
+        b_recentred = output.b_set_servo && (0 == output.angle_deg);
+        ++now_ms;
+    }
+    test_sensor_main_check(b_done && b_recentred,
+                           "40-degree scan completes and recentres");
+    test_sensor_main_check((-40 == lowest_deg) && (40 == highest_deg),
+                           "servo commands stay within +/-40 degrees");
+    test_sensor_main_check((9U + 41U) == state.sample_count,
+                           "9 coarse and 41 fine beams in +/-40 degrees");
+    test_sensor_main_check(scanner_sample(&state, -40, &sample)
+                           && scanner_sample(&state, 40, &sample)
+                           && scanner_sample(&state, 0, &sample),
+                           "edges and centre sampled");
+    test_sensor_main_check((!scanner_sample(&state, 42, &sample))
+                           && (!scanner_sample(&state, -42, &sample))
+                           && (!scanner_sample(&state, 41, &sample)),
+                           "angles outside or off the grid rejected");
 }
 
 /** Independently verify echo timeout, servo settling and clock wrapping. */

@@ -1,0 +1,44 @@
+== synS
+current decoder: 104 passes: right 8, WRONG 0, none 96  (one-swing only: right 0 wrong 0)
+  bars in the biggest group: 0:8 6:1 9:2 10:2 11:3 12:5 13:5 14:6 15:2 16:2 17:7 18:5 19:16 20:13 21:8 22:10 23:4 24:2 27:1 29:1 31:1
+template matcher, margin >= 1.10: right 101, WRONG 0, none 3
+template matcher, margin >= 1.20: right 101, WRONG 0, none 3
+template matcher, margin >= 1.30: right 100, WRONG 0, none 4
+template matcher, margin >= 1.50: right 94, WRONG 0, none 10
+  top-choice confusions: O->E x2
+  margins of wrong top choices: 1.05 1.05
+  margins of right top choices: min 1.08 median 3.44
+synS: right 97, WRONG 0, none 7 of 104
+== synF
+current decoder: 104 passes: right 64, WRONG 0, none 40  (one-swing only: right 0 wrong 0)
+  bars in the biggest group: 0:65 6:1 7:6 8:4 9:4 10:5 11:5 12:8 13:1 14:2 16:1 19:1 21:1
+template matcher, margin >= 1.10: right 101, WRONG 0, none 3
+template matcher, margin >= 1.20: right 101, WRONG 0, none 3
+template matcher, margin >= 1.30: right 100, WRONG 0, none 4
+template matcher, margin >= 1.50: right 94, WRONG 0, none 10
+  top-choice confusions: O->E x2
+  margins of wrong top choices: 1.04 1.05
+  margins of right top choices: min 1.08 median 3.54
+synF: right 100, WRONG 0, none 4 of 104
+== synB
+current decoder: 104 passes: right 0, WRONG 0, none 104  (one-swing only: right 0 wrong 0)
+  bars in the biggest group: 0:9 5:9 6:20 7:11 8:17 9:8 10:6 11:8 12:3 13:3 14:5 15:4 21:1
+template matcher, margin >= 1.10: right 87, WRONG 1, none 16
+template matcher, margin >= 1.20: right 79, WRONG 0, none 25
+template matcher, margin >= 1.30: right 73, WRONG 0, none 31
+template matcher, margin >= 1.50: right 69, WRONG 0, none 35
+  top-choice confusions: Q->J x2, N->D x1, D->N x1, T->G x1, C->M x1, G->T x1, A->K x1, G->Z x1, M->C x1
+  margins of wrong top choices: 1.00 1.02 1.02 1.04 1.04 1.07 1.07 1.07 1.08 1.11
+  margins of right top choices: min 1.01 median 2.45
+synB: right 78, WRONG 0, none 26 of 104
+== synBF
+current decoder: 104 passes: right 0, WRONG 0, none 104  (one-swing only: right 0 wrong 0)
+  bars in the biggest group: 0:44 5:4 6:28 7:18 8:3 9:3 10:2 12:1 14:1
+template matcher, margin >= 1.10: right 87, WRONG 1, none 16
+template matcher, margin >= 1.20: right 79, WRONG 0, none 25
+template matcher, margin >= 1.30: right 74, WRONG 0, none 30
+template matcher, margin >= 1.50: right 68, WRONG 0, none 36
+  top-choice confusions: G->T x2, Q->J x2, N->D x1, D->N x1, T->G x1, C->M x1, A->K x1, G->Z x1, M->C x1
+  margins of wrong top choices: 1.00 1.02 1.03 1.03 1.05 1.07 1.07 1.07 1.08 1.09 1.12
+  margins of right top choices: min 1.01 median 2.56
+synBF: right 78, WRONG 1, none 25 of 104

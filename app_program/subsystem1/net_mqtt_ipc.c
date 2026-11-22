@@ -10,28 +10,40 @@
 #include <tk/tkernel.h>
 
 #define NET_MQTT_IPC_DEPTH 4U
+/* Telemetry frames waiting for the radio (19 Nov: 4 x 20 B, one sent per
+ * 100 ms, held the bench's text to ~150 characters/s; now 8 x 64 B, and
+ * net_mqtt_transmit sends every waiting frame each 100 ms).
+ */
+#define NET_MQTT_IPC_TX_DEPTH 8U
 /* The kernel stores each message as a 4-byte header plus its length rounded
  * up to 4 bytes (messagebuf.h HEADERSZ and ROUNDSZ): words per message.
  */
 #define NET_MQTT_IPC_WORDS(maximum) ((((maximum) + 3U) / 4U) + 1U)
-/* HEADERSZ (4 B) + ROUNDSZ(20 B) = 24 B per frame and 4 + ROUNDSZ(1) = 8 B
+/* HEADERSZ (4 B) + ROUNDSZ(64 B) = 68 B per frame and 4 + ROUNDSZ(1) = 8 B
  * per command: a change to either maximum must revisit the buffer sizes.
  */
-#if (NET_MQTT_IPC_WORDS(NET_MQTT_IPC_TX_MAX) != 6U) || \
-    (NET_MQTT_IPC_WORDS(NET_MQTT_IPC_RX_MAX) != 2U)
+#if (NET_MQTT_IPC_WORDS(NET_MQTT_IPC_TX_MAX) != 17U) || \
+    (NET_MQTT_IPC_WORDS(NET_MQTT_IPC_RX_MAX) != 2U) || \
+    (NET_MQTT_IPC_WORDS(NET_MQTT_IPC_MAP_MAX) != 2U)
 #error "IPC slots must hold the 4-byte header plus the rounded body"
 #endif
+/* Junction maps: the newest two waiting (one is sent before the demo). */
+#define NET_MQTT_IPC_MAP_DEPTH 2U
 
 static ID gh_tx_id   = 0;
 static ID gh_rx_id   = 0;
 static ID gh_stop_id = 0;
+static ID gh_map_id  = 0;
 
-/* 4 x 24 B telemetry, 4 x 8 B commands, one 8 B pending STOP. */
-static uint32_t g_tx_storage[NET_MQTT_IPC_DEPTH *
+/* 8 x 68 B telemetry, 4 x 8 B commands, one 8 B pending STOP. */
+static uint32_t g_tx_storage[NET_MQTT_IPC_TX_DEPTH *
                              NET_MQTT_IPC_WORDS(NET_MQTT_IPC_TX_MAX)];
 static uint32_t g_rx_storage[NET_MQTT_IPC_DEPTH *
                              NET_MQTT_IPC_WORDS(NET_MQTT_IPC_RX_MAX)];
 static uint32_t g_stop_storage[NET_MQTT_IPC_WORDS(NET_MQTT_IPC_RX_MAX)];
+/* 2 x 8 B junction maps (4 B header + 3 B rounded to 4). */
+static uint32_t g_map_storage[NET_MQTT_IPC_MAP_DEPTH *
+                              NET_MQTT_IPC_WORDS(NET_MQTT_IPC_MAP_MAX)];
 
 static ID net_mqtt_ipc_create (void * p_buffer, uint32_t size,
                               uint32_t maximum);
@@ -59,7 +71,12 @@ bool net_mqtt_ipc_start (void)
         gh_stop_id = net_mqtt_ipc_create(g_stop_storage, sizeof(g_stop_storage),
                                        NET_MQTT_IPC_RX_MAX);
     }
-    if ((gh_rx_id <= 0) || (gh_stop_id <= 0))
+    if (gh_stop_id > 0)
+    {
+        gh_map_id = net_mqtt_ipc_create(g_map_storage, sizeof(g_map_storage),
+                                      NET_MQTT_IPC_MAP_MAX);
+    }
+    if ((gh_rx_id <= 0) || (gh_stop_id <= 0) || (gh_map_id <= 0))
     {
         result = tk_del_mbf(gh_tx_id);
         /* Cleanup result cannot repair creation; report start failure. */
@@ -70,8 +87,16 @@ bool net_mqtt_ipc_start (void)
             /* Same fail-closed cleanup policy as above. */
             (void)result;
         }
+        if (gh_stop_id > 0)
+        {
+            result = tk_del_mbf(gh_stop_id);
+            /* Same fail-closed cleanup policy as above. */
+            (void)result;
+        }
         gh_tx_id = 0;
         gh_rx_id = 0;
+        gh_stop_id = 0;
+        gh_map_id = 0;
         return false;
     }
     return true;
@@ -85,7 +110,7 @@ bool net_mqtt_ipc_send (const uint8_t * p_frame, uint32_t length)
     {
         return false;
     }
-    /* Validated length is at most 20, representable in kernel INT. */
+    /* Validated length is at most NET_MQTT_IPC_TX_MAX, representable in INT. */
     return E_OK == tk_snd_mbf(gh_tx_id, p_frame, (INT)length, TMO_POL);
 }
 
@@ -135,6 +160,27 @@ bool net_mqtt_ipc_put_rx (uint8_t command)
            ((h_target == gh_stop_id) && (E_TMOUT == result));
 }
 
+/** @brief A validated map; a full queue drops it (the caller counts it). */
+bool net_mqtt_ipc_put_map (const uint8_t * p_map)
+{
+    if ((NULL == p_map) || (gh_map_id <= 0))
+    {
+        return false;
+    }
+    return E_OK == tk_snd_mbf(gh_map_id, p_map, (INT)NET_MQTT_IPC_MAP_MAX,
+                              TMO_POL);
+}
+
+/** @brief One waiting map, oldest first; p_map has room for 3 bytes. */
+bool net_mqtt_ipc_receive_map (uint8_t * p_map)
+{
+    if ((NULL == p_map) || (gh_map_id <= 0))
+    {
+        return false;
+    }
+    return NET_MQTT_IPC_MAP_MAX == net_mqtt_ipc_take(gh_map_id, p_map);
+}
+
 /** @brief Create fixed user storage; kernel copies each complete message. */
 static ID net_mqtt_ipc_create (void * p_buffer, uint32_t size,
                               uint32_t maximum)
@@ -142,7 +188,7 @@ static ID net_mqtt_ipc_create (void * p_buffer, uint32_t size,
     T_CMBF config = {0};
 
     config.mbfatr = TA_TFIFO | TA_USERBUF;
-    /* All callers use static buffers <=96 bytes and messages <=20. */
+    /* All callers use static buffers <=544 bytes and messages <=64. */
     config.bufsz  = (SZ)size;
     config.maxmsz = (INT)maximum;
     config.bufptr = p_buffer;
@@ -158,7 +204,7 @@ static uint32_t net_mqtt_ipc_take (ID h_buffer, uint8_t * p_data)
     {
         return 0U;
     }
-    /* Positive message length is bounded by the configured maximum, 20. */
+    /* Positive message length is bounded by the configured maximum. */
     return (uint32_t)length;
 }
 

@@ -25,7 +25,7 @@ APP_DIRS = (APP, APP / "subsystem1", APP / "subsystem2", APP / "subsystem3",
 # Hardware-independent modules: compiled into the host tests.
 PORTABLE_SOURCES = tuple(APP / name for name in (
     "bitpack.c", "core.c",
-    "subsystem1/mqttcmd.c", "subsystem1/telemetry.c",
+    "subsystem1/mqttcmd.c", "subsystem1/navmap.c", "subsystem1/telemetry.c",
     "subsystem2/motion.c",
     "subsystem3/barcode.c", "subsystem3/line_ctrl.c",
     "subsystem4/terrain.c",

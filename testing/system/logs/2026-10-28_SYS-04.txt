@@ -1,0 +1,68 @@
+[dev] board ISR fixtures with pinned SDK headers
+quadrature_release: board ISR/accel host doubles: 10664 checks, 0 failures
+quadrature_sanitized: board ISR/accel host doubles: 10664 checks, 0 failures
+single_unconfirmed_release: board ISR/accel host doubles: 107 checks, 0 failures
+single_unconfirmed_sanitized: board ISR/accel host doubles: 107 checks, 0 failures
+single_confirmed_release: board ISR/accel host doubles: 120 checks, 0 failures
+single_confirmed_sanitized: board ISR/accel host doubles: 120 checks, 0 failures
+single_commissioned_release: board ISR/accel host doubles: 139 checks, 0 failures
+single_commissioned_sanitized: board ISR/accel host doubles: 139 checks, 0 failures
+[dev] image structure gate fixtures
+test_bad_elf_class_endian_magic (__main__.SyntheticImageGateTests.test_bad_elf_class_endian_magic) ... ok
+test_bad_uf2_length (__main__.SyntheticImageGateTests.test_bad_uf2_length) ... ok
+test_bad_uf2_magic (__main__.SyntheticImageGateTests.test_bad_uf2_magic) ... ok
+test_block_number_address_order (__main__.SyntheticImageGateTests.test_block_number_address_order) ... ok
+test_cli_failure_and_input_collision_do_not_truncate_input (__main__.SyntheticImageGateTests.test_cli_failure_and_input_collision_do_not_truncate_input) ... ok
+test_cli_records_success_and_hashes (__main__.SyntheticImageGateTests.test_cli_records_success_and_hashes) ... ok
+test_duplicate_or_missing_block_indices (__main__.SyntheticImageGateTests.test_duplicate_or_missing_block_indices) ... ok
+test_entry_not_executable (__main__.SyntheticImageGateTests.test_entry_not_executable) ... ok
+test_file_larger_than_segment_memory (__main__.SyntheticImageGateTests.test_file_larger_than_segment_memory) ... ok
+test_flash_data_exceeds_two_mib (__main__.SyntheticImageGateTests.test_flash_data_exceeds_two_mib) ... ok
+test_hard_float_and_wrong_eabi (__main__.SyntheticImageGateTests.test_hard_float_and_wrong_eabi) ... ok
+test_heap_short_by_one_word (__main__.SyntheticImageGateTests.test_heap_short_by_one_word) ... ok
+test_load_payload_outside_file (__main__.SyntheticImageGateTests.test_load_payload_outside_file) ... ok
+test_load_payload_outside_flash (__main__.SyntheticImageGateTests.test_load_payload_outside_flash) ... ok
+test_mismatched_or_missing_map (__main__.SyntheticImageGateTests.test_mismatched_or_missing_map) ... ok
+test_missing_symbol_table (__main__.SyntheticImageGateTests.test_missing_symbol_table) ... ok
+test_non_thumb_entry (__main__.SyntheticImageGateTests.test_non_thumb_entry) ... ok
+test_nonzero_unused_block_bytes (__main__.SyntheticImageGateTests.test_nonzero_unused_block_bytes) ... ok
+test_out_of_file_order_complete_blocks_are_valid (__main__.SyntheticImageGateTests.test_out_of_file_order_complete_blocks_are_valid) ... ok
+test_overlapping_flash_pages (__main__.SyntheticImageGateTests.test_overlapping_flash_pages) ... ok
+test_overlapping_load_bytes (__main__.SyntheticImageGateTests.test_overlapping_load_bytes) ... ok
+test_program_headers_outside_file (__main__.SyntheticImageGateTests.test_program_headers_outside_file) ... ok
+test_section_file_offset_disagrees_with_load (__main__.SyntheticImageGateTests.test_section_file_offset_disagrees_with_load) ... ok
+test_section_into_heap (__main__.SyntheticImageGateTests.test_section_into_heap) ... ok
+test_section_symbol_disagreement (__main__.SyntheticImageGateTests.test_section_symbol_disagreement) ... ok
+test_symbol_table_invalid_link (__main__.SyntheticImageGateTests.test_symbol_table_invalid_link) ... ok
+test_truncated_header_tables_and_payload (__main__.SyntheticImageGateTests.test_truncated_header_tables_and_payload) ... ok
+test_uf2_missing_padding_page (__main__.SyntheticImageGateTests.test_uf2_missing_padding_page) ... ok
+test_uf2_modified_load_or_padding_byte (__main__.SyntheticImageGateTests.test_uf2_modified_load_or_padding_byte) ... ok
+test_unaligned_data_copy_source (__main__.SyntheticImageGateTests.test_unaligned_data_copy_source) ... ok
+test_unaligned_outside_or_wrong_payload_size (__main__.SyntheticImageGateTests.test_unaligned_outside_or_wrong_payload_size) ... ok
+test_valid_exact_heap_boundary_and_sparse_padding (__main__.SyntheticImageGateTests.test_valid_exact_heap_boundary_and_sparse_padding) ... ok
+test_valid_larger_heap (__main__.SyntheticImageGateTests.test_valid_larger_heap) ... ok
+test_valid_last_flash_word_boundary (__main__.SyntheticImageGateTests.test_valid_last_flash_word_boundary) ... ok
+test_virtual_range_outside_ram (__main__.SyntheticImageGateTests.test_virtual_range_outside_ram) ... ok
+test_wrong_data_load_address (__main__.SyntheticImageGateTests.test_wrong_data_load_address) ... ok
+test_wrong_family_or_flags (__main__.SyntheticImageGateTests.test_wrong_family_or_flags) ... ok
+test_wrong_machine_or_kind (__main__.SyntheticImageGateTests.test_wrong_machine_or_kind) ... ok
+test_wrong_vector_sp_or_reset (__main__.SyntheticImageGateTests.test_wrong_vector_sp_or_reset) ... ok
+
+----------------------------------------------------------------------
+Ran 39 tests in 0.035s
+
+OK
+[dev] build script failure-path fixtures
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 2.067s
+
+OK
+[dev] radio startup with mocked driver/kernel
+PASS: 26 radio/kernel scenario executions; 8 negative controls aborted as required
+[dev] MQTT adapter with real SDK types and mocked transport
+release: mqttnet mocked adapter: 100 checks, 0 failures
+sanitize: mqttnet mocked adapter: 100 checks, 0 failures
+LeakSanitizer disabled by project choice pending a CI trial; ROBOT_LSAN=1 enables it.
+PASS: mock adapter tests; no ARM image or network traffic generated
+[dev] integration host checks passed; reports in <repo>/firmware/validation/local

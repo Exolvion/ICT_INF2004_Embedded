@@ -1,0 +1,5 @@
+19:24:50 inf2004/is29/status 0
+19:25:40 inf2004/is29/status 1
+19:26:04 inf2004/is29/status 0
+19:26:06 inf2004/is29/status 1
+19:29:23 Timed out

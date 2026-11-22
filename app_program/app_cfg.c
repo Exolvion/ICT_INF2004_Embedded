@@ -88,6 +88,7 @@ void app_cfg_scanner (scanner_config_t * p_config)
 {
     scanner_default_config(p_config);
     p_config->settle_ms = ROBOT_SERVO_SETTLE_MS;
+    p_config->half_angle_deg = ROBOT_SCAN_HALF_ANGLE_DEG;
     p_config->robot_half_width_m = ROBOT_ROBOT_WIDTH_M / 2.0;
     p_config->uncertainty_margin_m = ROBOT_OBSTACLE_MARGIN_M;
     p_config->obstacle_distance_m = 0.60;

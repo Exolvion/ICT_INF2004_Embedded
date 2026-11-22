@@ -50,8 +50,8 @@ clash is spotted when someone edits this table, not hours later on the bench.
 | GP23, GP24, GP25, GP29 | *reserved* | Pico W radio |
 | GP0 | S5 | HC-SR04 TRIG (Grove 1). Also UART0 TX: this robot builds with `CONSOLE=uart`, so the console has GP0/GP1 until `board_init()` and again only to print a start-up refusal |
 | GP1 | S5 | HC-SR04 ECHO through the voltage divider (Grove 1). Also UART0 RX (see GP0) |
-| GP2 | S2 | Left wheel encoder A (Grove 2; must be the M1 wheel) |
-| GP3 | S2 | Left wheel encoder B (Grove 2) |
+| GP2 | S2 | Right wheel encoder A (Grove 2; must be the M2 wheel). Swapped with GP16/GP17 on 26 Oct to match the car's wiring |
+| GP3 | S2 | Right wheel encoder B (Grove 2) |
 | GP4 | S4 | Accelerometer SDA, I2C0 (Grove 3) |
 | GP5 | S4 | Accelerometer SCL, I2C0 (Grove 3) |
 | GP6 | S3 | IR left D0 (Grove 5); wired, not read |
@@ -61,11 +61,11 @@ clash is spotted when someone edits this table, not hours later on the bench.
 | GP10 | S2 | Right motor M2A, PWM slice 5 |
 | GP11 | S2 | Right motor M2B, PWM slice 5 |
 | GP12 | S5 | Scan servo, servo port 1, PWM slice 6 |
-| GP13 | S3 | IR right D0, moved from Grove 6 to servo port 2; wired, not read |
-| GP14 | | Free (servo port 3, kept for servos) |
+| GP13 | | Unusable: servo port 2's header pin broke off (28 Oct) |
+| GP14 | S3 | IR right D0, moved from Grove 6 to servo port 2, then servo port 3 (28 Oct); wired, not read |
 | GP15 | | Free (servo port 4, kept for servos) |
-| GP16 | S2 | Right wheel encoder A (Grove 4) |
-| GP17 | S2 | Right wheel encoder B (Grove 4) |
+| GP16 | S2 | Left wheel encoder A (Grove 4; must be the M1 wheel) |
+| GP17 | S2 | Left wheel encoder B (Grove 4) |
 | GP18 | | Free (on-board NeoPixel) |
 | GP19 | | Free |
 | GP20 | S5 | STOP button (on board, pull-up, active low) |
@@ -121,6 +121,8 @@ read with `TMO_POL` (interface IF-08). It replaces the template's
 `MQTT=1`); `build_make/pico_rp2040.mk` refuses both together. The hook is
 the `ROBOT_MQTT` blocks in `cyw43_utk.c`, `cyw43_utk_kernel.c`, `devinit.c`
 and `lwipopts.h`, each marked `INF2004`. *To agree with the instructor.*
+Every change to the template files is listed in [README.md](README.md)
+("Changes to the template").
 
 ## 4. Task priorities
 

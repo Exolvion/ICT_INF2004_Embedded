@@ -35,6 +35,21 @@
 #define BOARD_ACCEL_AXES 3U
 #define BOARD_ACCEL_BYTES 6U
 #define BOARD_ADC_TIMEOUT_US 100U
+/* RP2040 GPIO 26..29 are ADC inputs 0..3 (GPIO 29 senses VSYS on the Pico
+ * W). The IR samples stay left, right, barcode whichever Grove port each
+ * sensor sits on: each reads the ADC input of its configured pin.
+ */
+#define BOARD_ADC_FIRST_PIN 26U
+#define BOARD_ADC_INPUT(pin) ((pin) - BOARD_ADC_FIRST_PIN)
+#define BOARD_IS_IR_ADC_PIN(pin) (((pin) >= 26U) && ((pin) <= 28U))
+#if !BOARD_IS_IR_ADC_PIN(ROBOT_PIN_IR_LEFT) || \
+    !BOARD_IS_IR_ADC_PIN(ROBOT_PIN_IR_RIGHT) || \
+    !BOARD_IS_IR_ADC_PIN(ROBOT_PIN_IR_BARCODE) || \
+    (ROBOT_PIN_IR_LEFT == ROBOT_PIN_IR_RIGHT) || \
+    (ROBOT_PIN_IR_LEFT == ROBOT_PIN_IR_BARCODE) || \
+    (ROBOT_PIN_IR_RIGHT == ROBOT_PIN_IR_BARCODE)
+#error "IR sensors need three different ADC pins among GP26-GP28"
+#endif
 /* IO_BANK0 latches four status bits per GPIO and eight GPIOs per bank. */
 #define BOARD_IRQ_BANK(pin) ((pin) / 8U)
 #define BOARD_IRQ_SHIFT(pin) (((pin) % 8U) * 4U)
@@ -171,6 +186,10 @@ static volatile uint32_t            g_echo_word;
 static uint32_t                     g_echo_rise_us;
 static uint64_t                     g_trigger_time_us;
 static bool                         gb_triggered_once;
+/* Optional: called once an echo completes or times out (from the GPIO ISR
+ * or board_ultrasonic_service). NULL in the robot firmware.
+ */
+static void (* volatile gp_echo_notify)(void);
 
 static void board_gpio_isr (uint32_t interrupt_number);
 static uint32_t board_count_batch (uint32_t left_pending,
@@ -405,6 +424,12 @@ void board_encoder_totals (uint16_t * p_left, uint16_t * p_right)
 
 bool board_read_ir (uint16_t samples[3])
 {
+    static const uint32_t inputs[BOARD_ACCEL_AXES] =
+    {
+        BOARD_ADC_INPUT(ROBOT_PIN_IR_LEFT),
+        BOARD_ADC_INPUT(ROBOT_PIN_IR_RIGHT),
+        BOARD_ADC_INPUT(ROBOT_PIN_IR_BARCODE)
+    };
     uint32_t channel;
     uint64_t deadline;
 
@@ -414,7 +439,7 @@ bool board_read_ir (uint16_t samples[3])
     }
     for (channel = 0U; channel < BOARD_ACCEL_AXES; channel++)
     {
-        adc_select_input(channel);
+        adc_select_input(inputs[channel]);
         hw_set_bits(&adc_hw->cs, ADC_CS_START_ONCE_BITS);
         deadline = board_time_us() + BOARD_ADC_TIMEOUT_US;
         while (0U == (adc_hw->cs & ADC_CS_READY_BITS))
@@ -536,14 +561,25 @@ void board_ultrasonic_service (void)
     uint64_t current_us = board_time_us();
     uint32_t saved = app_main_lock();
     board_echo_state_t state = board_echo_state(g_echo_word);
+    bool     b_timed_out = false;
 
     if (((BOARD_ECHO_WAIT_RISE == state) ||
          (BOARD_ECHO_WAIT_FALL == state)) &&
         ((current_us - g_trigger_time_us) >= ROBOT_ECHO_TIMEOUT_US))
     {
         g_echo_word = board_echo_word(BOARD_ECHO_TIMEOUT, 0U);
+        b_timed_out = true;
     }
     app_main_unlock(saved);
+    if (b_timed_out && (NULL != gp_echo_notify))
+    {
+        gp_echo_notify();
+    }
+}
+
+void board_ultrasonic_notify (void (* p_notify)(void))
+{
+    gp_echo_notify = p_notify;
 }
 
 bool board_ultrasonic_result (uint32_t * p_pulse_us, bool * p_valid)
@@ -699,6 +735,11 @@ bool board_start_pressed (void)
     return !gpio_get(ROBOT_PIN_START);
 }
 
+bool board_barcode_d0 (void)
+{
+    return gpio_get(ROBOT_PIN_IR_BARCODE_AUX);
+}
+
 #if !TM_WIFI_CYW43
 /* D-ADAPTER: names below are required Pico SDK ABI hooks, not robot APIs.
  * The Wi-Fi profile already supplies these in cyw43_utk_compat.c.
@@ -780,6 +821,8 @@ static void board_init_inputs (void)
     gpio_pull_up(ROBOT_PIN_STOP);
     gpio_init(ROBOT_PIN_START);
     gpio_pull_up(ROBOT_PIN_START);
+    /* Barcode D0: the module drives it; an input, its interrupt left off. */
+    gpio_init(ROBOT_PIN_IR_BARCODE_AUX);
     gpio_init(ROBOT_PIN_ECHO);
     gpio_pull_down(ROBOT_PIN_ECHO);
     gpio_init(ROBOT_PIN_TRIGGER);
@@ -1031,6 +1074,12 @@ static void board_echo_edge (uint32_t echo_pending, uint32_t input_levels,
     else
     {
         /* An ECHO edge without a pending trigger is ignored. */
+    }
+    if ((NULL != gp_echo_notify) && (state != board_echo_state(g_echo_word)) &&
+        ((BOARD_ECHO_READY == board_echo_state(g_echo_word)) ||
+         (BOARD_ECHO_TIMEOUT == board_echo_state(g_echo_word))))
+    {
+        gp_echo_notify();
     }
 }
 

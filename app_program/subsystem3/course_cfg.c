@@ -9,12 +9,13 @@
 /* Enter measured symbols, framing, tolerances and encoder resolution here
  * before confirming. Do not copy test patterns onto the course. Widths stay
  * in metres (the narrow/wide encoding waits for the confirmed symbology);
- * barcode_derive() converts them to half-counts, and the widest run must be
- * at most 255 half-counts (72.3 mm with the current hypotheses).
- * reverse_tolerance_m must exceed one effective encoder count of centre
- * distance (2*pi*R/counts, about 0.567 mm with the current hypotheses): the
- * 0.5 mm default is below it (floor(0.5 / 0.2836) = 1 half-count), and the
- * start-up codebook gate in robot_app.c does not check this yet (T-57).
+ * barcode_derive() converts them to decoder units of 8 half-counts
+ * (ROBOT_APP_BARCODE_UNIT_HC in robot_app.c: 0.322 mm at 2533 counts per
+ * turn), and the widest run must be at most 255 units (82.2 mm).
+ * reverse_tolerance_m must exceed one decoder unit of centre distance: the
+ * 0.5 mm default does now (floor(0.5 / 0.322) = 1 unit), but the start-up
+ * codebook gate in robot_app.c does not check this yet (T-57). Re-check
+ * these numbers whenever ROBOT_ENCODER_COUNTS_PER_REV changes.
  */
 static const barcode_config_t g_course_cfg_codebook =
 {

@@ -1,0 +1,7 @@
+S3-U02 IR sensors respond, 2026-10-26, run by Siang Hong (observed)
+Build: build-target/mqtt (2d121bc + uncommitted: WIRING=1, SysTick SYST_CVR fix)
+Method: each sensor moved between reflective and covered (hand over the sensor) several times; status LEDs watched.
+GP6 (left) Grove status LED: toggles
+GP7 (barcode) Grove status LED: toggles
+Right module D0 LED: toggles
+Result: PASS (repeat over black tape / white paper for the exact method when convenient)

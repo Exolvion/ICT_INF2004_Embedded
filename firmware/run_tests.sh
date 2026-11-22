@@ -33,7 +33,7 @@ for app_subdir in "" subsystem1 subsystem2 subsystem3 subsystem4 \
 done
 # Hardware-independent modules; scripts/robot_paths.py keeps the same list.
 sources=()
-for module in bitpack core subsystem1/mqttcmd \
+for module in bitpack core subsystem1/mqttcmd subsystem1/navmap \
               subsystem1/telemetry subsystem2/motion subsystem3/barcode \
               subsystem3/line_ctrl subsystem4/terrain subsystem5/scanner \
               subsystem5/vehicle; do

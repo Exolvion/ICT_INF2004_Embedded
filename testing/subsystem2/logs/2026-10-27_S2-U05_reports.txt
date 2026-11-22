@@ -1,0 +1,325 @@
+
+#8 t=88s over 10999ms idle, AB L=11 R=11 sum L+0 R+0
+
+#9 t=99s over 11000ms idle, AB L=11 R=11 sum L+0 R+0
+
+#10 t=110s over 11000ms idle, AB L=11 R=11 sum L+0 R+0
+
+#11 t=121s over 10999ms idle, AB L=11 R=11 sum L+0 R+0
+
+#12 t=132s over 11000ms
+L net+549 sum+549 ok553 A+138-138 B+138-139
+L rej m0 s0 b0 w0 pk5 4/4 gap 781us h0,0,359,188,5 AB=10
+R net+0 sum+0 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=11
+
+#13 t=135s over 3038ms
+L net+1495 sum+2044 ok1505 A+376-376 B+377-376
+L rej m0 s0 b0 w0 pk5 10/10 gap 276us h0,0,1315,184,6 AB=11
+R net-26 sum-26 ok28 A+7-8 B+6-7
+R rej m0 s0 b0 w0 pk5 2/2 gap 2474us h0,0,0,25,2 AB=00
+
+#14 t=140s over 5061ms
+L net+3283 sum+5327 ok3299 A+823-824 B+826-826
+L rej m0 s0 b0 w0 pk5 16/16 gap 172us h0,20,3062,206,11 AB=01
+R net+1 sum-25 ok3 A+0-0 B+2-1
+R rej m0 s0 b0 w0 pk5 1/1 gap 404776us h0,0,0,0,3 AB=01
+
+#15 t=150s over 10757ms
+L net+12717 sum+18044 ok12739 A+3185-3184 B+3185-3185
+L rej m0 s0 b0 w0 pk5 29/29 gap 96us h0,2339,10187,193,20 AB=11
+R net-1 sum-26 ok1 A+0-0 B+0-1
+R rej m0 s0 b0 w0 pk5 1/1 gap 9097573us h0,0,0,0,1 AB=00
+
+#16 t=155s over 4760ms
+L net+6105 sum+24149 ok6129 A+1531-1531 B+1533-1534
+L rej m0 s0 b0 w0 pk5 37/37 gap 74us h0,1396,4645,78,10 AB=10
+R net+0 sum-26 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+
+#17 t=160s over 4730ms
+L net+1166 sum+25315 ok1168 A+292-293 B+292-291
+L rej m0 s0 b0 w0 pk5 6/6 gap 541us h0,0,630,529,9 AB=01
+R net+0 sum-26 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+
+#18 t=162s over 1971ms
+L net+0 sum+25315 ok0 A+0-0 B+0-0
+L rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=01
+R net+0 sum-26 ok2 A+0-0 B+1-1
+R rej m0 s0 b0 w0 pk5 1/1 gap 35618us h0,0,0,0,2 AB=00
+
+#19 t=165s over 2758ms
+L net+44 sum+25359 ok46 A+12-12 B+11-11
+L rej m0 s0 b0 w0 pk5 2/2 gap 1773us h0,0,4,36,6 AB=01
+R net+0 sum-26 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+
+#20 t=176s over 11609ms idle, AB L=01 R=00 sum L+25359 R-26
+
+#21 t=187s over 10999ms idle, AB L=01 R=00 sum L+25359 R-26
+
+#22 t=198s over 11000ms idle, AB L=01 R=00 sum L+25359 R-26
+
+#23 t=209s over 11000ms idle, AB L=01 R=00 sum L+25359 R-26
+
+#24 t=220s over 10999ms idle, AB L=01 R=00 sum L+25359 R-26
+
+#25 t=231s over 11000ms idle, AB L=01 R=00 sum L+25359 R-26
+
+#26 t=242s over 11000ms idle, AB L=01 R=00 sum L+25359 R-26
+
+#27 t=253s over 10999ms idle, AB L=01 R=00 sum L+25359 R-26
+
+#28 t=264s over 10890ms
+L net+0 sum+25359 ok2 A+1-1 B+0-0
+L rej m0 s0 b0 w0 pk5 1/1 gap 91340us h0,0,0,0,2 AB=01
+R net+0 sum-26 ok2 A+1-1 B+0-0
+R rej m0 s0 b0 w0 pk5 1/1 gap 65243us h0,0,0,0,2 AB=00
+
+#29 t=266s over 1700ms
+L net+0 sum+25359 ok2 A+1-1 B+0-0
+L rej m0 s0 b0 w0 pk5 1/1 gap 362403us h0,0,0,0,2 AB=01
+R net+0 sum-26 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+
+#30 t=274s over 8606ms
+L net-1 sum+25358 ok1 A+0-0 B+0-1
+L rej m0 s0 b0 w0 pk5 1/1 gap 8602473us h0,0,0,0,1 AB=00
+R net+0 sum-26 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+
+#31 t=286s over 11567ms
+L net-3 sum+25355 ok15 A+6-6 B+2-1
+L rej m0 s0 b0 w0 pk5 1/1 gap 57501us h0,0,0,0,15 AB=01
+R net+12252 sum+12226 ok12268 A+3067-3067 B+3067-3067
+R rej m0 s0 b0 w0 pk5 20/20 gap 143us h0,282,11691,272,23 AB=00
+
+#32 t=298s over 11735ms
+L net-15 sum+25340 ok15 A+4-3 B+4-4
+L rej m0 s0 b0 w0 pk5 1/1 gap 4655us h0,0,0,5,10 AB=11
+R net+13043 sum+25269 ok13047 A+3262-3261 B+3262-3262
+R rej m0 s0 b0 w0 pk5 18/18 gap 162us h0,223,12473,337,14 AB=10
+
+#33 t=299s over 1072ms
+L net+0 sum+25340 ok0 A+0-0 B+0-0
+L rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=11
+R net+38 sum+25307 ok40 A+10-11 B+10-9
+R rej m0 s0 b0 w0 pk5 2/2 gap 1899us h0,0,2,36,2 AB=0
+#34 t=312s over 12805ms idle, AB L=11 R=01 sum L+25340 R+25307
+
+#35 t=323s over 11000ms idle, AB L=11 R=01 sum L+25340 R+25307
+
+#36 t=334s over 10999ms idle, AB L=11 R=01 sum L+25340 R+25307
+
+#37 t=337s over 2893ms
+L net+0 sum+25340 ok0 A+0-0 B+0-0
+L rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=11
+R net-1 sum+25306 ok1 A+0-0 B+0-1
+R rej m0 s0 b0 w0 pk5 1/1 gap 37703157
+#38 t=338s over 1587ms
+L net+911 sum+26251 ok917 A+228-229 B+230-230
+L rej m0 s0 b0 w0 pk5 8/8 gap 345us h0,0,888,25,4 AB=01
+R net+1 sum+25307 ok1 A+0-0 B+1-0
+R rej m0 s0 b0 w0 pk5 1/1 gap 1487057us h0,0,0,0,1 AB=01
+
+#39 t=344s over 6270ms
+L net+4111 sum+30362 ok4129 A+1033-1033 B+1031-1032
+L rej m0 s0 b0 w0 pk5 11/11 gap 256us h0,0,3958,158,13 AB=00
+R net+26 sum+25333 ok28 A+8-7 B+6-7
+R rej m0 s0 b0 w0 pk5 2/2 gap 2559us h0,0,0,24,4 AB=10
+
+#40 t=348s over 4097ms
+L net+2519 sum+32881 ok2531 A+633-632 B+633-633
+L rej m0 s0 b0 w0 pk5 9/9 gap 335us h0,0,2427,98,6 AB=10
+R net+0 sum+25333 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=10
+
+#41 t=350s over 1177ms
+L net+884 sum+33765 ok884 A+221-221 B+221-221
+L rej m0 s0 b0 w0 pk5 10/10 gap 294us h0,0,862,21,1 AB=10
+R net+1 sum+25334 ok1 A+0-1 B+0-0
+R rej m0 s0 b0 w0 pk5 1/1 gap 7617876us h0,0,0,0,1 AB=00
+
+#42 t=352s over 2038ms
+L net+1317 sum+35082 ok1319 A+330-331 B+329-329
+L rej m0 s0 b0 w0 pk5 9/9 gap 320us h0,0,1280,36,3 AB=00
+R net-1 sum+25333 ok1 A+1-0 B+0-0
+R rej m0 s0 b0 w0 pk5 1/1 gap 2305796us h0,0,0,0,1 AB=10
+
+#43 t=353s over 1543ms
+L net+1191 sum+36273 ok1191 A+298-297 B+298-298
+L rej m0 s0 b0 w0 pk5 9/9 gap 318us h0,0,1161,29,1 AB=10
+R net+0 sum+25333 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=10
+
+#44 t=356s over 2962ms
+L net+2480 sum+38753 ok2492 A+622-622 B+624-624
+L rej m0 s0 b0 w0 pk5 12/12 gap 252us h0,0,2438,50,4 AB=10
+R net+0 sum+25333 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=10
+
+#45 t=357s over 1209ms
+L net+1050 sum+39803 ok1050 A+262-263 B+263-262
+L rej m0 s0 b0 w0 pk5 12/12 gap 242us h0,0,1022,27,1 AB=01
+R net+0 sum+25333 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=10
+
+#46 t=359s over 1641ms
+L net+1354 sum+41157 ok1358 A+340-339 B+339-340
+L rej m0 s0 b0 w0 pk5 10/10 gap 286us h0,0,1330,26,2 AB=10
+R net+1 sum+25334 ok1 A+0-1 B+0-0
+R rej m0 s0 b0 w0 pk5 1/1 gap 7035880us h0,0,0,0,1 AB=00
+
+#47 t=362s over 3143ms
+L net+2488 sum+43645 ok2498 A+625-625 B+624-624
+L rej m0 s0 b0 w0 pk5 11/11 gap 267us h0,0,2424,68,6 AB=10
+R net+0 sum+25334 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+
+#48 t=367s over 5106ms
+L net+3649 sum+47294 ok3665 A+916-917 B+916-916
+L rej m0 s0 b0 w0 pk5 11/11 gap 255us h0,0,3479,177,9 AB=00
+R net+0 sum+25334 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+
+#49 t=371s over 3204ms
+L net+2596 sum+49890 ok2596 A+649-649 B+649-649
+L rej m0 s0 b0 w0 pk5 12/12 gap 230us h0,0,2484,110,2 AB=00
+R net+0 sum+25334 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+
+#50 t=374s over 3696ms
+L net+767 sum+50657 ok777 A+195-194 B+194-194
+L rej m0 s0 b0 w0 pk5 7/7 gap 408us h0,0,697,71,9 AB=10
+R net+12 sum+25346 ok76 A+19-19 B+19-19
+R rej m0 s0 b0 w0 pk5 2/2 gap 2163us h0,0,0,72,4 AB=00
+
+#51 t=375s over 1002ms
+L net+0 sum+50657 ok0 A+0-0 B+0-0
+L rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=10
+R net+4 sum+25350 ok4 A+1-1 B+1-1
+R rej m0 s0 b0 w0 pk5 1/1 gap 8363us h0,0,0,2,2 AB=00
+
+#52 t=387s over 11692ms idle, AB L=10 R=00 sum L+50657 R+25350
+
+#53 t=391s over 4576ms
+L net-1 sum+50656 ok1 A+0-0 B+1-0
+L rej m0 s0 b0 w0 pk5 1/1 gap 17841119us h0,0,0,0,1 AB=11
+R net+0 sum+25350 ok0 A+0-0 B+0-0
+R rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+
+#54 t=403s over 11546ms
+L net-34 sum+50622 ok260 A+64-65 B+65-66
+L rej m0 s0 b0 w0 pk5 4/4 gap 780us h0,0,95,155,10 AB=00
+R net+10863 sum+36213 ok10939 A+2734-2733 B+2736-2736
+R rej m0 s0 b0 w0 pk5 17/17 gap 175us h0,80,10623,215,21 AB=10
+
+#55 t=415s over 11819ms
+L net+0 sum+50622 ok0 A+0-0 B+0-0
+L rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+R net+14327 sum+50540 ok14345 A+3587-3587 B+3586-3585
+R rej m0 s0 b0 w0 pk5 19/19 gap 152us h0,380,13686,260,19 AB=11
+
+#56 t=417s over 1813ms
+L net+0 sum+50622 ok0 A+0-0 B+0-0
+L rej m0 s0 b0 w0 pk5 0/0 gap -us h0,0,0,0,0 AB=00
+R net+108 sum+50648 ok112 A+28-28 B+28-28
+R rej m0 s0 b0 w0 pk5 3/3 gap 1368us h0,0,17,92,3 AB=11
+
+#57 t=428s over 11651ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#58 t=439s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#59 t=450s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#60 t=461s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#61 t=472s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#62 t=483s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#63 t=494s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#64 t=505s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#65 t=516s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#66 t=527s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#67 t=538s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#68 t=549s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#69 t=560s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#70 t=571s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#71 t=582s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#72 t=593s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#73 t=604s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#74 t=615s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#75 t=626s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#76 t=637s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#77 t=648s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#78 t=659s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#79 t=670s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#80 t=681s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#81 t=692s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#82 t=703s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#83 t=714s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#84 t=725s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#85 t=736s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#86 t=747s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#87 t=758s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#88 t=769s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#89 t=780s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#90 t=791s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#91 t=802s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#92 t=813s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#93 t=824s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#94 t=835s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#95 t=846s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#96 t=857s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#97 t=868s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#98 t=879s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#99 t=890s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#100 t=901s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#101 t=912s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#102 t=923s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#103 t=934s over 10999ms idle, AB L=00 R=11 sum L+50622 R+50648
+
+#104 t=945s over 11000ms idle, AB L=00 R=11 sum L+50622 R+50648
+

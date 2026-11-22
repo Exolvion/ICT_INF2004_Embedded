@@ -1,0 +1,60 @@
+S3-U07 Barcode read on the school track at run time (no codebook), 2026-10-29
+Owner: Buddy 3. Raw telemetry: 2026-10-29_S3-U07_barcode.txt (the MQTT
+recorder, 20:49-22:02; 1 s "IR ... B" lines while parked, run reports).
+
+Car (ruler, 29 Oct): barcode sensor 71.5 mm left of the midpoint of the front
+sensors, 160 mm ahead of the wheel axle; front sensors 130 mm ahead; all three
+at the same height, 20-25 mm above the mat. It cannot go lower: below 2 cm the
+mount scrapes on the bump.
+
+Parked readings, barcode sensor, car on the line in its driving direction:
+  school track white mat              ~205 (169-250)
+  school track black line (18 mm)     ~1975 (1946-2000)
+  expanded card, thickest bar         ~2085 (placement not confirmed)
+  a thinnest bar                      ~1452 (card not recorded)
+  thinnest white gap between thick bars  ~200
+  smaller card, thickest bar          ~222 (reads as white)
+  for comparison: the 28 Oct calibration on our own tape: white 137,
+  black 4043 (ROBOT_IR_BARCODE_WHITE/BLACK). The robot's DARK threshold, 3067,
+  is above anything the sensor reads on this track, the line included.
+
+Runs (motion bench image, BARCODE test, 80 mm/s, about 10 cm of white before
+the card):
+1. 20:50, image a066e62a (centre path widths): nothing over the card reached
+   1421; only the crossing line at the end formed a group. No decode.
+2. 21:46, image 3e27c236 (bench_main.c 1dc08095, sensor-path widths, card
+   levels pass, full 1 mm trace), gain set 5, expanded card: six dark marks in
+   three pairs. Half-height widths: bar 9.5, gap 14.5, bar 9.5 mm; pairs at
+   131-172, 238-280, 327-365 mm of sensor path; peaks 2000-2250; between them
+   clean white. No decode (6 bars, Code 39 *X* has 15).
+3. ~22:00, same image, gain set 4, same card: the same three pairs (bars
+   7-10 mm, gaps 14-17 mm, peaks 1940-2160). Repeatable.
+
+The expanded card, by our ruler: thin bars 6 mm, thick 18 mm (Code 39
+at twice the spec's 3/9 mm). Fitting Code 39 *X* to the thick-bar centres of
+run 2 alone gives thin 6.2 mm and thick 18.3 mm: the sensor-path distance
+(ROBOT_BARCODE_LATERAL_OFFSET_M correction) is right to about 3 %.
+
+What the sensor sees at 2 cm: the six marks are the six thick (18 mm) bars.
+The nine thin (6 mm) bars move the reading by about +30-40 over white (noise
++-25): they are not resolvable. The sensor reacts strongly only to dark areas
+about 18 mm wide (the track line reads ~1975, an 18 mm bar ~2000-2200), so the
+spec-size card (3/9 mm bars) reads as white, as the parked check showed.
+The car samples the sensor every ~0.56 mm (1450 samples over 806 mm), so the
+sampling rate is not the limit.
+
+The 28 Oct note (2026-10-28_barcode_print_ir.txt) put a white-reading printed
+wide bar down to IR-invisible ink. A 9 mm bar reading white at this height fits
+the sensor's view as well; the ink was not shown to be the cause.
+
+Simulation (WSL, the bench source and a simulated car
+with the measured geometry): the card levels pass reads the spec card (3/9 mm)
+at half the tape's darkness with a 4 mm spot, also with specks, a crossing line
+after the card, tape-dark and quarter-dark prints, and *Q7-*; it cannot read
+it with a 6 mm or wider spot.
+
+Result: FAIL. The bars narrower than about 18 mm are not resolvable with the
+barcode sensor 2 cm above the mat; no software change recovers them.
+Not done: a sensor mount closer to the mat that clears the bump (options:
+a holder beside the left wheel on the axle line, or a hinged holder), then
+S3-U03 for the barcode sensor on the school track and this test again.

@@ -93,6 +93,7 @@ def main() -> None:
                     "-Wswitch-enum", *include_flags(),
                     str(app_file("net_mqtt.c")),
                     str(app_file("mqttcmd.c")),
+                    str(app_file("navmap.c")),
                     str(firmware / "tests/mqttnet_test_main.c")]
         (output / "host_build_command.json").write_text(
             json.dumps(command, indent=2) + "\n")

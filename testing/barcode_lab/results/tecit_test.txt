@@ -1,0 +1,5 @@
+# Website-based test (tec-it bars, disc+logistic sensor fitted to 30 Oct big cards), 1 Nov
+# right / WRONG / none, accept margin 1.2 unless noted
+tS1 small card 1 cm, 104: current 0/0/104 | two-stage 88/0/16 | full matcher 87/1/16 (C->M at 1.27; 80/0/24 at margin 1.3)
+tSS small card sharper day, 104: current 10/1/93 | two-stage 40/0/64 | full matcher: run stopped (system low on memory)
+tB1 big card 1 cm, 52: current 8/0/44 | two-stage (before the stage-1 fix) 15/1/36, after the fix: run stopped | full matcher: not run

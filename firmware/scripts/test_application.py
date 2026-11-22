@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Build public-step application tests with explicit host-only boundary doubles.
 
-The shipped robot_config.h is never modified. The default copy retains every
-inhibit. Temporary fixture profiles enable reviewed-input flags only to exercise
+The shipped robot_config.h is never modified. The default copy closes every
+confirmation gate, whatever the shipped values. Temporary fixture profiles
+enable reviewed-input flags only to exercise
 application behavior with synthetic sensors, servo endpoints and fake codebook.
 The wiring_only profile enables ROBOT_WIRING_CONFIRMED alone (commissioning
 stage 2). Timing scenarios model an offset accelerometer clock and legal
@@ -84,35 +85,43 @@ def run(command: list[str], environment: dict[str, str]) -> dict:
 
 
 def prepare(destination: Path, profile: str) -> None:
-    """Copy target code; change only labelled synthetic fixture settings."""
+    """Copy target code; change only labelled synthetic fixture settings.
+
+    Every gate is set in the copy, whatever robot_config.h ships with, so a
+    commissioned branch (ROBOT_WIRING_CONFIRMED 1 on the car) runs the same
+    scenarios: default closes them all, a profile opens only its own.
+    """
     destination.mkdir(parents=True, exist_ok=True)
     for source in TARGET_HEADERS:
         shutil.copy2(source, destination / source.name)
     for name in ("robot_app.c", "app_cfg.c"):
         shutil.copy2(app_file(name), destination / name)
-    if profile != "default":
-        config_path = destination / "robot_config.h"
-        config = config_path.read_text()
-        for gate in PROFILE_GATES.get(profile, FIXTURE_GATES):
-            pattern = rf"(?m)^(#define\s+{gate}\s+)0\s*$"
-            config, count = re.subn(pattern, r"\g<1>1", config)
+    config_path = destination / "robot_config.h"
+    config = config_path.read_text()
+    opened = (() if profile == "default" else
+              PROFILE_GATES.get(profile, FIXTURE_GATES))
+    for gate in FIXTURE_GATES:
+        pattern = rf"(?m)^(#define\s+{gate}\s+)[01]\s*$"
+        config, count = re.subn(pattern, rf"\g<1>{int(gate in opened)}",
+                                config)
+        if count != 1:
+            raise RuntimeError(f"Expected one confirmation gate: {gate}")
+    if profile.startswith("servo_asymmetric_"):
+        replacements = {
+            "ROBOT_SERVO_MIN_US": "1100U",
+            "ROBOT_SERVO_MAX_US": "2100U",
+            "ROBOT_SERVO_ANGLE_SIGN":
+                "-1" if profile.endswith("reverse") else "1",
+        }
+        for name, value in replacements.items():
+            config, count = re.subn(
+                rf"(?m)^#define {name} .+$",
+                f"#define {name} {value}", config)
             if count != 1:
-                raise RuntimeError(f"Expected one unconfirmed gate: {gate}")
-        if profile.startswith("servo_asymmetric_"):
-            replacements = {
-                "ROBOT_SERVO_MIN_US": "1100U",
-                "ROBOT_SERVO_MAX_US": "2100U",
-                "ROBOT_SERVO_ANGLE_SIGN":
-                    "-1" if profile.endswith("reverse") else "1",
-            }
-            for name, value in replacements.items():
-                config, count = re.subn(
-                    rf"(?m)^#define {name} .+$",
-                    f"#define {name} {value}", config)
-                if count != 1:
-                    raise RuntimeError(f"Expected one servo setting: {name}")
-        config_path.write_text(
-            "/* HOST FIXTURE ONLY: synthetic input confirmations. */\n" + config)
+                raise RuntimeError(f"Expected one servo setting: {name}")
+    label = ("every confirmation gate closed" if profile == "default" else
+             "synthetic input confirmations")
+    config_path.write_text(f"/* HOST FIXTURE ONLY: {label}. */\n" + config)
 
 
 def main() -> int:
@@ -190,8 +199,10 @@ def main() -> int:
                 "Motion/Line release 1 ms after IMU/Vehicle (preempt_hump_"
                 "always: IMU phase 5, Motion phase 1); host ordering only"),
             "steady_plant_model": (
-                "preempt_steady*: both wheels pinned at one encoder count "
-                "per 5 ms Motion period, so no count quantisation"),
+                "preempt_steady* and collision_guard: both wheels pinned "
+                "at a whole number of encoder counts per 5 ms Motion "
+                "period (0.113 m/s, one count at 360 counts per turn), so "
+                "no count quantisation"),
             "crossbar_model": (
                 "barcode_crossbar: the side channel goes black 5 mm before "
                 "both line channels, after a decoded action"),

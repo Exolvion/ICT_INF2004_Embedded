@@ -1,0 +1,52 @@
+# realrun.py --gap=55 L30: C30: L31:  (template matcher, letters A-Z, both directions)
+L30:3212                         160-  299 len 139.5 | *Y*  rms  13.9 | next *R*  x1.41 | m 3.00 sig 1.49 c0 0.25 |   13s | CODE *Y* read in order at 194-336 mm (swing 3.5 sd, gap 30 mm)
+L30:3233                          82-  359 len 277.5 | *Z*< rms  13.2 | next *T*< x1.51 | m 6.02 sig 1.70 c0 0.25 |   27s | CODE *Z* read end to start at 2746-3028 mm (swing 4.5 sd, gap 30 mm)
+L30:3250                         144-  284 len 140.2 | *Y*  rms  13.0 | next *R*  x1.26 | m 3.03 sig 1.49 c0 0.30 |   18s | CODE *Y* read in order at 4916-5059 mm (swing 4.0 sd, gap 30 mm)
+L30:3273                          89-  369 len 280.7 | *Z*< rms  11.2 | next *T*< x1.70 | m 6.03 sig 1.70 c0 0.25 |   25s | CODE *Z* read end to start at 7469-7752 mm (swing 5.0 sd, gap 30 mm)
+L30:3562                         107-  324 len 217.3 | *Z*< rms  24.8 | next *T*< x1.23 | m 6.01 sig 1.70 c0 0.15 |   33s | GROUP 20 bars, no frame: TM6P / *J-Z at 2647-2931 mm (swing 4.0 sd, gap 30 mm)
+L30:3580                         156-  280 len 123.5 | *A*< rms  24.1 | next *U*< x1.00 | m 2.37 sig 1.49 c0 0.00 |   17s | GROUP 15 bars, no frame: *?P / *?P at 4804-4946 mm (swing 4.0 sd, gap 30 mm)
+L30:3603                          99-  325 len 226.0 | *Z*< rms  24.5 | next *V*< x1.17 | m 6.03 sig 1.70 c0 0.15 |   32s | GROUP 22 bars, not a Code 39 count at 7357-7641 mm (swing 4.0 sd, gap 30 mm)
+L30:3624                         141-  357 len 215.4 | *S*  rms  32.0 | next *T*  x1.02 | m 5.34 sig 9.20 c0 0.20 |   64s | GROUP 15 bars, no frame: *?P / *?P at 9530-9672 mm (swing 4.0 sd, gap 30 mm)
+L30:3846                          83-  200 len 116.7 | *D*  rms  28.5 | next *N*  x1.00 | m 2.89 sig 0.85 c0 0.00 |   25s | GROUP 16 bars, not a Code 39 count at 98-242 mm (swing 4.0 sd, gap 30 mm)
+L30:3869                         105-  336 len 231.2 | *Z*< rms  22.9 | next *V*< x1.23 | m 6.03 sig 1.70 c0 0.20 |   27s | GROUP 16 bars, not a Code 39 count at 2688-2972 mm (swing 4.0 sd, gap 30 mm)
+L30:3888                         160-  281 len 121.5 | *N*  rms  24.8 | next *L*  x1.01 | m 2.57 sig 2.12 c0 0.00 |   15s | GROUP 21 bars, not a Code 39 count at 4895-5140 mm (swing 4.0 sd, gap 30 mm)
+L30:3907                          96-  186 len  90.0 | *U*  rms  26.5 | next *W*  x1.04 | m 2.23 sig 1.75 c0 0.25 |   18s | GROUP 18 bars, not a Code 39 count at 7446-7730 mm (swing 4.0 sd, gap 30 mm)
+L30:3933                         106-  371 len 264.9 | *Z*< rms  21.8 | next *V*< x1.21 | m 6.03 sig 1.70 c0 0.20 |   35s | GROUP 15 bars, no frame: *YO / XNP at 9622-9765 mm (swing 4.0 sd, gap 30 mm) || 
+L30:4488                         156-  273 len 117.7 | *C*< rms  25.8 | next *M*< x1.05 | m 2.70 sig 5.75 c0 0.65 |   11s | CODE *Z* read end to start at 2543-2827 mm (swing 4.0 sd, gap 30 mm)
+L30:4526                         224-  343 len 119.3 | *C*< rms  21.9 | next *M*< x1.04 | m 2.69 sig 5.75 c0 0.65 |    7s | GROUP 6 bars, not a Code 39 count at 4733-4831 mm (swing 4.0 sd, gap 30 mm) || G
+L30:4542                          53-  168 len 115.1 | *Y*  rms  12.4 | next *R*  x1.11 | m 3.05 sig 2.50 c0 0.35 |    6s | GROUP 5 bars, no frame: K / U at 9431-9491 mm (swing 4.0 sd, gap 30 mm)
+L30:5048                          98-  353 len 254.3 | *Z*< rms   7.9 | next *T*< x1.70 | m 6.03 sig 2.98 c0 0.35 |   11s | CODE *Z* read end to start at 2636-2919 mm (swing 4.5 sd, gap 30 mm)
+L30:5082                         112-  354 len 242.1 | *Z*< rms   8.3 | next *T*< x1.72 | m 6.05 sig 2.98 c0 0.30 |   10s | GROUP 10 bars, no frame: YA / 1N at 4798-4943 mm (swing 4.0 sd, gap 30 mm) || CO
+L30:5101                          41-  181 len 140.8 | *Y*  rms  10.7 | next *R*  x1.14 | m 3.07 sig 2.12 c0 0.35 |    6s | GROUP 13 bars, not a Code 39 count at 9500-9644 mm (swing 4.0 sd, gap 30 mm)
+L30:5122                         219-  340 len 120.2 | *C*  rms  22.7 | next *M*  x1.02 | m 2.71 sig 5.75 c0 0.65 |    8s | CODE *Z* read end to start at 12057-12340 mm (swing 4.5 sd, gap 30 mm)
+L30:5139                          47-  164 len 116.7 | *Y*  rms  28.0 | next *R*  x1.03 | m 2.91 sig 2.50 c0 0.40 |    6s | GROUP 14 bars, not a Code 39 count at 14227-14359 mm (swing 4.0 sd, gap 30 mm)
+L30:6070                          36-  144 len 108.0 | *C*< rms  26.4 | next *M*< x1.01 | m 2.45 sig 2.01 c0 0.00 |    5s | GROUP 16 bars, not a Code 39 count at 5040-5147 mm (swing 4.0 sd, gap 30 mm) || 
+L30:6442                          53-  171 len 118.0 | *Y*  rms  15.4 | next *R*  x1.05 | m 3.10 sig 2.50 c0 0.40 |    6s | GROUP 6 bars, not a Code 39 count at 272-333 mm (swing 4.0 sd, gap 30 mm)
+L30:6676                         103-  384 len 281.0 | *Z*< rms  27.4 | next *V*< x1.14 | m 6.04 sig 2.98 c0 0.25 |   10s | GROUP 21 bars, not a Code 39 count at 2353-2636 mm (swing 4.0 sd, gap 30 mm)
+L30:6712                         101-  231 len 130.9 | *L*< rms  30.2 | next *B*< x1.06 | m 3.56 sig 2.88 c0 0.15 |    6s | GROUP 22 bars, not a Code 39 count at 4537-4654 mm (swing 4.0 sd, gap 30 mm) || 
+L30:11843                         50-  152 len 102.6 | *Z*  rms  21.7 | next *V*< x1.00 | m 2.61 sig 4.00 c0 0.25 |    6s | GROUP 9 bars, not a Code 39 count at 321-422 mm (swing 4.0 sd, gap 30 mm)
+L30:12448                          0-  140 len 139.5 | *X*< rms 545.5 | next *V*< x1.08 | m 2.68 sig 4.25 c0 0.25 |    6s | GROUP 8 bars, not a Code 39 count at 37-131 mm (swing 4.0 sd, gap 30 mm)
+L30:12480                        179-  480 len 300.6 | *A*  rms  90.7 | next *K*  x1.40 | m 6.04 sig 3.50 c0 0.55 |   14s | GROUP 13 bars, not a Code 39 count at 1149-1294 mm (swing 4.0 sd, gap 30 mm) || 
+L30:12540                         78-  378 len 300.3 | *A*  rms  90.7 | next *K*  x1.33 | m 6.04 sig 3.50 c0 0.55 |   15s | GROUP 16 bars, not a Code 39 count at 7082-7384 mm (swing 4.0 sd, gap 30 mm)
+L30:12570                         34-  159 len 125.7 | *I*  rms 436.6 | next *Y*  x1.05 | m 3.28 sig 2.88 c0 0.40 |    6s | GROUP 5 bars, no frame: K / U at 9230-9302 mm (swing 4.0 sd, gap 30 mm)
+L30:12965                        108-  394 len 285.8 | *A*  rms 511.0 | next *K*  x1.57 | m 6.05 sig 1.70 c0 0.35 |   12s | GROUP 9 bars, not a Code 39 count at 1317-1479 mm (swing 4.0 sd, gap 30 mm)
+L30:13522                         51-  335 len 283.9 | *A*  rms 131.3 | next *K*  x1.58 | m 6.04 sig 3.50 c0 0.45 |   14s | CODE *A* read in order at 301-584 mm (swing 4.0 sd, gap 30 mm)
+L30:13573                         95-  389 len 293.5 | *A*  rms 115.0 | next *K*  x1.43 | m 6.06 sig 3.50 c0 0.50 |   16s | CODE *A* read in order at 4969-5252 mm (swing 4.0 sd, gap 30 mm)
+C30:10-30_S3-U07_mission_04768.txt   244-  365 len 120.9 | *C*< rms  32.7 | next *M*  x1.05 | m 2.75 sig 5.75 c0 0.65 |    7s | 
+C30:10-30_S3-U07_mission_10213.txt   212-  332 len 119.6 | *C*  rms  31.2 | next *M*  x1.03 | m 2.69 sig 5.75 c0 0.65 |    7s | 
+C30:10-30_S3-U07_mission_10342.txt   217-  336 len 119.3 | *C*  rms  30.0 | next *M*  x1.03 | m 2.68 sig 5.75 c0 0.65 |    6s | 
+C30:10-30_S3-U07_mission_13284.txt   235-  338 len 102.2 | *F*  rms  23.1 | next *S*  x1.02 | m 2.27 sig 5.75 c0 0.60 |    5s | 
+C30:10-30_S3-U07_mission_13431.txt    41-  156 len 114.8 | *V*  rms 183.9 | next *Q*  x1.00 | m 2.20 sig 5.75 c0 0.65 |    9s | 
+C30:10-30_S3-U07_mission_run5_00125.txt   212-  332 len 119.6 | *C*  rms  31.2 | next *M*  x1.03 | m 2.69 sig 5.75 c0 0.65 |   11s | 
+C30:10-30_S3-U07_mission_run5_00254.txt   217-  336 len 119.3 | *C*  rms  30.0 | next *M*  x1.03 | m 2.68 sig 5.75 c0 0.65 |   11s | 
+C30:10-30_S3-U07_static_04048.txt   133-  303 len 169.8 | *Q*  rms 1152.2 | next *W*  x1.02 | m 4.91 sig 5.75 c0 0.00 |   14s | 
+C30:10-30_S3-U07_static_04617.txt   113-  355 len 242.7 | *Z*< rms   7.9 | next *T*< x1.72 | m 6.02 sig 2.98 c0 0.40 |   24s | 
+C30:10-30_S3-U07_static_04947.txt    45-  157 len 111.6 | *R*  rms 147.7 | next *Y*  x1.00 | m 2.98 sig 2.50 c0 0.65 |   11s | 
+
+# realrun.py on traces (30 Oct morning, 1 mm) and the 29 Oct 2 cm traces
+T:run3_trace.txt   *Y*  x1.58 (small card, confirmed Y that morning)
+T:run4_trace.txt   *Z*< x2.20 (big card, confirmed Z)
+T:run6_trace.txt@160,300  *Y* x1.05 next R
+T:run5_trace.txt@120,235  *B* x1.00 rms 134 (pass with spikes; no read)
+T29:t29_1_trace.txt *Z*< x1.14 next *T*< (2 cm, wide bars only)
+T29:t29_2_trace.txt *Z*< x1.08 next *T*<

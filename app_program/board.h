@@ -181,8 +181,14 @@ void board_encoders_discard (void);
  */
 void board_encoder_totals (uint16_t * p_left, uint16_t * p_right);
 
-/** Read ADC0/1/2 into three 0..4095 samples. Null returns false. */
+/** Read the left, right and barcode IR (ROBOT_PIN_IR_*, each on its own ADC
+ * input) into three 0..4095 samples in that order. Null returns false. */
 bool board_read_ir (uint16_t samples[3]);
+
+/** Read the barcode IR module's digital D0 (ROBOT_PIN_IR_BARCODE_AUX): its
+ * comparator against the module's trimmer. Polled only, no interrupt.
+ * True when the pin is high. */
+bool board_barcode_d0 (void);
 
 /** Read a fresh unsaturated XYZ sample, milligravity, LSM303 sensor axes.
  * PENDING means no new sample yet; do not consume output or refresh its age.
@@ -203,6 +209,12 @@ bool board_ultrasonic_trigger (void);
 
 /** Advance the timeout state; call from the scanner task every 2 ms. */
 void board_ultrasonic_service (void);
+
+/** Optional hook, called when an echo completes or times out: from the GPIO
+ * interrupt or from board_ultrasonic_service. It must not block (an
+ * interrupt handler may call it). NULL (the default) turns it off.
+ */
+void board_ultrasonic_notify (void (* p_notify)(void));
 
 /** Consume completed echo or timeout. False means not yet complete.
  * A returned result with *p_valid false is UNKNOWN, never free space.

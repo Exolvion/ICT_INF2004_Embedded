@@ -1,0 +1,17 @@
+cut_00005.txt	5	422	GROUP 6 bars, not a Code 39 count, characters V / R at 25-104 mm (swing 4.0 sd, gap 30 mm)
+cut_00058.txt	58	732	
+cut_00247.txt	247	1105	GROUP 22 bars, not a Code 39 count, characters - / M at 97-387 mm (swing 4.0 sd, gap 30 mm)
+cut_00356.txt	356	0	GROUP 6 bars, not a Code 39 count, characters 7 / C at 557-656 mm (swing 4.0 sd, gap 30 mm) || GROUP 11 bars, not a Code 39 count, characters none / none at 725-837 mm (swing 4.0 sd, gap 30 mm)
+cut_03033.txt	3033	1197	GROUP 24 bars, not a Code 39 count, characters YI13 / GA9N at 2501-2784 mm (swing 4.0 sd, gap 30 mm)
+cut_03061.txt	3061	863	
+cut_03100.txt	3100	778	
+cut_03128.txt	3128	240	
+cut_04378.txt	4378	473	GROUP 24 bars, not a Code 39 count, characters WK / UQ at 552-805 mm (swing 4.0 sd, gap 30 mm) || GROUP 5 bars, no frame: K / U, characters K / U at 861-962 mm (swing 4.0 sd, gap 30 mm)
+cut_04495.txt	4495	1143	GROUP 18 bars, not a Code 39 count, characters WUW / QKQ at 1584-1866 mm (swing 4.0 sd, gap 30 mm)
+cut_04525.txt	4525	1121	
+cut_04561.txt	4561	822	
+cut_04594.txt	4594	1291	
+cut_04667.txt	4667	762	CODE *Z* read in order at 1034-1177 mm (swing 3.5 sd, gap 30 mm)
+cut_04707.txt	4707	796	
+cut_04742.txt	4742	759	
+cut_04777.txt	4777	388	

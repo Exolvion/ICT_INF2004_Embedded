@@ -1,0 +1,15 @@
+Remote STOP on the stand (valid command check before INT-01), 2026-10-27, run by Siang Hong
+Build: build-target/mqtt, normal firmware (2d121bc + uncommitted: WIRING=1, SysTick SYST_CVR fix, encoder pin remap, left encoder sign -1), broker <broker IP>, uf2 sha256 76eb4b1ea4c82dc7...
+Car: on the stand, USB power from the laptop, fresh power cycle, no wheel touched. Before the command: INIT, mask 0, no stop source, ign 0.
+Command: printf '\xa9' | docker exec -i mqtt mosquitto_pub -t inf2004/is29/command -s   (one byte, MQTTCMD_STOP_BYTE), issued about 5 s into a 15 s recording.
+Files: 2026-10-27_remote-STOP-stand_raw.txt (laptop receive time + hex frame), .jsonl (decoded), _sent.txt (laptop time just before mosquitto_pub started)
+Result:
+  car ms 70212  status INIT (last before the stop)
+  car ms 70402  stop latched (diagnostic fm 70402, fc 2)
+  car ms 70412  status FAULT, then FAULT in every status frame to the end (50 frames, about 10 s)
+  diagnostic: stop_source REMOTE (src 2), faults [] (mask 0): a soft stop, not a fault; status fault false, hv false
+  ign 0 before and after (the byte was accepted, not ignored); seq 77-152 with no gaps; drop unchanged at 7
+  status "stop" is true in INIT as well (motors locked on the stand), so it does not mark the change by itself.
+Command issue to first FAULT frame at the laptop: 0.56 s, including docker exec start-up. Not a latency measurement (that is INT-02).
+Not checked: clearing it. The code clears a soft stop on an approved reset (robot_app.c, reset path) or a power cycle; neither was tried here.
+Result: PASS. A valid binary STOP reaches the car and latches a REMOTE soft stop.

@@ -41,6 +41,12 @@
 #define ROBOT_APP_SOURCE_MASK (3U)
 #define ROBOT_APP_VERSION_MASK (0xFU)
 #define ROBOT_APP_DONE_MASK (3U)
+/* Half-counts per barcode decoder unit. The decoder stores run widths in
+ * 8 bits (at most 255 units): at 2533 counts per turn one half-count is
+ * 0.040 mm, so 8 of them (0.32 mm, near the 0.28 mm it was designed with
+ * at 360 counts) keep the 60 mm widest-run limit at 186 units.
+ */
+#define ROBOT_APP_BARCODE_UNIT_HC (8U)
 
 /** Fault record: written only under the lock (see file comment). A reset
  * is approved only if no stop was raised after the Vehicle snapshot that
@@ -499,9 +505,12 @@ void robot_app_line_step (uint32_t now_ms)
     }
     if (b_valid && (VEHICLE_FOLLOW == copy.vehicle.state))
     {
+        /* At the 2^32 half-count wrap (173 km) the divided coordinate
+         * steps back, which only drops an open frame like any reverse.
+         */
         b_valid = barcode_step(&g_barcode_runtime, &g_barcode,
-            barcode_classify(&g_barcode_runtime, raw[2]), g_optical_hc,
-            now_ms, &code);
+            barcode_classify(&g_barcode_runtime, raw[2]),
+            g_optical_hc / ROBOT_APP_BARCODE_UNIT_HC, now_ms, &code);
     }
     else
     {
@@ -1131,8 +1140,9 @@ static bool robot_app_sensors_init (void)
     b_ready = scanner_init(&g_scanner, &scan_config) && b_ready;
     b_ready = line_ctrl_derive(&line_config, &g_line_runtime) && b_ready;
     /* Needs the half-count quantum from robot_app_motion_init(). */
-    b_ready = barcode_derive(course_cfg_codebook(), g_half_count_m,
-                             &line_config, &g_barcode_runtime) && b_ready;
+    b_ready = barcode_derive(course_cfg_codebook(),
+        g_half_count_m * (double)ROBOT_APP_BARCODE_UNIT_HC,
+        &line_config, &g_barcode_runtime) && b_ready;
     if (terrain_config.b_calibrated)
     {
         /* Reference is a stored, reviewed stationary mean in vehicle axes. */
@@ -1447,14 +1457,16 @@ static void robot_app_front_result (bool b_valid, uint32_t pulse_us)
     }
 }
 
-/** @brief Calibrated zero and sign map a -60..60 beam sector to PWM. */
+/** @brief Calibrated zero and sign map the +/-ROBOT_SCAN_HALF_ANGLE_DEG beam
+ * sector to PWM. */
 static bool robot_app_servo (int32_t angle_deg)
 {
     int32_t pulse_us = 0;
     int32_t physical_deg = 0;
     int32_t span_us = 0;
 
-    if ((angle_deg < -60) || (angle_deg > 60) ||
+    if ((angle_deg < -ROBOT_SCAN_HALF_ANGLE_DEG) ||
+        (angle_deg > ROBOT_SCAN_HALF_ANGLE_DEG) ||
         ((1 != ROBOT_SERVO_ANGLE_SIGN) && (-1 != ROBOT_SERVO_ANGLE_SIGN)) ||
         (0U == ROBOT_SERVO_MIN_US) ||
         (ROBOT_SERVO_MIN_US >= ROBOT_SERVO_CENTRE_US) ||
@@ -1470,7 +1482,7 @@ static bool robot_app_servo (int32_t angle_deg)
         (int32_t)(ROBOT_SERVO_CENTRE_US - ROBOT_SERVO_MIN_US) :
         (int32_t)(ROBOT_SERVO_MAX_US - ROBOT_SERVO_CENTRE_US);
     pulse_us = (int32_t)ROBOT_SERVO_CENTRE_US +
-        ((physical_deg * span_us) / 60);
+        ((physical_deg * span_us) / ROBOT_SCAN_HALF_ANGLE_DEG);
     /* Validated endpoints bound the result within the uint16_t board API. */
     return board_servo_us((uint16_t)pulse_us);
 }
@@ -1716,7 +1728,8 @@ static int32_t robot_app_path_delta (uint16_t newer, uint16_t older)
 
 /** @brief Two-millisecond optical path from independent encoder totals:
  * the signed centre path in half-counts (left + right counts), wrapping
- * modulo 2^32, so barcode widths are whole half-counts.
+ * modulo 2^32, so barcode widths are whole decoder units of
+ * ROBOT_APP_BARCODE_UNIT_HC half-counts.
  */
 static bool robot_app_optical_path (void)
 {
@@ -1753,8 +1766,9 @@ static bool robot_app_codebook_ready (void)
     {
         return false;
     }
-    quantum_m = (2.0 * CORE_PI * ROBOT_WHEEL_RADIUS_M) /
-                counts_per_revolution;
+    /* One decoder unit of centre path, the step barcode_step() sees. */
+    quantum_m = ((double)ROBOT_APP_BARCODE_UNIT_HC * CORE_PI *
+                 ROBOT_WHEEL_RADIUS_M) / counts_per_revolution;
     /* Qualify the largest accepted gap, not the nominal 2 ms task period.
      * The line-speed bound and encoder calibration still need bench proof.
      */

@@ -1,0 +1,20 @@
+S5-U08 Obstacle stop while following the line, 2026-10-28 evening, run by Siang Hong
+Build: build-target/bench/bench_motion_mqtt.uf2 (motion bench image, NOT the robot firmware), sha256 7d13ab81fb68ce0cba59e4e313f50a902ee869f06fcf52949f876076750e35f6,
+  built from 2d121bc + uncommitted working tree (firmware/bench/bench_main.c LINE + stop and SCAN tests). Flashed with the full check set skipped; the set was run afterwards.
+Test: "LINE + stop within 10 cm of an obstacle, 120 mm/s (floor)", gain set 4 (P 3.00 I 15.00 D 0.00), robot line_ctrl + FOLLOW law, front sonar centred (1780 us) and polled as the robot does.
+  Stops at the first VALID range <= 100 mm (BENCH_LINE_STOP_MM; the test asks for a stop within 10 cm). Also records where the robot's own 250 mm rule (ROBOT_FRONT_STOP_DISTANCE_MM) would have fired.
+Course: our 1 m floor line (tape widened to ~2.2 cm) ending in a T, beige glossy tiles.
+Obstacle: a 1.5 l shop water bottle standing upright on the line, placed at random by hand (distance not given to the car: the car finds it itself).
+Raw output: 2026-10-28_S5-U08_line_stop.txt (run 1 from line 219, run 2 from line 441; 250 ms trace with an f front-range column after each).
+
+Run  first range  stopped at  1 s later  line travelled  time   roll-on  robot 250 mm rule        readings  not VALID (first)
+ 1   648 mm       100 mm      98 mm      540 mm          9.5 s  2 mm     249 mm after 400 mm       137       10 (1.6 s)
+ 2   464 mm        96 mm      83 mm      368 mm          6.6 s  1 mm     250 mm after 219 mm        95        6 (2.1 s)
+
+Ranges fell with the encoder travel to within about 15 mm all the way in (run 1: 648 - travel vs reading, e.g. travel 539 -> 109 mm).
+Each run had one stray long VALID reading (1547 mm at 5.5 s, 1399 mm at 2.5 s), each next to a no-echo reading, while the line state was SEARCHING (hard steering): likely the beam glancing off the round bottle to the wall behind.
+2 mm and 1 mm roll-on: the 120 mm/s halt stops almost at once. Run 2's 1 s later reading (83 mm) changed by 13 mm while the car rolled 1 mm and turned about 1 degree (round target).
+Sonar reads about 7 mm long at 200-250 mm (S5-U04), so the real gaps were about 89-93 mm at the stop.
+
+Result: PASS, 2/2 runs (detection 2/2, stopped within 10 cm, no contact). No more runs that day; the test case asks for 10 runs, so 8 remain if a full set is wanted.
+Finding for the robot firmware: 6-10 readings per run are not VALID; the robot's FOLLOW halts on each one (RANGE_WAIT, then FAULT after 1 s without a fresh VALID range), so it would stop-start or fault on this course.

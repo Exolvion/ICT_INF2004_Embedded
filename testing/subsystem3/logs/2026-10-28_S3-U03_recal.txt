@@ -1,0 +1,30 @@
+S3-U03 IR calibration, redone 2026-10-28 (motion bench image 639b45a2 era,
+before the reflash with these values). Raw data: 2026-10-28_S3_line_bench.txt,
+"IR L/R/B mean min-max" lines, 1 s averages, car still on the floor tiles.
+
+Why redone: the two line sensors were spread to sit over the tape edges, then
+swapped sides (the firmware's L channel read the physical right sensor,
+17:16 run), and the tape is darker than the 27 Oct tape.
+
+Position (log line where it starts)          L            R            B
+White, first spot (3757): rejected      343-378    1137-1254       ~282
+  (something dark under R: grout line or tape edge)
+White, mid-tile (3987)                  190 mean   212 mean    137 mean
+                                        139-217    182-264     109-160
+Tape under the left lens only (4108)   4050 mean   ~1300 (edge) 4043 mean
+                                       4025-4089                4017-4095
+Tape under the right lens only (4179)  ~212        4088 mean    ~144
+                                                   4074-4095
+
+Entered in app_program/robot_config.h:
+  ROBOT_IR_LEFT_WHITE 190     ROBOT_IR_LEFT_BLACK 4050
+  ROBOT_IR_RIGHT_WHITE 212    ROBOT_IR_RIGHT_BLACK 4088
+  ROBOT_IR_BARCODE_WHITE 137  ROBOT_IR_BARCODE_BLACK 4043
+  (27 Oct: 178/2800, 170/3281, 144/3950)
+Derived DARK thresholds (black_on 0.75): L 3085, R 3119, B 3067.
+The barcode black is tape, not the printed codebook: recheck in S3-U04/U05.
+
+Image with these values: bench_motion_mqtt.uf2 639b45a2 (flashed before the
+full check set), then 31c18bec (line test coasts
+through white gaps); full check set PASS on the 31c18bec source, robot mqtt
+image 44ef9622.

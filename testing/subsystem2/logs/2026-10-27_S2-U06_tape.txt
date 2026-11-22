@@ -1,0 +1,12 @@
+S2-U06 Wheel radius and track width, 2026-10-27, run by Siang Hong
+Car: on the floor (loaded), firmware not involved.
+Method: tape measure (no callipers).
+  Wheel diameter: across the tyre tread, 65 mm -> radius 32.5 mm.
+  Track width: same-side edge to same-side edge (left edge of the left tyre to left edge of the right tyre) at floor level,
+  which equals tyre centre to tyre centre without needing the tyre width: 130 mm.
+Resolution: about 1 mm per reading (about 1.5% of the diameter, 0.8% of the track width).
+Entered in app_program/robot_config.h:
+  ROBOT_WHEEL_RADIUS_M 0.0325 (unchanged: the earlier hypothesis matched)
+  ROBOT_TRACK_WIDTH_M 0.130 (was 0.140, an unmeasured hypothesis; yaw rate from wheel speeds was 7% low)
+Not done: the 1000 mm roll test with the encoder diagnostic, which would give the loaded rolling radius from counts.
+Result: PASS (values measured and entered).

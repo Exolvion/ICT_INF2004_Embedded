@@ -1,0 +1,1332 @@
+30 mm L -5 R -2 err 0
+IR L 2237 2211-2264 R 224 197-248 B 162 134-176
+ACC mg n 46 x +5 +2..+10 y +5 +1..+10 z +990 +985..+996
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2236 2213-2264 R 227 196-248 B 162 134-178
+ACC mg n 56 x +6 +2..+11 y +6 +4..+13 z +991 +984..+999
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2238 2210-2264 R 226 195-248 B 164 138-180
+ACC mg n 55 x +5 +2.IR L 2238 2211-2264 R 226 197-246 B 164 148-181
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2235 2211-2308 R 227 194-248 B 164 138-181
+ACC mg n 65 x +5 +1..+10 y +5 +0..+11 z +992 +987..+1003
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2195 2109-2329 R 222 198-250 B 198 125-258
+ACC mg n 43 x +5 +2..+9 y +5 +0..+10 z +990 +983..+997
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2277 2203-2332 R 226 187-249 B 170 121-240
+ACC mg n 52 x +5 +1..+9 y +6 +0..+12 z +989 +983..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2250 2220-2273 R 225 203-246 B 145 126-163
+ACC mg n 52 x +4 +1..+9 y +5 +3..+10 z +991 +987..+995
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2246 2219-2270 R 224 196-248 B 145 122-163
+ACC mg n 51 x +5 +1..+9 y +6 +2..+11 z +993 +989..+1001
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2246 2219-2270 IR L 2293 2214-2420 R 226 193-248 B 143 121-164
+ACC mg n 58 x +6 -52..+32 y +4 -16..+23 z +991 +983..+1017
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2351 2325-2377 R 226 200-250 B 138 123-156
+ACC mg n 39 x +5 +1..+10 y +6 +3..+11 z +990 +984..+997
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2321-2380 R 229 204-249 B 138 120-156
+ACC mg n 48 x +6 +1..+12 y +6 +3..+8 z +991 +987..+999
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2348 2322-2374 R 225 198-248 B 138 112-156
+ACC mg n 57 x +5 -1..+9 y +6 +3..+10 z +991 +985..+996
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+MODE DIST 1 m (floor), gains 0 (configured) P 1.00 I 0.30 D 0.00
+IR L 2348 2321-2373 R 227 203-248 B 138 123-148
+ACC mg n 26 x +5 +2.ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2346 2321-2388 R 227 197-248 B 138 120-157
+ACC mg n 55 x +4 +0..+11 y +6 +2..+11 z +992 +987..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+MODE LEFT 90 (floor), gains 0 (configured) P 1.00 I 0.30 D 0.00
+IR L 2345 2321-2370 R 229 198-249 B 139 123-156
+ACC mg n 54 x +5 +1.ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2346 2318-2371 R 226 204-248 B 140 115-158
+ACC mg n 58 x +5 -2..+8 y +6 +3..+11 z +992 +986..+999
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2321-2372 R 227 198-258 B 139 117-158
+ACC mg n 52 x +5 +2..+11 y +5 +2..+10 z +991 +985..+995
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+MODE RIGHT 90 (floor), gains 0 (configured) P 1.00 I 0.30 D 0.00
+IR L 2346 2321-2372 R 227 204-246 B 137 126-153
+ACC mg n 20 x +5 +2.ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2346 2322-2372 R 226 199-249 B 140 123-157
+ACC mg n 50 x +6 +2..+11 y +6 +1..+10 z +991 +984..+996
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2346 2323-2373 R 227 203-249 B 139 117-156
+ACC mg n 49 x +5 +2..+11 y +6 +2..+11 z +992 +986..+999
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+MODE TURN 180 (floor), gains 0 (configured) P 1.00 I 0.30 D 0.00
+IR L 2345 2322-2372 R 227 203-248 B 139 124-154
+ACC mg n 28 x +5 +2.ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2346 2321-2372 R 226 198-249 B 138 122-155
+ACC mg n 57 x +6 +3..+11 y +7 +3..+11 z +992 +985..+1000
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2321-2372 R 225 200-248 B 139 117-157
+ACC mg n 56 x +6 +2.IR L 2346 2321-2372 R 227 203-249 B 140 123-157
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2348 2321-2374 R 227 198-249 B 137 123-156
+ACC mg n 55 x +6 +1..+11 y +7 +4..+12 z +991 +986..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2345 2320-2372 R 227 198-248 B 138 112-157
+ACC mg n 54 x +6 +3..+12 y +7 +3..+12 z +992 +985..+1001
+ENC counts L -61 R -30 mm L -5 R -2 err IR L 2350 2322-2387 R 226 196-248 B 138 113-155
+ACC mg n 44 x +5 +1..+10 y +6 +1..+12 z +993 +987..+999
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2345 2322-2371 R 227 202-249 B 140 120-155
+ACC mg n 31 x +6 +2.ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2347 2322-2394 R 227 197-247 B 139 117-157
+ACC mg n 71 x +5 +2..+10 y +6 +2..+12 z +991 +981..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2345 2321-2372 R 227 199-249 B 140 112-157
+ACC mg n 49 x +5 +2..+9 y +6 +2..+10 z +992 +986..+1000
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2322-2372 R 225 197-249 B 138 110-156
+ACC mg n 48 x +5 +0..+9 y +6 +2..+11 z +991 +985..+997
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2348 2322-2373 R 225 198-245 B 138 117-155
+ACC mg n 58 x +5 +1..+10 y +7 +3..+11 z +991 +986..+1000
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+MODE LINE + stop within 10 cm of an obstacle, 120 mm/s (floor), gains 0 (configured) P 1.00 I 0.30 D 0.00
+IR L 2362 2362-2362 R 240 240-240 B 146 146-146
+ACC mg n 1 x +8 +8..ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2348 2323-2374 R 228 203-248 B 138 121-156
+ACC mg n 41 x +5 +1.ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2347 2321-2373 R 228 202-249 B 137 122-156
+ACC mg n 70 x +5 +3..+10 y +7 +2..+12 z +992 +985..+1002
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2350 2320-2373 R 223 196-246 B 139 117-156
+ACC mg n 59 x +5 +2.IR L 2350 2322-2376 R 226 200-248 B 138 114-157
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2346 2322-2374 R 228 198-248 B 139 113-157
+ACC mg n 67 x +5 +2..+10 y +6 +1..+10 z +993 +986..+999
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2348 2322-2372 R 224 202-248 B 140 114-156
+ACC mg n 57 x +5 +1..+10 y +6 +1..+14 z +990 +982..+995
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2323-2372 R 226 203-251 B 138 115-158
+ACC mg n 56 x +5 +3..+10 y +6 +1..+12 z +991 +983..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2350 2323-2373 R 226 198-248 B 138 121-157
+ACC mg n 56 x +6 +3..+12 y +7 +3..+13 z +990 +986..+997
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2322-2376 R 225 196-249 B 139 113-158
+ACC mg n 55 x +5 +3..+11 y +7 +3..+12 z +991 +986..+997
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2348 2321-2373 R 227 204-246 B 139 117-157
+ACC mg n 55 x +5 +0..+9 y +6 +1..+10 z +992 +987..+1000
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2350 2321-2374 IR L 2347 2320-2372 R 227 197-248 B 136 117-155
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2350 2321-2379 R 226 197-248 B 139 112-156
+ACC mg n 73 x +5 +1..+10 y +7 +2..+11 z +991 +985..+998
+ENC counts L -61 R -30 mm L -5 R -2 err ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2350 2322-2389 R 225 200-249 B 139 120-156
+ACC mg n 41 x +5 +3..+9 y +6 +3..+11 z +993 +989..+997
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2345 2320-2372 IR L 2345 2322-2374 R 229 201-249 B 137 118-154
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2347 2321-2373 R 228 202-248 B 139 115-157
+ACC mg n 69 x +5 +3..+10 y +6 +1..+10 z +992 +987..+998
+ENC counts L -61 R -IR L 2350 2323-2374 R 225 201-249 B 138 120-156
+ACC mg n 58 x +6 +3..+10 y +6 +3..+10 z +991 +984..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2322-2376 R 227 202-248 B 136 112-157
+ACC mg n 57 x +5 +2..+11 y +7 +3..+13 z +992 +986..+1001
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2352 2323-2380 R 224 200-248 B 139 117-158
+ACC mg n 56 x +5 +1..+10 y +6 +2..+12 z +992 +988..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2322-2374 R 225 198-245 B 139 122-157
+ACC mg n 55 x +5 +1..+8 y +7 +3..+11 z +991 +986..+1000
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2347 2323-2373 R 226 196-247 B 137 113-156
+ACC mg n 55 x +6 +1.IR L 2350 2321-2374 R 227 201-248 B 138 116-157
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2345 2323-2372 R 228 198-249 B 138 118-158
+ACC mg n 75 x +6 +2..+12 y +5 +2..+10 z +992 +984..+999
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2347 2323-2374 R 228 199-248 B 137 112-156
+ACC mg n 54 x +5 +3..+11 y +6 +3..+12 z +991 +983..+1000
+ENC counts L -61 R -IR L 2351 2322-2376 R 224 203-248 B 139 120-156
+ACC mg n 59 x +5 +3..+9 y +5 +2..+10 z +991 +986..+999
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2350 2322-2372 R 227 203-248 B 139 121-154
+ACC mg n 32 x +6 +3.ENC counts L -61 R -30 mm L -5 R -2 err 0
+MODE LINE + stop within 10 cm of an obstacle, 120 mm/s (floor), gains 1 P 1.00 I 3.00 D 0.00
+IR L 2345 2322-2372 R 228 203-248 B 138 125-157
+ACC mg n 24 x +6 +3..+9 y +5 +3..+7 z +991 +982..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2350 2322-2370 R 223 197-246 B 140 122-155
+ACC mg n 19 x +4 +1.ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2348 2321-2372 R 226 197-246 B 138 122-158
+ACC mg n 34 x +6 +2..+12 y +6 +4..+9 z +993 +987..+999
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2323-2372 R 226 196-246 B 138 116-156
+ACC mg n 47 x +5 +1..+9 y +6 +1..+12 z +992 +985..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2348 2321-2372 R 227 201-248 B 137 118-153
+ACC mg n 57 x +5 +1..+12 y +7 +3..+11 z +991 +987..+998
+IR L 2348 2323-2373 R 227 196-248 B 137 110-158
+ACC mg n 59 x +6 +3..+11 y +6 +3..+14 z +992 +987..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2347 2323-2373 R 229 206-247 B 136 113-152
+ACC mg n 34 x +5 +3.ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2346 2322-2373 R 228 202-248 B 138 117-157
+ACC mg n 74 x +5 +1..+10 y +6 +3..+13 z +991 +983..+997
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2347 2321-2373 R 229 203-246 B 136 115-156
+ACC mg n 53 x +5 +0..+10 y +6 +1..+11 z +991 +984..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+MODE LINE + stop within 10 cm of an obstacle, 120 mm/s (floor), gains 4 P 3.00 I 15.00 D 0.00
+IR L 2337 2337-2337 R 218 218-218 B 128 128-128
+ACC mg n 1 x +5 +5..+5 y +2 +2..+2 z +987 +987..+987
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2346 2322-2371 R 223 201-246 B 144 125-156
+ACC mg n 10 x +5 +3.ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2322-2371 R 224 197-246 B 139 119-156
+ACC mg n 50 x +5 +1..+11 y +5 -1..+8 z +992 +986..+997
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2350 2322-2371 R 223 203-245 B 138 117-156
+ACC mg n 49 x +6 +4..+11 y +6 +3..+13 z +991 +984..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2346 2323-2395 R 228 200-248 B 138 119-157
+ACC mg n 59 x +6 +2..+11 y +6 +3..+11 z +992 +985..+999
+ENC counts L -61 R -30 mm L -5 R -2 err IR L 2347 2323-2373 R 226 195-249 B 138 116-157
+ACC mg n 58 x +5 +1..+10 y +6 +3..+10 z +990 +983..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2351 2322-2372 R 225 204-248 B 137 110-156
+ACC mg n 55 x +6 +2..+10 y +6 +2..+11 z +990 +984..+997
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2322-2373 R 225 203-248 B 138 121-158
+ACC mg n 55 x +5 +1..+11 y +5 +2..+10 z +990 +985..+995
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2349 2323-2374 R 228 201-249 B 137 121-158
+ACC mg n 54 x +5 +1..+10 y +5 +1..+12 z +990 +985..+996
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2347 2323-2373 R 228 203-248 B 137 111-156
+ACC mg n 53 x +6 +2..+11 y +6 +4..+10 z +992 +988..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+IR L 2346 2322-2373 R 228 200-250 B 137 112-156
+ACC mg n 52 x +4 +1..+8 y +6 +2..+14 z +992 +986..+998
+ENC counts L -61 R -30 mm L -5 R -2 err 0
+MODE LINE + stop within 10 cm of an obstacle, 120 mm/s (floor), gains 4 P 3.00 I 15.00 D 0.00
+DRIVE start: car on the floor, path clear; STOP aborts
+LINE + stop within 10 cm of an obstacle, 120 mm/s (floor) stopped: obstacle ahead after 9.5 s: gains 4 P 3.00 I 15.00 D 0.00, dt max 8.0 ms
+ at completion: ENC mm L +545 R +535, heading -4.1 deg
+ 1 s later: ENC mm L +548 R +536, heading -5.3 deg
+ Now measure the real stop: sensors to the line and the T.
+ front sonar: obstacle at 100 mm after 540 mm of line; 1 s later it reads 98 mm, car rolled 2 mm after detection
+ robot rule (250 mm): would have stopped at 249 mm after 400 mm of line
+ readings while driving 137, not VALID 10 (first at 1.6 s: the robot would halt there, RANGE_WAIT)
+ gaps crossed on the last command (TRACKING to SEARCHING) 118; trace t ms, d centre mm, IR raw, s steer q7 (+ line right), line, h heading deg (+ left)
+ f front sonar mm (none: no VALID range yet or the latest not VALID)
+ 0 d +0 L 2378 R 241 B 148 s -124 TRACKING h 0.0 f none
+ 250 d +12 L 197 R 1424 B 155 s +126 TRACKING h 2.3 f 648
+ 500 d +26 L 198 R 2406 B 138 s +126 TRACKING h 2.4 f 613
+ 750 d +39 L 216 R 2392 B 131 s +124 TRACKING h 2.8 f 606
+ 1000 d +52 L 197 R 2771 B 146 s +126 TRACKING h 2.8 f 608
+ 1250 d +67 L 219 R 2559 B 147 s +124 TRACKING h 1.6 f 591
+ 1500 d +81 L 214 R 1809 B 154 s +123 TRACKING h 1.5 f 584
+ 1750 d +94 L 1864 R 242 B 133 s -123 TRACKING h -0.3 f none
+ 2000 d +108 L 1978 R 208 B 148 s -127 TRACKING h -1.9 f 562
+ 2250 d +121 L 209 R 314 B 152 s +0 SEARCHING h -1.0 f 552
+ 2500 d +134 L 260 R 225 B 128 s +0 SEARCHING h -0.4 f 549
+ 2750 d +149 L 219 R 2246 B 137 s +123 TRACKING h 0.7 f 511
+ 3000 d +164 L 256 R 307 B 145 s +0 SEARCHING h -1.8 f 482
+ 3250 d +179 L 931 R 259 B 155 s -112 TRACKING h -1.7 f 469
+ 3500 d +193 L 429 R 253 B 132 s +0 SEARCHING h -3.1 f 457
+ 3750 d +208 L 173 R 1888 B 128 s +127 TRACKING h -1.5 f 437
+ 4000 d +222 L 295 R 272 B 158 s +0 SEARCHING h -1.6 f 417
+ 4250 d +236 L 2638 R 192 B 142 s -127 TRACKING h -3.6 f 405
+ 4500 d +251 L 214 R 1594 B 138 s +123 TRACKING h -2.1 f 390
+ 4750 d +264 L 222 R 921 B 139 s +116 TRACKING h -1.3 f 391
+ 5000 d +279 L 2232 R 228 B 138 s -125 TRACKING h -2.2 f 384
+ 5250 d +292 L 2398 R 248 B 156 s -123 TRACKING h -3.9 f none
+ 5500 d +306 L 291 R 514 B 126 s +0 SEARCHING h -3.2 f 1547
+ 5750 d +320 L 227 R 2086 B 136 s +122 TRACKING h -2.0 f 329
+ 6000 d +334 L 1861 R 241 B 128 s -123 TRACKING h -2.6 f 317
+ 6250 d +347 L 196 R 292 B 161 s +0 SEARCHING h -3.0 f 293
+ 6500 d +362 L 275 R 246 B 144 s +0 SEARCHING h -2.3 f 285
+ 6750 d +376 L 448 R 257 B 157 s +0 SEARCHING h -4.1 f 286
+ 7000 d +390 L 238 R 365 B 136 s +0 SEARCHING h -2.1 f 271
+ 7250 d +405 L 232 R 456 B 129 s +0 SEARCHING h -3.5 f 242
+ 7500 d +421 L 2574 R 224 B 136 s -126 TRACKING h -4.3 f 227
+ 7750 d +435 L 1493 R 228 B 137 s -124 TRACKING h -2.7 f 217
+ 8000 d +451 L 178 R 1955 B 142 s +127 TRACKING h -1.8 f 212
+ 8250 d +466 L 208 R 526 B 135 s +0 SEARCHING h -3.9 f 186
+ 8500 d +482 L 222 R 798 B 152 s +114 TRACKING h -2.2 f 160
+ 8750 d +496 L 2858 R 211 B 128 s -127 TRACKING h -4.6 f 144
+ 9000 d +510 L 178 R 2184 B 163 s +127 TRACKING h -2.8 f 130
+ 9250 d +524 L 2682 R 210 B 171 s -127 TRACKING h -3.6 f 118
+ 9500 d +539 L 221 R 1792 B 166 s +122 TRACKING h -2.5 f 109
+ end 9535 d +540 L 206 R 268 B 152 s +0 SEARCHING h -4.1 f 100
+ACC mg n 2 x +8 +8..+8 y +2 -3..+8 z +992 +987..+998
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2575 2559-2598 R 197 166-218 B 144 125-159
+ACC mg n 30 x +7 +4..+10 y -2 -6..+0 z +987 +981..+994
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2577 2559-2602 R 198 169-219 B 145 124-164
+ACC mg n 39 x +8 +5..+14 y -2 -5..+1 z +988 +982..+996
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2578 2558-2618 R 199 173-219 B 140 120-163
+ACC mg n 48 x +8 +4..+12 y -3 -8..+0 z +987 +983..+995
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2580 2559-2602 R 197 175-218 B 143 121-162
+ACC mg n 58 x +7 +3..+12 y -2 -6..+2 z +989 +981..+993
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2576 2559-2602 R 198 173-219 B 142 118-161
+ACC mg n 58 x +7 +4..+12 y -2 -8..+0 z +989 +981..+996
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2577 2559-2602 R 199 170-219 B 142 117-162
+ACC mg n 57 x +8 +6..+12 y -3 -7..+0 z +989 +981..+994
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2578 2559-2601 R 197 173-219 B 143 105-164
+ACC mg n 57 x +8 +4..+12 y -4 -8..-1 z +988 +983..+997
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2587 2559-2624 R 195 169-218 B 142 114-163
+ACC mg n 56 x +9 +1..+28 y -1 -23..+15 z +989 +967..+1008
+ENC counts L +6735 RIR L 2597 2568-2625 R 196 170-219 B 142 115-163
+ACC mg n 61 x +10 -4..+57 y -1 -78..+176 z +990 +968..+1021
+ENC counts L +6735 R +6618 mm L +543 R +IR L 2592 2559-2640 R 201 170-219 B 143 116-160
+ACC mg n 58 x +6 -22..+20 y -3 -25..+16 z +988 +961..+1001
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2650 2617-2691 R 199 170-218 B 142 122-161
+ACC mg n 53 x +10 -3IR L 2666 2640-2694 R 198 166-217 B 140 113-161
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2669 2640-2691 R 195 177-217 B 141 113-163
+ACC mg n 41 x +29 -6..+289 y -7 -43..+7 z +990 +971..+1037
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2664 2635-2702 R 191 166-214 B 143 116-162
+ACC mg n 50 x +7 +3..+13 y -4 -9..+1 z +988 +981..+995
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2659 2633-2683 R 198 174-217 B 141 120-161
+ACC mg n 59 x +7 +3..+12 y -3 -9..+3 z +988 +981..+996
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2656 2633-2683 R 198 169-218 B 143 117-162
+ACC mg n 58 x +7 +2..+12 y -4 -9..+4 z +988 +982..+996
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2659 2633-2688 R 195 173-218 B 141 124-161
+ACC mg n 58 x +7 +1..+12 y -4 -9..+0 z +987 +980..+995
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2659 2633-2683 R 196 166-218 B 143 122-160
+ACC mg n 57 x +6 +3..+12 y -5 -10..-1 z +988 +982..+995
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2659 2634-2683 R 196 171-218 B 141 114-164
+ACC mg n 57 x +6 +3..+12 y -4 -8..+0 z +989 +983..+994
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2658 2631-2740 R 195 153-218 B 142 114-161
+ACC mg n 55 x +7 +4..+13 y -4 -10..+1 z +988 +982..+995
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2655 2631-2683 R 199 171-218 B 142 120-160
+ACC mg n 54 x +7 +4..+12 y -4 -10..+0 z +987 +980..+993
+IR L 2656 2631-2683 R 199 172-218 B 142 120-163
+ACC mg n 70 x +7 +3..+11 y -4 -9..-1 z +988 +980..+996
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2658 2630-2682 R 198 177-218 B 146 125-161
+ACC mg n 12 x +8 +6..+11 y -5 -8..-2 z +989 +985..+991
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2659 2635-2683 IR L 2656 2635-2684 R 199 172-219 B 144 122-163
+ACC mg n 58 x +7 +2.IR L 2637 2574-2684 R 196 173-217 B 147 120-177
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2631 2606-2659 R 196 172-218 B 144 114-170
+IR L 2526 2438-2604 R 192 165-216 B 414 187-596
+ACC mg n 73 x +8 -20ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 3052 2801-3312 R 927 266-2106 B 678 212-2118
+ACC mg n 27 x +14 +4..+28 y -5 -14..+1 z +987 +981..+996
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2678 2604-2752 R 217 192-244 B 161 128-185
+ACC mg n 35 x +8 -1..+23 y -5 -14..+3 z +988 +974..+993
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2443 2355-2618 R 191 160-224 B 227 123-351
+ACC mg n 45 x +7 -8..+17 y -6 -25..+3 z +988 +977..+994
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2878 2422-3285 R 1380 250-2774 B 1145 196-2664
+ACC mg n 54 x +17 -53..+174 y -19 -172..+81 z +993 +864..+1073
+IR L 2210 2068-2309 R 212 166-254 B 262 128-552
+ACC mg n 70 x +6 +1..+15 y -5 -12..+0 z +988 +981..+996
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2226 2197-2250 R 193 168-216 B 545 521-565
+ACC mg n 53 x +7 +2..+12 y -4 -9..-1 z +987 +983..+992
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2227 2199-2250 R 192 163-216 B 544 520-564
+ACC mg n 52 x +7 +4..+13 y -5 -10..-2 z IR L 2222 2198-2250 R 196 166-216 B 545 517-563
+ACC mg n 58 x +8 +4..+14 y -4 -10..-1 z +989 +982..+996
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2225 2195-2249 R 192 164-214 B 543 526-561
+IR L 2223 2196-2248 R 194 163-217 B 545 523-564
+ACC mg n 73 x +7 +3..+12 y -5 -9..+0 z +987 +979..+995
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2224 2197-2249 R 194 165-217 B 543 521-562
+ACC mg n 60 x +7 +2..+14 y -3 -9..+3 z +987 +980..+997
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2225 2197-2251 R 192 163-217 B 545 520-563
+ACC mg n 59 x +7 +1..+13 y -4 -9..-1 z +986 +980..+993
+ENC counts L +6734 RIR L 2219 2194-2246 R 196 165-217 B 545 526-564
+ACC mg n 65 x +8 +3..+13 y -4 -8..+1 z +IR L 2224 2195-2246 R 193 169-216 B 542 516-564
+ACC mg n 58 x +6 +3..+10 y -4 -8..-1 z +987 +982..+992
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2220 2196-2246 R 195 164-216 B 544 518-561
+ACC mg n 55 x +8 +3..+12 y -3 -8..+0 z +989 +984..+998
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2222 2193-2246 R 193 166-216 B 544 523-560
+ACC mg n 55 x +7 +3..+12 y -4 -7..+0 z +988 +983..+993
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2221 2196-2244 R 193 163-216 B 543 517-562
+ACC mg n 54 x +7 +3..+12 y -4 -10..+1 z +987 +981..+995
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2221 2195-2245 R 193 166-215 B 545 530-563
+ACC mg n 53 x +7 +4..+12 y -5 -8..+0 z +987 +979..+996
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2222 2195-2245 R 192 168-216 B 543 521-564
+ACC mg n 52 x +6 +1..+11 y -4 -9..+0 z +988 +982..+995
+ENC counts L +6734 R +6618 mm L +543 R +534 err 0
+IR L 2220 2195-2246 R 193 165-216 B 544 524-562
+IR L 2256 2192-2366 R 193 170-216 B 538 507-564
+ACC mg n 72 x +15 -2..+70 y +8 -58..+186 z +985 +918..+1001
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2291 2262-2320 R 192 166-213 B 517 500-536
+ACC mg n 51 x +5 -766..+738 y +10 -160..+210 z +979 +697..+1323
+IR L 2296 2270-2324 R 193 166-213 B 515 499-532
+ACC mg n 67 x +7 +3.IR L 2297 2269-2322 R 193 162-213 B 517 500-533
+ACC mg n 72 x +7 +1..+14 y -4 -8..+2 z +987 +981..+994
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2295 2272-2323 R 193 168-216 B 516 494-532
+ACC mg n 49 x +8 +3..+12 y -4 -10..+1 z +987 +982..+994
+ENC counts L +6735 R +6618 mm L +543 R +534 err 0
+IR L 2260 2164-2322 R 190 162-210 B 510 IR L 2306 2252-2373 R 194 161-213 B 523 478-566
+ACC mg n 58 x +1 -110..+73 y -22 -318..+107 z +979 +818..+1038
+IR L 3547 3281-3683 R 3704 3500-3802 B 3IR L 189 163-216 R 2623 2248-2801 B 168 114-259
+ACC mg n 58 x +13 -181..+310 y -4 -151..+114 z +986 +946..+1101
+IR L 188 157-212 R 2792 2745-2925 B 177 115-269
+ACC mg n 72 x +5 +1..+10 y +1 -3..+6 z +990 +984..+996
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 190 164-213 R 2764 2740-2787 B 139 115-158
+ACC mg n 55 x +5 +1..+10 y +1 -3..+7 z +989 +981..+997
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 191 165-213 R 2786 2747-2811 B 148 122-169
+ACC mg n 54 x +5 +2..+14 y +1 -4..+6 z +989 +983..+996
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 188 165-214 R 2766 2738-2788 B 147 116-168
+ACC mg n 54 x +4 +0..+9 y +3 -1..+6 z +990 +983..+997
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 189 168-212 R 2751 2729-2779 B 144 123-172
+ACC mg n 53 x +4 +0..+9 y +2 -3..+7 z +990 +984..+996
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 191 163-213 R 2751 2730-2808 B 161 125-180
+ACC mg n 52 x +4 +1..+8 y +3 -2..+7 z +989 +984..+996
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 188 161-212 R 2752 2732-2772 B 152 130-169
+ACC mg n 59 x +4 +2..+8 y +2 -1..+6 z +9IR L 190 165-213 R 2751 2731-2773 B 153 134-170
+ACC mg n 62 x +4 +0..+10 y +2 -2..+6 z +990 +983..+996
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 188 169-212 R 2752 2733-2770 B 150 125-163
+ACC mg n 10 x +4 +0..+7 y +3 +2..+5 z +991 +987..+996
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 186 169-209 R 2754 2737-2771 B 152 129-168
+ACC mg n 18 x +4 +0..+7 y +2 -1..+6 z +989 +983..+993
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 189 167-213 R 2752 2733-2774 B 152 130-165
+ACC mg n 27 x +4 +1..+7 y +2 +0..+5 z +990 +981..+996
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 186 158-213 R 2753 2734-2774 B 150 124-169
+ACC mg n 36 x +5 +0..+12 y +2 -2..+6 z +991 +983..+997
+ENC counts L +6736 R +6617 mm L +543 R +533 err 6
+IR L 190 165-212 R 2752 2732-2776 B 153 123-171
+ACC mg n 45 x +4 +1..+8 y +2 -2..+7 z +988 +984..+995
+ENC counts L +6736 R +6617 mm L +543 R +LINE + stop within 10 cm of an obstacle, 120 mm/s (floor) stopped: obstacle ahead after 6.6 s: gains 4 P 3.00 I 15.00 D 0.00, dt max 8.0 ms
+ at completion: ENC mm L +370 R +367, heading -1.5 deg
+ 1 s later: ENC mm L +370 R +369, heading -0.5 deg
+ Now measure the real stop: sensors to the line and the T.
+ front sonar: obstacle at 96 mm after 368 mm of line; 1 s later it reads 83 mm, car rolled 1 mm after detection
+ robot rule (250 mm): would have stopped at 250 mm after 219 mm of line
+ readings while driving 95, not VALID 6 (first at 2.1 s: the robot would halt there, RANGE_WAIT)
+ gaps crossed on the last command (TRACKING to SEARCHING) 78; trace t ms, d centre mm, IR raw, s steer q7 (+ line right), line, h heading deg (+ left)
+ f front sonar mm (none: no VALID range yet or the latest not VALID)
+ 0 d +0 L 201 R 2739 B 139 s +126 TRACKING h 0.0 f none
+ 250 d +12 L 2264 R 189 B 153 s -127 TRACKING h -1.6 f 464
+ 500 d +25 L 2442 R 201 B 145 s -127 TRACKING h -1.7 f 437
+ 750 d +37 L 2235 R 182 B 136 s -127 TRACKING h -1.5 f 431
+ 1000 d +49 L 213 R 1772 B 122 s +123 TRACKING h 0.8 f 416
+ 1250 d +61 L 203 R 1435 B 133 s +124 TRACKING h 0.6 f 413
+ 1500 d +73 L 1586 R 243 B 146 s -122 TRACKING h -2.5 f 391
+ 1750 d +86 L 212 R 1146 B 140 s +121 TRACKING h -0.2 f 398
+ 2000 d +100 L 258 R 265 B 132 s +0 SEARCHING h -1.1 f 403
+ 2250 d +114 L 538 R 236 B 137 s +0 SEARCHING h -3.1 f none
+ 2500 d +127 L 164 R 665 B 145 s +0 SEARCHING h -1.0 f 1399
+ 2750 d +142 L 208 R 341 B 141 s +0 SEARCHING h -2.1 f 327
+ 3000 d +156 L 257 R 235 B 118 s +0 SEARCHING h -0.7 f 315
+ 3250 d +171 L 206 R 2300 B 122 s +125 TRACKING h 0.0 f 299
+ 3500 d +186 L 2085 R 201 B 139 s -127 TRACKING h -2.6 f 287
+ 3750 d +201 L 194 R 1564 B 150 s +126 TRACKING h -0.1 f 273
+ 4000 d +216 L 2637 R 201 B 144 s -127 TRACKING h -2.6 f 263
+ 4250 d +228 L 204 R 422 B 140 s +0 SEARCHING h -2.2 f 239
+ 4500 d +243 L 221 R 292 B 121 s +0 SEARCHING h -0.8 f 219
+ 4750 d +257 L 249 R 259 B 145 s +0 SEARCHING h -2.4 f 212
+ 5000 d +271 L 2459 R 226 B 136 s -125 TRACKING h -1.9 f 198
+ 5250 d +287 L 197 R 2178 B 150 s +126 TRACKING h -0.1 f 185
+ 5500 d +302 L 493 R 231 B 155 s +0 SEARCHING h -2.5 f 169
+ 5750 d +317 L 1353 R 245 B 152 s -120 TRACKING h -1.1 f 148
+ 6000 d +332 L 201 R 574 B 149 s +0 SEARCHING h -0.3 f 135
+ 6250 d +347 L 176 R 2712 B 133 s +127 TRACKING h 0.2 f 123
+ 6500 d +362 L 202 R 2552 B 139 s +126 TRACKING h -0.4 f 106
+ end 6596 d +368 L 2557 R 217 B 117 s -126 TRACKING h -1.5 f 96
+ACC mg n 1 x +12 +12..+12 y -1 -1..-1 z +990 +990..+990
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1039 1018-1066 R 221 194-242 B 138 117-154
+ACC mg n 30 x +9 +6..+13 y -1 -4..+1 z +989 +980..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1012-1066 R 218 193-241 B 137 108-157
+ACC mg n 39 x +10 +7..+14 y -1 -6..+2 z +989 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1039 1009-1065 R 221 192-242 B 136 113-158
+ACC mg n 49 x +9 +5..+14 y +0 -4..+4 z +988 +981..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1039 1010-1065 R 220 191-242 B 136 111-158
+ACC mg n 58 x +10 +5..+16 y -1 -6..+4 z +988 +982..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1039 1019-1065 R 221 190-240 B 136 110-160
+ACC mg n 58 x +10 +7..+14 y +0 -5..+4 z +989 +982..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1041 1013-1068 R 220 194-243 B 136 110-158
+ACC mg n 58 x +9 +6..+14 y +0 -6..+5 z +990 +981..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1012-1067 R 219 196-241 B 138 113-157
+ACC mg n 57 x +10 +6..+13 y +0 -6..+4 z +988 +982..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1042 1017-1068 R 220 193-243 B 135 110-156
+ACC mg n 57 x +9 +5..+16 y -1 -5..+2 z +989 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1016-1069 R 218 191-244 B 139 115-157
+ACC mg n 56 x +10 +7..+15 y +0 -5..+3 z +988 +982..+993
+ENC counts L +11323 R +11190 mm L +913 RIR L 1044 1021-1066 R 218 193-241 B 138 108-158
+ACC mg n 51 x +10 +7..+14 y +0 -4..+3 z +989 +982..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1042 1021-1067 R 221 193-242 B 135 122-153
+ACC mg n 13 x +9 +4..+14 y -1 -5..+2 z +989 +985..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1045 1022-1067 R 219 194-241 B 135 112-157
+ACC mg n 22 x +9 +6..+15 y +0 -2..+3 z +987 +983..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1043 1022-1069 R 221 197-242 B 135 109-159
+ACC mg n 30 x +10 +6..+15 y +0 -5..+4 z +988 +984..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1020-1068 R 218 192-240 B 138 114-162
+ACC mg n 58 x +9 +5..+14 y +0 -4..+5 z +988 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1018-1069 R 220 191-241 B 137 110-156
+ACC mg n 59 x +10 +5..+14 y +0 -4..+3 z +990 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1021-1074 R 220 196-243 B 137 115-156
+ACC mg n 58 x +9 +4..+16 y +0 -4..+5 z +989 +983..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1045 1019-1070 R 221 195-240 B 137 109-153
+ACC mg n 57 x +9 +6..+13 y +0 -3..+4 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1045 1019-1069 R 219 193-242 B 135 110-158
+ACC mg n 57 x +9 +5..+14 y -1 -6..+3 z +989 +980..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1013-1069 R 219 189-242 B 138 109-158
+ACC mg n 56 x +9 +5..+15 y +0 -4..+4 z +989 +982..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1018-1069 R 218 190-243 B 134 IR L 1042 1013-1071 R 221 191-242 B 136 108-158
+ACC mg n 58 x +8 +5..+14 y +0 -3..+3 z +989 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1043 1020-1069 R 222 192-243 B 136 110-154
+ACC mg n 54 x +9 +5..+16 y +0 -5..+5 z +989 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1024-1073 R 217 192-241 B 137 110-156
+ACC mg n 53 x +9 +4..+15 y +0 -6..+4 z +989 +984..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1020-1072 R 219 193-241 B 136 109-156
+ACC mg n 52 x +10 +7..+14 y +0 -4..+3 z +988 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1024-1070 R 218 191-242 B 136 108-156
+ACC mg n 52 x +10 +5..+17 y +0 -3..+3 z +989 +981..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1016-1071 R 218 193-241 B 138 118-157
+ACC mg n 52 x +10 +7..+17 y +0 -4..+4 z +989 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1016-1072 R 219 192-240 B 137 115-157
+ACC mg n 51 x +9 +5..+14 y +0 -4..+7 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1020-1073 R 217 194-242 B 136 108-158
+ACC mg n 51 x +9 +5..+13 y +0 -4..+3 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1022-1072 R 219 194-241 B 136 109-159
+IR L 1047 1016-1073 R 219 190-248 B 138 114-158
+ACC mg n 72 x +9 +5..+14 y +0 -6..+4 z +989 +981..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1016-1072 R 217 191-241 B 137 111-158
+ACC mg n 59 x +9 +4..+15 y +0 -5..+2 z +989 +983..+994
+ENC counts L +11323 IR L 1048 1019-1074 R 219 193-239 B 133 109-156
+ACC mg n 64 x +9 +4..+15 y +0 -3..+4 z +989 +980..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1029-1073 R 220 197-240 B 138 121-158
+ACC mg n 16 x +9 +5..+14 y +1 -1..+4 z +988 +984..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1021-1073 R 218 192-240 B 136 122-157
+ACC mg n 24 x +10 +6..+16 y +0 -7..+5 z +989 +985..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1027-1072 R 217 193-240 B 137 122-157
+ACC mg n 34 x +9 +4.IR L 1048 1017-1074 R 219 192-242 B 137 114-157
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1025-1074 R 219 193-242 B 137 115-153
+ACC mg n 42 x +10 +6..+15 y -1 -5..+2 z +988 +979..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1025-1074 R 217 193-240 B 139 117-157
+ACC mg n 52 x +10 +5..+15 y +0 -3..+3 z +990 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1016-1073 R 220 192-242 B 136 109-155
+ACC mg n 51 x +8 +4..+13 y +0 -4..+2 z +990 +985..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1022-1074 R 219 192-242 B 138 115-156
+ACC mg n 51 x +9 +7..+13 y -1 -6..+3 z +987 +979..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1021-1074 R 219 190-241 B 137 115-157
+ACC mg n 50 x +9 +4..+14 y +0 -5..+4 z +990 +984..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1022-1074 R 219 190-242 B 137 109-157
+ACC mg n 61 x +9 +5..+13 y +0 -4..+4 z +989 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1028-1074 R 218 193-240 B 139 118-158
+ACC mg n 59 x +9 +4..+14 y +0 -4..+3 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1018-1074 R 216 192-240 B 136 122-155
+ACC mg n 58 x +9 +5..+15 y +0 -6..+2 z +988 +982..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1022-1075 R 218 190-242 B 137 121-158
+ACC mg n 57 x +9 +5..+14 y +0 -5..+4 z +989 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1025-1074 R 219 193-242 B 137 111-156
+ACC mg n 57 x +9 +5..+13 y +0 -5..+3 z +989 +979..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1026-1075 R 219 193-243 B 138 114-157
+ACC mg n 56 x +9 +6..+14 y +0 -5..+7 z +989 +979..+1001
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1018-1076 R 221 193-242 B 136 108-156
+ACC mg n 56 x +9 +5..+14 y -1 -5..+2 z +989 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1019-1075 R 219 192-242 B 137 115-165
+ACC mg n 55 x +9 +3..+13 y +0 -4..+3 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1023-1077 R 219 196-241 B 136 118-156
+ACC mg n 54 x +9 +5..+13 y -1 -6..+2 z +990 +985..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1021-1077 R 220 192-248 B 134 100-155
+ACC mg n 54 x +8 +5..+13 y +0 -4..+3 z +989 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1020-1077 R 220 194-249 B 138 109-158
+ACC mg n 53 x +9 +5..+15 y +0 -7..+4 z +989 +980..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1026-1077 R 219 190-242 B 138 114-158
+ACC mg n 52 x +10 +6..+14 y +0 -7..+4 z +989 +984..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1025-1077 R 218 195-241 B 138 113-157
+ACC mg n 52 x +9 +4..+13 y +0 -6..+4 z +988 +981..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1019-1077 R 218 189-238 B 138 115-157
+ACC mg n 51 x +10 +6..+14 y +0 -4..+2 z +988 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1057 1029-1077 R 218 192-241 B 134 107-156
+ACC mg n 51 x +9 +6..+14 y +0 -5..+3 z +990 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1032-1078 R 220 192-240 B 136 112-157
+ACC mg n 50 x +9 +6..+14 y -1 -5..+3 z +989 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1056 1024-1078 R 217 190-241 B 134 113-156
+ACC mg n 61 x +9 +4..+16 y -1 -4..+3 z +988 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1027-1078 R 219 194-241 B 137 108-157
+ACC mg n 59 x +9 +5..+14 y +0 -6..+3 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1020-1078 R 220 191-241 B 136 115-157
+ACC mg n 59 x +9 +6..+15 y +0 -5..+3 z +989 +981..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1025-1080 R 218 192-241 B 136 118-157
+ACC mg n 57 x +8 +5..+14 y +0 -4..+5 z +988 +981..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1024-1078 R 217 192-239 B 137 109-157
+ACC mg n 58 x +9 +7..+14 y +0 -5..+2 z +988 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1009-1075 R 218 192-242 B 135 109-160
+ACC mg n 56 x +9 +5..+13 y +0 -6..+4 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1042 1016-1066 R 216 189-240 B 137 109-155
+ACC mg n 56 x +9 +6..+14 y +0 -3..+5 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1041 1017-1067 R 220 192-243 B 138 121-158
+ACC mg n 55 x +8 +4..+12 y +0 -4..+4 z +987 +982..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1042 1018-1067 R 221 193-243 B 135 115-157
+ACC mg n 54 x +9 +6..+13 y +0 -3..+4 z +991 +985..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1014-1067 R 217 194-241 B 139 114-155
+ACC mg n 54 x +9 +5..+14 y +0 -5..+3 z +990 +985..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1017-1068 R 217 195-241 B 135 108-158
+ACC mg n 53 x +9 +6..+13 y -1 -4..+3 z +987 +977..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1022-1067 R 217 191-243 B 136 114-155
+ACC mg n 52 x +9 +6..+14 y +0 -4..+6 z +988 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1041 1010-1069 R 221 192-242 B 135 112-157
+ACC mg n 51 x +9 +5..+13 y +0 -3..+3 z +990 +985..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1040 1011-1067 R 222 192-243 B 138 110-157
+ACC mg n 51 x +9 +6..+15 y +0 -5..+6 z +988 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1042 1010-1068 R 221 193-241 B 134 108-156
+ACC mg n 51 x +10 +7..+15 y -1 -6..+2 z +988 +980..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1045 1017-1067 R 219 195-241 B 137 119-154
+ACC mg n 50 x +9 +4..+14 y +0 -3..+6 z +989 +980..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1019-1068 R 220 190-241 B 131 109-153
+ACC mg n 59 x +9 +5..+14 y -1 -6..+3 z +988 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1045 1012-1068 R 217 190-241 B 135 113-156
+ACC mg n 58 x +10 +6..+14 y +0 -3..+3 z +990 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1043 1020-1069 R 219 190-242 B 136 113-158
+ACC mg n 57 x +9 +5..+15 y +0 -6..+3 z +989 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1014-1068 R 218 192-242 B 137 112-157
+ACC mg n 57 x +9 +3..+15 y -1 -5..+4 z +989 +983..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1041 1018-1068 R 223 190-242 B 135 109-155
+ACC mg n 56 x +9 +5..+12 y +0 -6..+4 z +988 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1017-1068 R 216 189-241 B 139 113-155
+ACC mg n 56 x +9 +5..+16 y +0 -4..+4 z +990 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1017-1069 R 219 194-243 B 136 112-157
+ACC mg n 55 x +9 +5..+13 y +0 -5..+3 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1045 1021-1070 R 219 193-242 B 137 110-155
+ACC mg n 54 x +9 +4..+17 y +0 -4..+5 z +989 +983..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1042 1012-1069 R 220 193-243 B 137 108-157
+ACC mg n 54 x +9 +4..+15 y +0 -4..+4 z +990 +979..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1022-1069 R 218 194-241 B 136 114-156
+ACC mg n 53 x +9 +5..+14 y +0 -5..+4 z +989 +981..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1017-1068 R 219 193-242 B 137 112-156
+ACC mg n 52 x +9 +4..+14 y -1 -5..+3 z +990 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1019-1093 R 219 190-241 B 136 113-157
+ACC mg n 51 x +8 +4..+12 y +0 -4..+5 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1045 1019-1069 R 220 192-241 B 135 109-159
+ACC mg n 51 x +9 +5..+16 y +0 -4..+4 z +988 +983..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1011-1069 R 219 190-241 B 136 114-156
+ACC mg n 51 x +10 +5..+15 y +0 -3..+2 z +989 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1019-1069 R 220 194-243 B 135 109-157
+ACC mg n 50 x +9 +6..+16 y +0 -4..+6 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1021-1069 R 217 190-241 B 138 113-157
+ACC mg n 59 x +9 +3..+15 y +0 -5..+3 z +988 +982..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1014-1071 R 219 190-243 B 137 115-156
+ACC mg n 59 x +10 +5..+16 y +0 -5..+4 z +989 +982..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1020-1070 R 219 193-242 B 136 113-155
+ACC mg n 58 x +9 +5..+14 y +0 -4..+3 z +989 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1013-1071 R 220 194-243 B 135 109-156
+ACC mg n 57 x +8 +4..+14 y +0 -5..+4 z +989 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1013-1070 R 219 189-240 B 136 113-157
+ACC mg n 57 x +10 +7..+15 y +0 -4..+3 z +990 +984..+1001
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1021-1071 R 219 194-242 B 139 122-154
+ACC mg n 56 x +8 +5..+14 y +0 -3..+3 z +989 +982..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1022-1074 R 218 190-243 B 135 110-157
+ACC mg n 54 x +9 +6..+14 y +0 -3..+4 z +989 +982..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1022-1071 R 217 194-240 B 134 108-157
+ACC mg n 55 x +8 +5..+13 y +0 -5..+4 z +989 +983..+999
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1019-1096 R 220 196-257 B 136 113-158
+ACC mg n 54 x +9 +4..+14 y +0 -5..+3 z +989 +982..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1018-1072 R 220 199-242 B 136 117-156
+ACC mg n 52 x +8 +4..+14 y +0 -4..+3 z +989 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1044 1017-1070 R 220 194-241 B 136 113-156
+ACC mg n 51 x +9 +6..+13 y +1 -3..+5 z +989 +985..+1000
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1045 1015-1094 R 220 192-252 B 137 109-153
+ACC mg n 52 x +9 +6..+15 y +0 -5..+3 z +989 +982..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1045 1024-1070 R 220 194-242 B 139 116-157
+ACC mg n 51 x +9 +5..+13 y +0 -4..+4 z +990 +986..+999
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1043 1018-1070 R 222 190-243 B 134 111-154
+ACC mg n 50 x +9 +5..+13 y -1 -5..+4 z +989 +984..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1016-1072 R 219 194-242 B 136 112-157
+ACC mg n 59 x +8 +5..+13 y +0 -5..+3 z +988 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1014-1073 R 219 193-242 B 135 112-157
+ACC mg n 59 x +8 +2..+14 y -1 -4..+2 z +989 +981..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1022-1073 R 219 190-241 B 137 112-157
+ACC mg n 59 x +9 +4..+15 y +0 -6..+4 z +989 +984..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1021-1073 R 220 194-240 B 135 110-157
+ACC mg n 58 x +9 +5..+14 y +0 -3..+4 z +989 +981..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1020-1073 R 219 195-241 B 138 113-157
+ACC mg n 57 x +9 +6..+13 y -1 -6..+4 z +988 +984..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1020-1074 R 219 190-241 B 135 110-156
+ACC mg n 57 x +8 +4..+11 y +0 -3..+4 z +988 +982..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1017-1072 R 220 193-241 B 136 116-156
+ACC mg n 56 x +9 +5..+14 y +0 -5..+5 z +988 +983..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1020-1071 R 220 192-241 B 136 113-157
+ACC mg n 55 x +9 +5..+15 y +0 -6..+4 z +989 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1016-1072 R 220 192-241 B 136 110-158
+ACC mg n 55 x +8 +5..+14 y +0 -3..+4 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1019-1074 R 220 193-243 B 136 113-157
+ACC mg n 54 x +8 +3..+13 y +0 -4..+4 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1021-1073 R 220 195-241 B 138 118-156
+ACC mg n 53 x +9 +6..+14 y -1 -4..+3 z +989 +980..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1020-1073 R 218 192-242 B 135 112-157
+ACC mg n 52 x +9 +6..+12 y -1 -5..+4 z +989 +985..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1020-1073 R 220 192-242 B 136 108-156
+ACC mg n 52 x +10 +6..+16 y +0 -4..+4 z +990 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1024-1073 R 221 195-239 B 137 118-157
+ACC mg n 51 x +9 +5..+14 y +0 -5..+3 z +988 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1021-1073 R 216 190-241 B 137 108-157
+ACC mg n 51 x +9 +5..+15 y +0 -4..+4 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1027-1073 R 219 195-242 B 139 112-156
+ACC mg n 60 x +9 +5..+15 y +0 -5..+4 z +988 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1021-1073 R 219 195-240 B 136 109-156
+ACC mg n 59 x +9 +4..+12 y +0 -4..+7 z +990 +985..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1020-1074 R 218 193-241 B 137 110-156
+ACC mg n 58 x +9 +6..+14 y +0 -4..+2 z +989 +980..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1020-1075 R 220 194-242 B 137 114-156
+ACC mg n 58 x +9 +6..+15 y +0 -5..+2 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1021-1073 R 221 191-242 B 137 110-156
+ACC mg n 57 x +10 +5..+15 y +0 -5..+4 z +989 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1028-1072 R 219 193-240 B 135 109-155
+ACC mg n 57 x +9 +3..+15 y +0 -4..+3 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1018-1074 R 218 194-242 B 134 110-156
+ACC mg n 55 x +8 +4..+15 y +0 -5..+4 z +989 +982..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1019-1073 R 220 198-241 B 135 113-157
+ACC mg n 55 x +10 +5..+15 y +0 -5..+3 z +988 +979..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1017-1074 R 217 190-241 B 135 109-155
+ACC mg n 55 x +8 +5..+12 y +0 -4..+3 z +988 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1019-1073 R 221 195-241 B 136 110-156
+ACC mg n 54 x +8 +3..+12 y +0 -3..+4 z +989 +981..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1018-1074 R 219 193-241 B 135 115-159
+ACC mg n 53 x +9 +6..+14 y +0 -5..+3 z +989 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1021-1076 R 219 192-241 B 136 110-156
+ACC mg n 52 x +9 +5..+15 y +0 -5..+3 z +989 +980..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1026-1074 R 221 194-241 B 138 109-156
+ACC mg n 52 x +8 +5..+13 y +0 -4..+4 z +988 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1026-1074 R 218 196-242 B 135 108-157
+ACC mg n 51 x +9 +5..+13 y +0 -3..+5 z +989 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1019-1074 R 218 193-241 B 134 109-157
+ACC mg n 51 x +8 +5..+13 y +0 -5..+4 z +990 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1019-1074 R 220 192-242 B 135 112-157
+ACC mg n 58 x +9 +5..+12 y +0 -3..+4 z +988 +981..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1046 1026-1074 R 222 195-243 B 135 109-158
+ACC mg n 48 x +9 +6..+13 y +0 -4..+3 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1017-1072 R 220 194-242 B 135 118-157
+ACC mg n 58 x +9 +5..+15 y +0 -4..+4 z +989 +982..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1021-1074 R 220 190-241 B 136 110-157
+ACC mg n 57 x +9 +4..+14 y +0 -4..+4 z +990 +984..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1019-1074 R 221 193-242 B 136 118-157
+ACC mg n 57 x +8 +6..+13 y +0 -4..+5 z +989 +983..+999
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1016-1074 R 215 192-242 B 138 108-156
+ACC mg n 58 x +9 +6..+14 y +0 -3..+3 z +988 +984..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1024-1075 R 218 193-239 B 136 113-157
+ACC mg n 56 x +9 +6..+14 y +0 -5..+3 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1025-1074 R 219 189-241 B 138 120-156
+ACC mg n 55 x +9 +5..+14 y +0 -5..+3 z +988 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1018-1074 R 220 192-243 B 135 113-156
+ACC mg n 55 x +10 +6..+14 y +0 -7..+3 z +990 +984..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1019-1089 R 219 193-243 B 138 119-157
+ACC mg n 54 x +9 +6..+14 y +0 -5..+3 z +988 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1028-1074 R 218 195-241 B 136 98-157
+ACC mg n 53 x +9 +5..+13 y +0 -5..+5 z +989 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1017-1074 R 217 193-240 B 136 113-158
+ACC mg n 52 x +9 +4..+13 y +0 -5..+2 z +989 +984..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1025-1074 R 219 194-242 B 135 113-156
+ACC mg n 52 x +9 +3..+15 y +0 -7..+4 z +988 +982..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1028-1073 R 219 190-241 B 137 115-157
+ACC mg n 51 x +9 +5..+14 y +0 -3..+4 z +989 +982..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1025-1074 R 219 192-241 B 137 114-158
+ACC mg n 51 x +8 +5..+14 y +0 -4..+3 z +989 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1026-1075 R 219 197-240 B 135 112-156
+ACC mg n 60 x +9 +6..+13 y +0 -6..+3 z +989 +982..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1024-1074 R 217 190-241 B 137 108-158
+ACC mg n 59 x +9 +6..+15 y +0 -4..+4 z +989 +982..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1021-1074 R 220 195-241 B 135 105-156
+ACC mg n 58 x +9 +5..+13 y -1 -6..+3 z +989 +984..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1017-1075 R 220 195-241 B 136 116-157
+ACC mg n 58 x +9 +5..+14 y +0 -4..+5 z +989 +981..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1024-1075 R 219 191-242 B 136 116-157
+ACC mg n 57 x +10 +3..+15 y +0 -5..+3 z +989 +985..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1022-1074 R 219 192-242 B 136 113-157
+ACC mg n 57 x +9 +6..+15 y +0 -4..+4 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1028-1076 R 220 191-241 B 135 119-155
+ACC mg n 56 x +9 +5..+13 y +0 -4..+3 z +989 +981..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1028-1076 R 217 190-242 B 137 117-158
+ACC mg n 55 x +9 +5..+14 y +0 -6..+4 z +991 +985..+999
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1028-1076 R 218 191-243 B 138 113-157
+ACC mg n 55 x +9 +4..+14 y +0 -5..+4 z +989 +979..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1027-1075 R 219 194-240 B 134 109-158
+ACC mg n 54 x +9 +4..+16 y +0 -7..+3 z +988 +984..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1047 1019-1098 R 221 192-242 B 136 110-156
+ACC mg n 53 x +10 +6..+14 y +0 -3..+4 z +990 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1019-1073 R 218 189-242 B 138 111-157
+ACC mg n 52 x +9 +4..+15 y +0 -4..+6 z +989 +981..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1026-1075 R 219 194-242 B 136 120-156
+ACC mg n 52 x +9 +4..+15 y +0 -3..+4 z +988 +982..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1018-1074 R 220 193-238 B 135 114-156
+ACC mg n 51 x +8 +4..+13 y +0 -5..+4 z +989 +982..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1018-1077 R 219 190-241 B 137 119-158
+ACC mg n 51 x +9 +5..+14 y +0 -4..+3 z +989 +985..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1022-1075 R 218 189-243 B 136 111-157
+ACC mg n 60 x +9 +5..+15 y +0 -5..+4 z +990 +980..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1020-1076 R 219 189-242 B 137 110-157
+ACC mg n 59 x +8 +5..+14 y +0 -4..+3 z +987 +980..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1019-1074 R 219 196-242 B 136 115-156
+ACC mg n 58 x +10 +4..+15 y +0 -5..+4 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1018-1075 R 221 195-240 B 136 114-156
+ACC mg n 58 x +9 +6..+13 y +0 -4..+3 z +988 +983..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1026-1075 R 218 191-242 B 137 111-158
+ACC mg n 57 x +9 +5..+15 y +0 -4..+4 z +989 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1018-1076 R 218 194-241 B 138 118-154
+ACC mg n 57 x +9 +6..+14 y -1 -6..+2 z +990 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1018-1076 R 219 192-241 B 139 116-157
+ACC mg n 56 x +10 +5..+15 y +0 -3..+3 z +989 +982..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1018-1075 R 218 189-237 B 135 109-157
+ACC mg n 55 x +9 +5..+14 y +0 -5..+3 z +988 +982..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1029-1076 R 220 193-242 B 134 113-154
+ACC mg n 55 x +9 +5..+17 y +0 -5..+3 z +990 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1021-1076 R 218 192-241 B 137 112-154
+ACC mg n 54 x +10 +6..+17 y -1 -6..+4 z +989 +984..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1025-1077 R 219 195-242 B 137 120-156
+ACC mg n 53 x +9 +5..+15 y +0 -6..+4 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1019-1076 R 219 194-241 B 134 110-158
+ACC mg n 52 x +9 +5..+15 y +0 -5..+5 z +990 +984..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1019-1076 R 217 190-242 B 137 116-155
+ACC mg n 52 x +9 +3..+15 y +0 -7..+4 z +990 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1049 1029-1076 R 219 192-241 B 134 109-155
+ACC mg n 51 x +9 +6..+14 y +0 -5..+5 z +989 +984..+999
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1019-1076 R 220 189-241 B 136 111-156
+ACC mg n 51 x +10 +6..+14 y +0 -4..+5 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1019-1076 R 218 194-240 B 134 108-156
+ACC mg n 60 x +9 +5..+15 y +0 -3..+3 z +989 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1029-1076 R 220 192-241 B 137 121-157
+ACC mg n 58 x +9 +5..+15 y +0 -4..+4 z +990 +983..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1020-1082 R 220 189-242 B 136 109-156
+ACC mg n 58 x +9 +5..+14 y +0 -4..+4 z +989 +982..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1025-1076 R 219 190-243 B 137 114-158
+ACC mg n 57 x +10 +6..+15 y +0 -4..+3 z +988 +983..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1021-1076 R 220 194-242 B 136 108-158
+ACC mg n 57 x +8 +3..+13 y +0 -4..+3 z +989 +986..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1030-1076 R 217 193-242 B 136 114-158
+ACC mg n 56 x +10 +7..+15 y +0 -4..+3 z +989 +980..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1048 1019-1077 R 221 190-241 B 135 115-154
+ACC mg n 55 x +8 +5..+14 y +0 -5..+4 z +990 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1025-1076 R 217 196-240 B 136 108-156
+ACC mg n 55 x +8 +4..+14 y +0 -5..+4 z +989 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1020-1076 R 220 193-241 B 137 113-157
+ACC mg n 54 x +10 +5..+16 y +0 -6..+4 z +988 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1050 1020-1077 R 220 190-241 B 137 115-156
+ACC mg n 53 x +9 +6..+15 y +0 -3..+3 z +990 +985..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1029-1076 R 219 195-241 B 133 111-157
+ACC mg n 52 x +9 +5..+14 y +0 -6..+4 z +988 +985..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1029-1076 R 221 194-241 B 136 115-157
+ACC mg n 52 x +9 +4..+15 y +0 -4..+4 z +989 +984..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1019-1078 R 218 192-242 B 138 113-157
+ACC mg n 51 x +8 +3..+14 y +0 -4..+3 z +989 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1021-1077 R 219 196-241 B 138 118-157
+ACC mg n 51 x +8 +6..+14 y +0 -5..+2 z +990 +985..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1052 1026-1078 R 220 195-241 B 136 109-158
+ACC mg n 60 x +9 +4..+14 y +0 -6..+4 z +988 +981..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1021-1077 R 218 190-241 B 136 110-157
+ACC mg n 59 x +9 +5..+14 y +0 -5..+4 z +989 +981..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1028-1078 R 217 189-240 B 137 117-157
+ACC mg n 58 x +9 +5..+14 y +0 -5..+3 z +989 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1027-1078 R 218 193-244 B 137 118-157
+ACC mg n 58 x +9 +6..+14 y +0 -4..+3 z +989 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1027-1077 R 218 192-240 B 135 108-156
+ACC mg n 57 x +8 +5..+14 y +0 -4..+4 z +988 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1028-1077 R 219 196-240 B 136 114-156
+ACC mg n 56 x +9 +5..+14 y +0 -5..+4 z +988 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1021-1077 R 219 194-242 B 136 111-155
+ACC mg n 55 x +9 +6..+13 y +0 -5..+4 z +990 +985..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1028-1080 R 220 190-242 B 136 114-156
+ACC mg n 54 x +9 +6..+14 y +0 -5..+4 z +989 +982..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1029-1078 R 217 193-242 B 136 108-156
+ACC mg n 53 x +9 +4..+14 y +0 -7..+4 z +988 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1057 1028-1077 R 215 190-240 B 135 113-155
+ACC mg n 53 x +8 +4..+15 y +0 -3..+4 z +988 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1021-1078 R 219 192-242 B 137 108-157
+ACC mg n 52 x +8 +4..+14 y +0 -5..+5 z +989 +980..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1021-1077 R 219 194-242 B 136 112-157
+ACC mg n 51 x +8 +5..+14 y +0 -4..+4 z +989 +981..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1029-1078 R 219 193-242 B 138 111-157
+ACC mg n 51 x +10 +5..+17 y +0 -5..+4 z +990 +985..+999
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1026-1080 R 217 191-242 B 136 108-157
+ACC mg n 60 x +9 +3..+12 y +0 -4..+3 z +988 +981..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1025-1078 R 219 194-242 B 136 108-156
+ACC mg n 59 x +10 +7..+16 y +0 -4..+3 z +989 +983..+1000
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1028-1078 R 217 190-241 B 136 115-157
+ACC mg n 58 x +9 +5..+16 y +0 -4..+4 z +989 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1029-1080 R 219 193-243 B 138 115-158
+ACC mg n 58 x +8 +4..+12 y +0 -5..+4 z +989 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1026-1081 R 221 195-241 B 135 109-157
+ACC mg n 57 x +10 +5..+14 y +0 -7..+3 z +990 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1025-1093 R 222 190-241 B 136 112-156
+ACC mg n 57 x +9 +6..+15 y +0 -4..+3 z +989 +979..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1026-1080 R 218 190-241 B 137 117-158
+ACC mg n 56 x +10 +7..+16 y +0 -5..+4 z +989 +981..+999
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1027-1081 R 222 194-242 B 136 112-154
+ACC mg n 54 x +9 +6..+14 y +0 -3..+6 z +990 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1028-1080 R 218 196-241 B 134 110-159
+ACC mg n 55 x +9 +4..+13 y +0 -6..+4 z +989 +984..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1028-1078 R 217 190-240 B 136 109-158
+ACC mg n 54 x +9 +6..+14 y +0 -4..+3 z +988 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1056 1032-1080 R 218 195-240 B 133 114-157
+ACC mg n 53 x +9 +5..+14 y +0 -4..+5 z +988 +984..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1034-1080 R 217 193-238 B 138 117-157
+ACC mg n 53 x +9 +5..+14 y +0 -4..+5 z +990 +984..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1033-1078 R 220 190-240 B 136 113-157
+ACC mg n 52 x +9 +6..+14 y +0 -5..+4 z +989 +981..+1000
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1022-1078 R 221 194-241 B 135 109-155
+ACC mg n 51 x +9 +6..+14 y -1 -4..+2 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1057 1027-1080 R 219 189-241 B 136 114-158
+ACC mg n 51 x +9 +3..+15 y +0 -4..+4 z +989 +981..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1026-1080 R 219 190-241 B 137 111-154
+ACC mg n 60 x +8 +5..+15 y +0 -5..+5 z +989 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1029-1080 R 219 190-241 B 135 113-157
+ACC mg n 59 x +9 +5..+14 y +0 -3..+4 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1027-1080 R 220 197-241 B 137 117-157
+ACC mg n 58 x +9 +4..+14 y +0 -5..+4 z +990 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1057 1029-1088 R 218 188-240 B 134 110-156
+ACC mg n 58 x +9 +5..+14 y +0 -3..+4 z +989 +983..+997
+ENC counts L +11323 R +11190 mm L +913 RACC mg n 52 x +9 +5..+13 y +0 -4..+5 z +989 +984..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1051 1021-1075 R 222 193-241 B 136 112-158
+ACC mg n 35 x +9 +5..+15 y -1 -7..+3 z +990 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1028-1085 R 218 189-240 B 135 108-157
+ACC mg n 44 x +9 +5..+14 y +0 -3..+5 z +987 +980..+993
+IR L 1054 1022-1078 R 221 190-241 B 136 115-157
+ACC mg n 58 x +10 +5..+16 y +0 -4..+3 z +987 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1057 1030-1080 R 217 190-240 B 136 112-155
+ACC mg n 42 x +10 +4..+15 y +0 -3..+4 z +990 +986..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1025-1078 R 219 189-241 B 135 114-156
+ACC mg n 52 x +10 +5IR L 1055 1026-1080 R 219 191-241 B 135 110-156
+ACC mg n 72 x +9 +6..+14 y +0 -4..+5 z +990 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1027-1099 R 219 191-242 B 136 115-170
+ACC mg n 51 x +9 +5..+14 y +0 -5..+4 z +989 +984..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1029-1080 R 221 195-241 B 136 111-158
+ACC mg n 50 x +9 +4..+15 y +0 -3..+5 z +990 +985..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1027-1079 R 218 193-241 B 138 117-157
+ACC mg n 59 x +9 +6..+14 y +0 -4..+4 z +989 +983..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1056 1024-1081 R 218 193-243 B 135 113-157
+ACC mg n 58 x +10 +6..+14 y +0 -4..+3 z +988 +981..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1026-1080 R 218 190-240 B 137 113-172
+ACC mg n 59 x +9 +5..+14 y -1 -6..+3 z +988 +985..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1060 1033-1080 R 217 192-241 B 135 110-158
+ACC mg n 57 x +10 +6..+14 y +0 -4..+7 z +990 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1056 1030-1081 R 219 188-241 B 135 109-157
+ACC mg n 58 x +10 +7..+16 y +0 -5..+4 z +990 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1024-1081 R 219 192-240 B 138 108-157
+ACC mg n 56 x +10 +5..+14 y +0 -6..+4 z +989 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1024-1080 R 219 192-241 B 135 112-157
+ACC mg n 56 x +10 +6..+14 y +0 -5..+5 z +989 +981..+996
+ENC counts L +11323 ACC mg n 61 x +9 +4..+15 y +0 -4..+5 z +989 +985..+1001
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1053 1029-1080 R 220 197-240 B 137 109-158
+ACC mg n 34 x +9 +4..+14 y +0 -5..+3 z +990 +982..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1033-1082 R 218 194-241 B 135 117-153
+ACC mg n 43 x +9 +5..+14 y +0 -3..+3 z +990 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1030-1080 R 218 189-241 B 134 112-158
+ACC mg n 52 x +10 +7..+15 y +0 -4..+4 z +989 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1028-1079 R 219 196-240 B 138 115-161
+ACC mg n 52 x +9 +6..+14 y +0 -7..+3 z +990 +982..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1056 1024-1082 R 218 189-240 B 140 113-163
+ACC mg n 51 x +8 +5..+13 y -1 -6..+3 z +990 +983..+1000
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1025-1081 R 217 190-252 B 133 107-156
+ACC mg n 51 x +10 +6..+15 y +0 -3..+3 z +990 +985..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1056 1029-1081 R 219 193-241 B 134 113-157
+ACC mg n 60 x +9 +6..+13 y +0 -5..+4 z +989 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1032-1081 R 218 196-241 B 133 108-158
+ACC mg n 59 x +9 +6..+14 y +0 -4..+4 z +989 +985..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1056 1025-1081 R 219 193-240 B 136 109-154
+ACC mg n 59 x +10 +4..+14 y +0 -5..+3 z +989 +983..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1032-1080 R 218 190-242 B 136 112-158
+ACC mg n 58 x +9 +6..+14 y +0 -6..+4 z +990 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1030-1082 R 220 195-242 B 137 115-156
+ACC mg n 57 x +10 +6..+13 y +0 -6..+3 z +988 +982..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1019-1080 R 218 187-249 B 134 108-157
+ACC mg n 57 x +9 +5..+14 y +0 -6..+5 z +988 +978..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1059 1034-1083 IR L 1055 1024-1080 R 219 189-241 B 137 112-157
+ACC mg n 58 x +9 +5..+14 y +0 -4..+3 z +ACC mg n 65 x +9 +5..+14 y +0 -4..+4 z +989 +985..+995
+ENC counts L +11323 IR L 1056 1034-1082 R 220 192-241 B 135 108-157
+ACC mg n 58 x +9 +6..+14 y +0 -5..+4 z +989 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1027-1080 R 219 193-242 B 134 115-157
+ACC mg n 52 x +10 +6..+16 y +0 -4..+4 z +990 +984..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1056 1026-1082 R 219 195-241 B 136 107-157
+ACC mg n 52 x +9 +5..+14 y +0 -3..+3 z +989 +982..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1057 1028-1081 R 217 188-241 B 136 109-156
+ACC mg n 58 x +9 +6..+18 y +0 -5..+4 z +989 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1054 1026-1083 R 221 192-241 B 136 109-158
+ACC mg n 50 x +9 +4..+14 y +0 -4..+3 z +988 +983..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1021-1082 R 217 189-258 B 135 109-159
+ACC mg n 59 x +9 +4..+12 y +0 -4..+4 z +988 +983..+994
+ENC counts L +11323 ACC mg n 64 x +10 +6..+16 y +0 -5..+4 z +988 +981..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1056 1025-1082 R 218 193-240 B 135 120-155
+ACC mg n 28 x +9 +5..+13 y +0 -5..+4 z +990 +985..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1061 1033-1081 R 215 190-240 B 136 108-157
+ACC mg n 36 x +8 +4..+14 y +0 -6..+3 z +990 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1025-1082 R 218 193-241 B 135 117-156
+ACC mg n 46 x +10 +6..+17 y +0 -7..+4 z +989 +985..+999
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1059 1027-1082 R 217 193-240 B 135 110-158
+ACC mg n 55 x +10 +5..+16 y +0 -4..+3 z +990 +984..+1001
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1025-1083 R 220 188-240 B 136 108-155
+ACC mg n 54 x +9 +5..+14 y +0 -4..+4 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1057 1030-1082 R 219 189-241 B 137 108-155
+ACC mg n 53 x +9 +5..+13 y +0 -3..+3 z +989 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1062 1036-1083 R 216 190-239 B 136 115-157
+ACC mg n 52 x +9 +7..+15 y +0 -2..+3 z +990 +983..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1063 1029-1084 R 216 192-238 B 134 108-154
+ACC mg n 52 x +9 +7..+14 y +0 -5..+3 z +989 +981..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1057 1030-1083 R 220 196-242 B 134 107-157
+ACC mg n 51 x +9 +7..+16 y +0 -5..+7 z +989 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1062 1036-1084 R 217 194-240 B 136 110-154
+ACC mg n 51 x +10 +7..+17 y +0 -5..+2 z +988 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1055 1028-1082 R 219 188-240 B 138 109-157
+ACC mg n 50 x +9 +5..+15 y -1 -5..+2 z +988 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1059 1033-1083 R 219 195-241 B 135 112-156
+ACC mg n 61 x +9 +5..+16 y +0 -3..+5 z +987 +982..+993
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1026-1084 R 219 194-241 B 138 109-157
+ACC mg n 59 x +9 +6..+15 y +0 -4..+5 z +989 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1059 1035-1083 R 219 193-241 B 135 114-157
+ACC mg n 58 x +9 +5..+14 y +0 -4..+3 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1059 1033-1083 R 220 190-242 B 136 118-156
+ACC mg n 57 x +9 +5..+13 y +0 -5..+5 z +989 +981..+994
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1061 1036-1084 R 217 193-242 B 136 112-157
+ACC mg n 57 x +9 +5..+16 y +0 -4..+3 z +989 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1058 1028-1084 R 220 189-241 B 138 117-158
+ACC mg n 57 x +9 +5..+14 y +0 -4..+4 z +989 +983..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1060 1033-1084 R 219 192-241 B 137 109-158
+ACC mg n 56 x +10 +5..+16 y +0 -6..+2 z +989 +982..+1002
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1061 1033-1084 R 216 190-241 B 135 112-155
+ACC mg n 55 x +10 +6..+15 y +0 -6..+3 z +988 +981..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1063 1034-1102 R 216 189-240 B 138 117-157
+ACC mg n 54 x +9 +5..+14 y +0 -4..+4 z +989 +985..+997
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1060 1037-1086 R 220 192-240 B 135 118-157
+ACC mg n 55 x +9 +5..+16 y +0 -4..+3 z +989 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1063 1039-1088 R 218 193-240 B 137 117-156
+ACC mg n 53 x +10 +6..+16 y +0 -5..+3 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1062 1039-1086 R 219 190-243 B 137 114-157
+ACC mg n 52 x +9 +5..+14 y +0 -3..+4 z +988 +984..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1061 1036-1102 R 218 189-240 B 138 109-157
+ACC mg n 52 x +9 +5..+14 y +0 -4..+4 z +989 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1061 1034-1086 R 221 194-242 B 136 115-159
+ACC mg n 52 x +10 +6..+15 y +0 -3..+4 z +990 +981..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1061 1029-1088 R 218 189-242 B 137 109-159
+ACC mg n 51 x +10 +5..+16 y +0 -5..+3 z +989 +983..+998
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1061 1033-1089 R 219 195-242 B 135 111-158
+ACC mg n 51 x +10 +3..+15 y +0 -5..+6 z +988 +982..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1062 1038-1088 R 219 191-241 B 138 112-157
+ACC mg n 60 x +9 +5..+16 y +0 -4..+3 z +989 +982..+995
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1059 1030-1086 R 221 195-242 B 136 118-157
+ACC mg n 59 x +10 +4..+14 y +0 -6..+5 z +989 +983..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1062 1040-1085 R 218 192-243 B 136 109-158
+ACC mg n 58 x +10 +7..+16 y +0 -3..+3 z +989 +984..+996
+ENC counts L +11323 R +11190 mm L +913 R +902 err 6
+IR L 1065 1030-1087 R 217 189-241 B 136 112-157
+ACC mg n 58 x +10 +5..+16 y +0 -5..+3 z +988 +983..+995
+ENC counts L +11323 R +11190 mm L +913 R

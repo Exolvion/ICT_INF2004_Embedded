@@ -1,0 +1,14 @@
+{"frame": "status", "seq": 184, "ms": 386615, "drop": 131, "ign": 0, "age": 14, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 688, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}
+{"frame": "status", "seq": 185, "ms": 386816, "drop": 131, "ign": 0, "age": 15, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 688, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}
+{"frame": "perception", "seq": 185, "ms": 386816, "run": 0, "cal": 0, "ba": 0, "bl": 0, "yr": null, "mc": 0, "sw": 0, "sn": 0, "ss": 0, "sv": 0, "su": 0, "tv": false, "ha": false, "sc": false, "so": false}
+{"frame": "status", "seq": 186, "ms": 387015, "drop": 132, "ign": 0, "age": 14, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 688, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}
+{"frame": "status", "seq": 187, "ms": 387216, "drop": 132, "ign": 0, "age": 15, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 688, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}
+{"frame": "status", "seq": 188, "ms": 387416, "drop": 132, "ign": 0, "age": 15, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 688, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}
+{"frame": "status", "seq": 189, "ms": 387616, "drop": 132, "ign": 0, "age": 15, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 688, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}
+{"frame": "status", "seq": 194, "ms": 388616, "drop": 132, "ign": 1, "age": 15, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 688, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}
+{"frame": "status", "seq": 195, "ms": 388816, "drop": 132, "ign": 1, "age": 15, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 688, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}
+{"frame": "perception", "seq": 195, "ms": 388816, "run": 0, "cal": 0, "ba": 0, "bl": 0, "yr": null, "mc": 0, "sw": 0, "sn": 0, "ss": 0, "sv": 0, "su": 0, "tv": false, "ha": false, "sc": false, "so": false}
+{"frame": "diagnostic", "seq": 195, "ms": 388816, "run": 0, "fc": 0, "fm": 0, "bu": 0, "br": 0, "mp": 0, "mv": false, "mask": 0, "src": 0, "faults": [], "stop_source": []}
+{"frame": "status", "seq": 196, "ms": 389016, "drop": 132, "ign": 1, "age": 15, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 697, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}
+{"frame": "status", "seq": 197, "ms": 389216, "drop": 132, "ign": 1, "age": 15, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 688, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}
+{"frame": "status", "seq": 198, "ms": 389415, "drop": 132, "ign": 1, "age": 15, "st": 0, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 688, "stop": true, "fault": false, "hv": false, "rv": true, "state": "INIT"}

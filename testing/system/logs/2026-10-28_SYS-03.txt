@@ -1,0 +1,139 @@
+default/release: compile exit0
+default: checks=16 failures=0 fixture=0
+uart_pins: checks=38 failures=0 fixture=0
+default/sanitized: compile exit0
+default: checks=16 failures=0 fixture=0
+uart_pins: checks=38 failures=0 fixture=0
+fixture/release: compile exit0
+local_control: checks=62 failures=0 fixture=1
+stop_epoch: checks=56 failures=0 fixture=1
+junction_wait: checks=45 failures=0 fixture=1
+left_stall: checks=144 failures=0 fixture=1
+right_stall: checks=144 failures=0 fixture=1
+line_timeout: checks=33 failures=0 fixture=1
+unknown_range: checks=93 failures=0 fixture=1
+scan_handoff: checks=3050 failures=0 fixture=1
+scan_unknown_return: checks=11509 failures=0 fixture=1
+full_bypass: checks=24637 failures=0 fixture=1
+command_policy: checks=34 failures=0 fixture=1
+uart_pins: checks=38 failures=0 fixture=1
+pitch_fault: checks=41 failures=0 fixture=1
+roll_fault: checks=41 failures=0 fixture=1
+invalid_tilt_start: checks=20 failures=0 fixture=1
+transient_tilt: checks=76 failures=0 fixture=1
+fault_diagnostic: checks=48 failures=0 fixture=1
+fault_mask: checks=75 failures=0 fixture=1
+fault_stress: checks=747 failures=0 fixture=1
+encoder_wrap: checks=94 failures=0 fixture=1
+encoder_jumps: checks=10 failures=0 fixture=1
+boot_counts: checks=32 failures=0 fixture=1
+stop_race: checks=32 failures=0 fixture=1
+stop_snapshot: checks=47 failures=0 fixture=1
+telemetry_budget: checks=27 failures=0 fixture=1
+telemetry_wrap: checks=854 failures=0 fixture=1
+barcode_noise: checks=121 failures=0 fixture=1
+barcode_junction: checks=100 failures=0 fixture=1
+hump_history: checks=152 failures=0 fixture=1
+watchdog_owners: checks=32 failures=0 fixture=1
+transient_range: checks=73 failures=0 fixture=1
+range_obstacle: checks=73 failures=0 fixture=1
+range_stop: checks=63 failures=0 fixture=1
+sonar_silent: checks=57 failures=0 fixture=1
+stale_range_pose: checks=56 failures=0 fixture=1
+range_start: checks=31 failures=0 fixture=1
+barcode_gap: checks=16 failures=0 fixture=1
+accel_pending: checks=42 failures=0 fixture=1
+accel_stale: checks=63 failures=0 fixture=1
+accel_invalid: checks=56 failures=0 fixture=1
+accel clock 100010 mHz, jitter 0 us: 1 overrun reads, fc=0
+accel_clock_fast: checks=314 failures=0 fixture=1
+accel clock 99990 mHz, jitter 800 us: 141 overrun reads, fc=0
+accel_clock_slow: checks=314 failures=0 fixture=1
+preempt_hump: checks=131 failures=0 fixture=1
+preempt_hump_always: checks=135 failures=0 fixture=1
+preempt_steady: checks=93 failures=0 fixture=1
+preempt_steady_double: checks=93 failures=0 fixture=1
+preempt_vehicle: checks=62 failures=0 fixture=1
+collision_guard: checks=73 failures=0 fixture=1
+preempt_collision: checks=73 failures=0 fixture=1
+barcode_range_pause: checks=124 failures=0 fixture=1
+trailing white at pause 0.0084 m (quiet 0.0150 m)
+barcode_quiet_pause: checks=133 failures=0 fixture=1
+barcode_crossbar: checks=168 failures=0 fixture=1
+scan_side_silent: checks=6079 failures=0 fixture=1
+motor_output_fault: checks=63 failures=0 fixture=1
+fixture/sanitized: compile exit0
+local_control: checks=62 failures=0 fixture=1
+stop_epoch: checks=56 failures=0 fixture=1
+junction_wait: checks=45 failures=0 fixture=1
+left_stall: checks=144 failures=0 fixture=1
+right_stall: checks=144 failures=0 fixture=1
+line_timeout: checks=33 failures=0 fixture=1
+unknown_range: checks=93 failures=0 fixture=1
+scan_handoff: checks=3050 failures=0 fixture=1
+scan_unknown_return: checks=11509 failures=0 fixture=1
+full_bypass: checks=24637 failures=0 fixture=1
+command_policy: checks=34 failures=0 fixture=1
+uart_pins: checks=38 failures=0 fixture=1
+pitch_fault: checks=41 failures=0 fixture=1
+roll_fault: checks=41 failures=0 fixture=1
+invalid_tilt_start: checks=20 failures=0 fixture=1
+transient_tilt: checks=76 failures=0 fixture=1
+fault_diagnostic: checks=48 failures=0 fixture=1
+fault_mask: checks=75 failures=0 fixture=1
+fault_stress: checks=747 failures=0 fixture=1
+encoder_wrap: checks=94 failures=0 fixture=1
+encoder_jumps: checks=10 failures=0 fixture=1
+boot_counts: checks=32 failures=0 fixture=1
+stop_race: checks=32 failures=0 fixture=1
+stop_snapshot: checks=47 failures=0 fixture=1
+telemetry_budget: checks=27 failures=0 fixture=1
+telemetry_wrap: checks=854 failures=0 fixture=1
+barcode_noise: checks=121 failures=0 fixture=1
+barcode_junction: checks=100 failures=0 fixture=1
+hump_history: checks=152 failures=0 fixture=1
+watchdog_owners: checks=32 failures=0 fixture=1
+transient_range: checks=73 failures=0 fixture=1
+range_obstacle: checks=73 failures=0 fixture=1
+range_stop: checks=63 failures=0 fixture=1
+sonar_silent: checks=57 failures=0 fixture=1
+stale_range_pose: checks=56 failures=0 fixture=1
+range_start: checks=31 failures=0 fixture=1
+barcode_gap: checks=16 failures=0 fixture=1
+accel_pending: checks=42 failures=0 fixture=1
+accel_stale: checks=63 failures=0 fixture=1
+accel_invalid: checks=56 failures=0 fixture=1
+accel clock 100010 mHz, jitter 0 us: 1 overrun reads, fc=0
+accel_clock_fast: checks=314 failures=0 fixture=1
+accel clock 99990 mHz, jitter 800 us: 141 overrun reads, fc=0
+accel_clock_slow: checks=314 failures=0 fixture=1
+preempt_hump: checks=131 failures=0 fixture=1
+preempt_hump_always: checks=135 failures=0 fixture=1
+preempt_steady: checks=93 failures=0 fixture=1
+preempt_steady_double: checks=93 failures=0 fixture=1
+preempt_vehicle: checks=62 failures=0 fixture=1
+collision_guard: checks=73 failures=0 fixture=1
+preempt_collision: checks=73 failures=0 fixture=1
+barcode_range_pause: checks=124 failures=0 fixture=1
+trailing white at pause 0.0084 m (quiet 0.0150 m)
+barcode_quiet_pause: checks=133 failures=0 fixture=1
+barcode_crossbar: checks=168 failures=0 fixture=1
+scan_side_silent: checks=6079 failures=0 fixture=1
+motor_output_fault: checks=63 failures=0 fixture=1
+wiring_only/release: compile exit0
+wiring_only: checks=51 failures=0 fixture=1
+wiring_only/sanitized: compile exit0
+wiring_only: checks=51 failures=0 fixture=1
+servo_asymmetric_forward/release: compile exit0
+servo_endpoints: checks=72 failures=0 fixture=1
+full_bypass: checks=23987 failures=0 fixture=1
+servo_asymmetric_forward/sanitized: compile exit0
+servo_endpoints: checks=72 failures=0 fixture=1
+full_bypass: checks=23987 failures=0 fixture=1
+servo_asymmetric_reverse/release: compile exit0
+servo_endpoints: checks=72 failures=0 fixture=1
+full_bypass: checks=23987 failures=0 fixture=1
+servo_asymmetric_reverse/sanitized: compile exit0
+servo_endpoints: checks=72 failures=0 fixture=1
+full_bypass: checks=23987 failures=0 fixture=1
+Scenario executions: 122; failures: 0

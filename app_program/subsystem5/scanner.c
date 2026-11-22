@@ -13,8 +13,6 @@
 #error "Scanner geometry requires at least 53 double mantissa bits."
 #endif
 
-#define SCANNER_MIN_ANGLE_DEG (-60)
-#define SCANNER_MAX_ANGLE_DEG (60)
 #define SCANNER_COARSE_STEP_DEG (10)
 #define SCANNER_FINE_STEP_DEG (2)
 #define SCANNER_SIDE_ANGLE_DEG (20)
@@ -44,7 +42,8 @@ static bool scanner_saturation_exact (
     const core_ultrasonic_config_t * p_range);
 static void scanner_result_reset (scanner_result_t * p_result);
 static void scanner_table_clear (scanner_state_t * p_state);
-static uint32_t scanner_index (int32_t angle_deg);
+static uint32_t scanner_index (const scanner_state_t * p_state,
+                               int32_t angle_deg);
 static bool scanner_decode (const scanner_state_t * p_state, uint32_t index,
                             scanner_sample_t * p_sample);
 static void scanner_capture (scanner_state_t * p_state,
@@ -74,6 +73,7 @@ void scanner_default_config (scanner_config_t * p_config)
         p_config->settle_ms                 = 150U;
         p_config->trigger_interval_ms       = SCANNER_MIN_INTERVAL_MS;
         p_config->echo_timeout_ms           = 30U;
+        p_config->half_angle_deg            = SCANNER_MAX_HALF_ANGLE_DEG;
         p_config->b_calibrated              = false;
     }
 }
@@ -114,8 +114,9 @@ bool scanner_start (scanner_state_t * p_state, uint32_t now_ms,
         return false;
     }
     p_state->sample_count     = 0U;
-    p_state->angle_deg        = SCANNER_MIN_ANGLE_DEG;
-    p_state->fine_end_deg     = SCANNER_MAX_ANGLE_DEG;
+    /* A validated half angle of at most 60 fits int8_t exactly. */
+    p_state->angle_deg        = (int8_t) (-p_state->config.half_angle_deg);
+    p_state->fine_end_deg     = (int8_t) p_state->config.half_angle_deg;
     p_state->phase_started_ms = now_ms;
     p_state->b_fine           = false;
     p_state->phase            = SCANNER_POSITION;
@@ -209,22 +210,24 @@ bool scanner_step (scanner_state_t * p_state, uint32_t now_ms,
     return true;
 }
 
-/** Odd, out-of-sector and never-sampled angles have no observation; nor
- * has a state that scanner_init never accepted (its table is not filled).
+/** Off-grid, out-of-sector and never-sampled angles have no observation;
+ * nor has a state that scanner_init never accepted (its table is not
+ * filled).
  */
 bool scanner_sample (const scanner_state_t * p_state, int32_t angle_deg,
                      scanner_sample_t * p_sample)
 {
     if ((NULL == p_state) || (NULL == p_sample)
         || (!p_state->b_initialized)
-        || (angle_deg < SCANNER_MIN_ANGLE_DEG)
-        || (angle_deg > SCANNER_MAX_ANGLE_DEG)
-        || (0 != ((angle_deg - SCANNER_MIN_ANGLE_DEG)
+        || (angle_deg < -p_state->config.half_angle_deg)
+        || (angle_deg > p_state->config.half_angle_deg)
+        || (0 != ((angle_deg + p_state->config.half_angle_deg)
                   % SCANNER_FINE_STEP_DEG)))
     {
         return false;
     }
-    return scanner_decode(p_state, scanner_index(angle_deg), p_sample);
+    return scanner_decode(p_state, scanner_index(p_state, angle_deg),
+                          p_sample);
 }
 
 /** CEIL distances to whole mm and copy counts, side and flags. */
@@ -315,6 +318,11 @@ static bool scanner_config_valid (const scanner_config_t * p_config)
            && (p_config->trigger_interval_ms <= SCANNER_MAX_DELAY_MS)
            && (p_config->echo_timeout_ms > 0U)
            && (p_config->echo_timeout_ms < p_config->trigger_interval_ms)
+           && (p_config->half_angle_deg > SCANNER_SIDE_ANGLE_DEG)
+           && (p_config->half_angle_deg <= SCANNER_MAX_HALF_ANGLE_DEG)
+           /* Whole coarse steps from -half reach +half exactly. */
+           && (0 == ((2 * p_config->half_angle_deg)
+                     % SCANNER_COARSE_STEP_DEG))
            && (scanner_saturation_exact(&p_config->range));
 }
 
@@ -356,13 +364,15 @@ static void scanner_table_clear (scanner_state_t * p_state)
     }
 }
 
-/** Table index (angle + 60) / 2 of an even beam angle in -60..60. */
-static uint32_t scanner_index (int32_t angle_deg)
+/** Table index (angle + half) / 2 of a grid beam angle in -half..half. */
+static uint32_t scanner_index (const scanner_state_t * p_state,
+                               int32_t angle_deg)
 {
-    /* -60..60 gives the exact offset 0..120; an angle outside the sector
-     * converts modulo 2^32 (C99 6.3.1.3) to an index >= 61 (or 60 for 61).
-     * The step constant 2 is exact as uint32_t. */
-    return ((uint32_t) (angle_deg - SCANNER_MIN_ANGLE_DEG))
+    /* -half..half gives the exact offset 0..2*half <= 120; an angle below
+     * the sector converts modulo 2^32 (C99 6.3.1.3) to an index >= 61, and
+     * one above it to an index > half. The step constant 2 is exact as
+     * uint32_t. */
+    return ((uint32_t) (angle_deg + p_state->config.half_angle_deg))
            / (uint32_t) SCANNER_FINE_STEP_DEG;
 }
 
@@ -378,9 +388,9 @@ static bool scanner_decode (const scanner_state_t * p_state, uint32_t index,
     {
         return false;
     }
-    /* index is 0..60, so the beam angle -60..60 is exact. */
+    /* index is 0..60, so the beam angle -half..half is exact. */
     p_sample->angle_deg = (((int32_t) index) * SCANNER_FINE_STEP_DEG)
-                          + SCANNER_MIN_ANGLE_DEG;
+                          - p_state->config.half_angle_deg;
     p_sample->b_fine = (0U != (entry & SCANNER_ENTRY_FINE));
     /* Code 0 is no echo; a zero-width echo also failed as UNKNOWN. */
     status = core_ultrasonic_range(&p_state->config.range,
@@ -399,10 +409,11 @@ static bool scanner_decode (const scanner_state_t * p_state, uint32_t index,
 static void scanner_capture (scanner_state_t * p_state,
                              const scanner_echo_t * p_echo)
 {
-    const uint32_t index = scanner_index(p_state->angle_deg);
+    const uint32_t index = scanner_index(p_state, p_state->angle_deg);
     uint32_t code = SCANNER_ENTRY_NO_ECHO;
 
-    /* The beam angle is always in -60..60; the index bound is defensive. */
+    /* The beam angle is always in -half..half; the index bound is
+     * defensive. */
     if ((p_state->sample_count >= SCANNER_MAX_SAMPLES)
         || (index >= SCANNER_TABLE_SIZE))
     {
@@ -429,12 +440,13 @@ static bool scanner_advance (scanner_state_t * p_state)
     const int32_t step_deg = p_state->b_fine ? SCANNER_FINE_STEP_DEG
                                             : SCANNER_COARSE_STEP_DEG;
     const int32_t end_deg  = p_state->b_fine ? p_state->fine_end_deg
-                                            : SCANNER_MAX_ANGLE_DEG;
+                                            : p_state->config.half_angle_deg;
 
     if ((p_state->angle_deg < end_deg)
         && (p_state->sample_count < SCANNER_MAX_SAMPLES))
     {
-        /* Below an end of at most 60 by a whole step: the sum is <= 60. */
+        /* Below an end of at most half (<= 60) by a whole step: the sum is
+         * <= half. */
         p_state->angle_deg = (int8_t) (p_state->angle_deg + step_deg);
         p_state->phase = SCANNER_POSITION;
         return true;
@@ -451,8 +463,9 @@ static bool scanner_advance (scanner_state_t * p_state)
 static bool scanner_refine (scanner_state_t * p_state)
 {
     scanner_sample_t sample;
-    int32_t first_deg = SCANNER_MAX_ANGLE_DEG;
-    int32_t last_deg  = SCANNER_MIN_ANGLE_DEG;
+    const int32_t half_deg = p_state->config.half_angle_deg;
+    int32_t first_deg = half_deg;
+    int32_t last_deg  = -half_deg;
     uint32_t index   = 0U;
     bool b_found     = false;
 
@@ -477,11 +490,11 @@ static bool scanner_refine (scanner_state_t * p_state)
     {
         first_deg -= SCANNER_COARSE_STEP_DEG;
         last_deg  += SCANNER_COARSE_STEP_DEG;
-        /* Both are clamped into -60..60, which int8_t holds exactly. */
-        p_state->angle_deg = (int8_t) ((first_deg < SCANNER_MIN_ANGLE_DEG)
-                             ? SCANNER_MIN_ANGLE_DEG : first_deg);
-        p_state->fine_end_deg = (int8_t) ((last_deg > SCANNER_MAX_ANGLE_DEG)
-                                ? SCANNER_MAX_ANGLE_DEG : last_deg);
+        /* Both are clamped into -half..half, which int8_t holds exactly. */
+        p_state->angle_deg = (int8_t) ((first_deg < -half_deg)
+                             ? -half_deg : first_deg);
+        p_state->fine_end_deg = (int8_t) ((last_deg > half_deg)
+                                ? half_deg : last_deg);
         p_state->b_fine = true;
     }
     return b_found;

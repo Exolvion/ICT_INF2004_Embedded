@@ -38,6 +38,11 @@
 #define APPHOST_MHZ_PER_HZ (1000U)
 /* board.h: each ISR delta holds +/-31 counts (6 bits); more is an error. */
 #define APPHOST_DELTA_MAX (31)
+/* Line sensors half dark (straddling the line) from the configured values. */
+#define APPHOST_IR_LEFT_ON_LINE \
+    ((uint16_t)((ROBOT_IR_LEFT_WHITE + ROBOT_IR_LEFT_BLACK) / 2U))
+#define APPHOST_IR_RIGHT_ON_LINE \
+    ((uint16_t)((ROBOT_IR_RIGHT_WHITE + ROBOT_IR_RIGHT_BLACK) / 2U))
 
 static uint64_t g_now_us;
 static uint64_t g_accel_consumed;
@@ -80,12 +85,14 @@ static uint8_t g_last_seq;
 static uint64_t g_last_send_us;
 static int32_t g_left_delta;
 static int32_t g_right_delta;
-static uint16_t g_servo_us = 1500U;
-static uint16_t g_servo_min_us = 1500U;
-static uint16_t g_servo_max_us = 1500U;
+static uint16_t g_servo_us = ROBOT_SERVO_CENTRE_US;
+static uint16_t g_servo_min_us = ROBOT_SERVO_CENTRE_US;
+static uint16_t g_servo_max_us = ROBOT_SERVO_CENTRE_US;
 static uint16_t g_servo_first_us;
-static uint16_t g_raw_ir[3] = {2000U, 2000U, 3500U};
-static int16_t g_raw_accel[3] = {0, 0, 1000};
+static uint16_t g_raw_ir[3] = {APPHOST_IR_LEFT_ON_LINE,
+                               APPHOST_IR_RIGHT_ON_LINE,
+                               ROBOT_IR_BARCODE_WHITE};
+static int16_t g_vehicle_accel[3] = {0, 0, 1000};
 static double g_left_duty;
 static double g_right_duty;
 static double g_left_speed;
@@ -175,6 +182,7 @@ static void apphost_unknown_range (void);
 static void apphost_transient_range (bool b_obstacle);
 static void apphost_range_stop (void);
 static void apphost_sonar_silent (bool b_stale_pose);
+static void apphost_spin (double yaw_rad);
 static void apphost_range_start (void);
 static void apphost_barcode_gap (void);
 static void apphost_line_timeout (void);
@@ -213,6 +221,7 @@ static uint32_t apphost_take_delta (int32_t * p_delta, int32_t * p_count,
                                     uint32_t error_bit);
 static void apphost_preempt (void);
 static board_accel_status_t apphost_accel_clocked (int16_t milligravity[3]);
+static void apphost_sensor_accel (int16_t milligravity[3]);
 static void apphost_accel_clock (uint32_t odr_mhz, uint32_t jitter_us);
 static void apphost_preempt_hump (bool b_always);
 static double apphost_steady_speed (void);
@@ -396,8 +405,30 @@ board_accel_status_t board_read_accel (int16_t milligravity[3])
     {
         return BOARD_ACCEL_PENDING;
     }
-    memcpy(milligravity, g_raw_accel, sizeof(g_raw_accel));
+    apphost_sensor_accel(milligravity);
     return BOARD_ACCEL_FRESH;
+}
+
+/** @brief The plant's gravity is in vehicle axes (x forward, y left, z up);
+ * the sensor reads it through the inverse of robot_config.h's axis map and
+ * bias/scale, so scenarios hold for any mounting.
+ */
+static void apphost_sensor_accel (int16_t milligravity[3])
+{
+    double sensor[3] = {0.0, 0.0, 0.0};
+
+    sensor[ROBOT_IMU_FORWARD_AXIS] =
+        (double)g_vehicle_accel[0] * ROBOT_IMU_FORWARD_SIGN;
+    sensor[ROBOT_IMU_LEFT_AXIS] =
+        (double)g_vehicle_accel[1] * ROBOT_IMU_LEFT_SIGN;
+    sensor[ROBOT_IMU_UP_AXIS] =
+        (double)g_vehicle_accel[2] * ROBOT_IMU_UP_SIGN;
+    milligravity[0] = (int16_t)lround(
+        (sensor[0] / ROBOT_ACCEL_SCALE_X) + ROBOT_ACCEL_BIAS_X_MG);
+    milligravity[1] = (int16_t)lround(
+        (sensor[1] / ROBOT_ACCEL_SCALE_Y) + ROBOT_ACCEL_BIAS_Y_MG);
+    milligravity[2] = (int16_t)lround(
+        (sensor[2] / ROBOT_ACCEL_SCALE_Z) + ROBOT_ACCEL_BIAS_Z_MG);
 }
 
 /** @brief Timed valid ranges form a known frontal object with open sides.
@@ -410,13 +441,14 @@ bool board_ultrasonic_trigger (void)
         (double)(ROBOT_SERVO_CENTRE_US - ROBOT_SERVO_MIN_US) :
         (double)(ROBOT_SERVO_MAX_US - ROBOT_SERVO_CENTRE_US);
     double angle_deg = ((double)g_servo_us - (double)ROBOT_SERVO_CENTRE_US)
-                       * 60.0 * (double)ROBOT_SERVO_ANGLE_SIGN / span_us;
+                       * (double)ROBOT_SCAN_HALF_ANGLE_DEG *
+                       (double)ROBOT_SERVO_ANGLE_SIGN / span_us;
     double distance = 3.0;
     double bearing = atan2(g_obstacle_y - g_robot_y,
                            g_obstacle_x - g_robot_x) - g_robot_yaw;
     double beam = angle_deg * CORE_PI / 180.0;
     double difference = atan2(sin(bearing - beam), cos(bearing - beam));
-    bool b_centre = (1500U == g_servo_us);
+    bool b_centre = (ROBOT_SERVO_CENTRE_US == g_servo_us);
 
     if (g_b_echo_pending ||
         (g_b_triggered &&
@@ -462,7 +494,7 @@ bool board_ultrasonic_result (uint32_t * p_pulse_us, bool * p_valid)
     }
     *p_pulse_us = g_b_echo_valid ? g_echo_pulse : 0U;
     *p_valid = g_b_echo_valid;
-    if (1500U == g_servo_us)
+    if (ROBOT_SERVO_CENTRE_US == g_servo_us)
     {
         g_centre_result_us = g_now_us;
     }
@@ -479,7 +511,7 @@ bool board_servo_us (uint16_t pulse_us)
     {
         return false;
     }
-    if (1500U != pulse_us)
+    if (ROBOT_SERVO_CENTRE_US != pulse_us)
     {
         g_b_servo_left_centre = true;
         if (0U == g_servo_first_us)
@@ -487,8 +519,8 @@ bool board_servo_us (uint16_t pulse_us)
             g_servo_first_us = pulse_us;
         }
     }
-    if ((1500U == pulse_us) && (g_servo_us > 1500U) &&
-        g_b_servo_left_centre)
+    if ((ROBOT_SERVO_CENTRE_US == pulse_us) &&
+        (g_servo_us > ROBOT_SERVO_CENTRE_US) && g_b_servo_left_centre)
     {
         g_b_centre_after_scan = true;
         g_last_centre_us = g_now_us;
@@ -866,9 +898,11 @@ static void apphost_plant (void)
         g_left_speed = g_steady_mps;
         g_right_speed = g_steady_mps;
     }
-    apphost_encoder(&g_left_fraction, g_left_speed,
+    /* Raw counts carry the configured encoder signs, as on the car. */
+    apphost_encoder(&g_left_fraction, ROBOT_LEFT_ENCODER_SIGN * g_left_speed,
                      &g_left_total, &g_left_delta);
-    apphost_encoder(&g_right_fraction, g_right_speed,
+    apphost_encoder(&g_right_fraction,
+                     ROBOT_RIGHT_ENCODER_SIGN * g_right_speed,
                      &g_right_total, &g_right_delta);
     g_robot_x += 0.0005 * (g_left_speed + g_right_speed) * cos(g_robot_yaw);
     g_robot_y += 0.0005 * (g_left_speed + g_right_speed) * sin(g_robot_yaw);
@@ -1068,8 +1102,8 @@ static void apphost_junction (void)
     CHECK(g_zero_commits > previous_zero);
     apphost_run(30U);
     CHECK(VEHICLE_FOLLOW == apphost_state());
-    g_raw_ir[0] = 2000U;
-    g_raw_ir[1] = 2000U;
+    g_raw_ir[0] = APPHOST_IR_LEFT_ON_LINE;
+    g_raw_ir[1] = APPHOST_IR_RIGHT_ON_LINE;
     apphost_run(30U);
     CHECK(VEHICLE_FOLLOW == apphost_state());
 }
@@ -1170,10 +1204,7 @@ static void apphost_sonar_silent (bool b_stale_pose)
     if (b_stale_pose)
     {
         /* Synthetic rotation exceeds the 0.12 rad beam-pose tolerance. */
-        g_left_total -= 30U;
-        g_right_total += 30U;
-        g_left_delta -= 30;
-        g_right_delta += 30;
+        apphost_spin(0.15);
         apphost_run(20U);
         CHECK(VEHICLE_RANGE_WAIT == apphost_state());
         CHECK(g_last_status.b_rangevalid);
@@ -1192,6 +1223,31 @@ static void apphost_sonar_silent (bool b_stale_pose)
         apphost_run(1000U);
         CHECK(VEHICLE_FAULT == apphost_state());
         CHECK(apphost_stopped());
+    }
+}
+
+/** @brief Turn on the spot by yaw_rad outside the plant: left wheel back,
+ * right forward, in raw counts. At most 25 counts per wheel per 5 ms Motion
+ * period, so with the plant's own counts the 6-bit delta (31) never
+ * saturates.
+ */
+static void apphost_spin (double yaw_rad)
+{
+    double count_m = 2.0 * CORE_PI * ROBOT_WHEEL_RADIUS_M /
+                     (double)ROBOT_ENCODER_COUNTS_PER_REV;
+    int32_t counts = (int32_t)ceil(yaw_rad * ROBOT_TRACK_WIDTH_M /
+                                   (2.0 * count_m));
+    int32_t step = 0;
+
+    while (counts > 0)
+    {
+        step = (counts > 25) ? 25 : counts;
+        g_left_total -= (uint32_t)(step * ROBOT_LEFT_ENCODER_SIGN);
+        g_right_total += (uint32_t)(step * ROBOT_RIGHT_ENCODER_SIGN);
+        g_left_delta -= step * ROBOT_LEFT_ENCODER_SIGN;
+        g_right_delta += step * ROBOT_RIGHT_ENCODER_SIGN;
+        counts -= step;
+        apphost_run(5U);
     }
 }
 
@@ -1331,10 +1387,15 @@ static void apphost_pin_policy (void)
     CHECK(ROBOT_PIN_CONSOLE_RX == ROBOT_PIN_ECHO);
     CHECK((ROBOT_PIN_TRIGGER < 12U) || (ROBOT_PIN_TRIGGER > 15U));
     CHECK((ROBOT_PIN_ECHO < 12U) || (ROBOT_PIN_ECHO > 15U));
-    /* The right IR D0 moved off GP26 (Grove 5's IR) to GP13. */
-    CHECK(ROBOT_PIN_IR_RIGHT_AUX != ROBOT_PIN_IR_LEFT);
+    /* The right IR D0 moved off GP26 (Grove 5's IR) to GP13, then to GP14
+     * when GP13's header pin broke off (28 Oct 2026). Grove 5 holds the
+     * left sensor, so no IR analogue pin may carry the right D0 either.
+     */
+    CHECK((ROBOT_PIN_IR_RIGHT_AUX != 26U) &&
+          (ROBOT_PIN_IR_RIGHT_AUX != ROBOT_PIN_IR_LEFT) &&
+          (ROBOT_PIN_IR_RIGHT_AUX != ROBOT_PIN_IR_BARCODE));
     CHECK((ROBOT_PIN_IR_RIGHT_AUX != ROBOT_PIN_SERVO) &&
-          (ROBOT_PIN_IR_RIGHT_AUX != 14U) && (ROBOT_PIN_IR_RIGHT_AUX != 15U));
+          (ROBOT_PIN_IR_RIGHT_AUX != 13U) && (ROBOT_PIN_IR_RIGHT_AUX != 15U));
 }
 
 /** @brief An explicit scenario name selects a finite deterministic fixture. */
@@ -1675,8 +1736,8 @@ static void apphost_tilt_fault (bool b_roll)
     robot_app_diagnostic_t diagnostic = {0};
 
     apphost_start();
-    g_raw_accel[b_roll ? 1U : 0U] = 707;
-    g_raw_accel[2] = 707;
+    g_vehicle_accel[b_roll ? 1U : 0U] = 707;
+    g_vehicle_accel[2] = 707;
     apphost_run(300U);
     CHECK(VEHICLE_FAULT == apphost_state());
     CHECK(apphost_stopped());
@@ -1691,7 +1752,7 @@ static void apphost_tilt_fault (bool b_roll)
 static void apphost_invalid_tilt_start (void)
 {
     apphost_boot();
-    g_raw_accel[2] = -1000;
+    g_vehicle_accel[2] = -1000;
     apphost_run(200U);
     apphost_button();
     CHECK(VEHICLE_IDLE == apphost_state());
@@ -1704,7 +1765,7 @@ static void apphost_transient_tilt (void)
     robot_app_diagnostic_t diagnostic = {0};
 
     apphost_start();
-    g_raw_accel[2] = 0;
+    g_vehicle_accel[2] = 0;
     apphost_run(10U);
     CHECK(apphost_stopped());
     apphost_run(240U);
@@ -1714,7 +1775,7 @@ static void apphost_transient_tilt (void)
     CHECK(ROBOT_APP_FAULT_TILT_UNAVAILABLE == diagnostic.code);
     apphost_button();
     CHECK(VEHICLE_FAULT == apphost_state());
-    g_raw_accel[2] = 1000;
+    g_vehicle_accel[2] = 1000;
     apphost_run(250U);
     CHECK(VEHICLE_FAULT == apphost_state());
     CHECK(apphost_stopped());
@@ -1989,8 +2050,11 @@ static void apphost_encoder_wrap (void)
 {
     int rejected = 0;
 
-    g_left_total = 0xFFF0U;
-    g_right_total = 0xFFF0U;
+    /* A sign -1 encoder counts down going forward: start it just above 0
+     * so it crosses the boundary the other way (0 -> 0xFFFF).
+     */
+    g_left_total = (ROBOT_LEFT_ENCODER_SIGN > 0) ? 0xFFF0U : 0x0010U;
+    g_right_total = (ROBOT_RIGHT_ENCODER_SIGN > 0) ? 0xFFF0U : 0x0010U;
     apphost_start();
     rejected = apphost_diagnostic_value(APPHOST_BR);
     apphost_run(1000U);
@@ -2134,13 +2198,13 @@ static void apphost_fault_stress (void)
     bool b_tracked = true;
 
     apphost_start();
-    g_raw_accel[0] = 707;
-    g_raw_accel[2] = 707;
+    g_vehicle_accel[0] = 707;
+    g_vehicle_accel[2] = 707;
     apphost_run(300U);
     CHECK(VEHICLE_FAULT == apphost_state());
     CHECK(tilt == (apphost_mask() & tilt));
-    g_raw_accel[0] = 0;
-    g_raw_accel[2] = 1000;
+    g_vehicle_accel[0] = 0;
+    g_vehicle_accel[2] = 1000;
     for (round = 0U; round < 10000U; ++round)
     {
         g_b_online = 0U != (round & 1U);
@@ -2204,13 +2268,13 @@ static void apphost_hump_history (void)
 
     apphost_start();
     apphost_run(500U);
-    g_raw_accel[0] = 199;
-    g_raw_accel[2] = 980;
+    g_vehicle_accel[0] = 199;
+    g_vehicle_accel[2] = 980;
     apphost_run(1600U);
-    g_raw_accel[0] = -199;
+    g_vehicle_accel[0] = -199;
     apphost_run(1800U);
-    g_raw_accel[0] = 0;
-    g_raw_accel[2] = 1000;
+    g_vehicle_accel[0] = 0;
+    g_vehicle_accel[2] = 1000;
     apphost_run(600U);
     CHECK(VEHICLE_FOLLOW == apphost_state());
     previous_peak = apphost_diagnostic_value(APPHOST_MP);
@@ -2308,7 +2372,7 @@ static board_accel_status_t apphost_accel_clocked (int16_t milligravity[3])
     if (BOARD_ACCEL_PENDING != result)
     {
         g_accel_consumed = produced;
-        memcpy(milligravity, g_raw_accel, sizeof(g_raw_accel));
+        apphost_sensor_accel(milligravity);
     }
     return result;
 }
@@ -2360,17 +2424,17 @@ static void apphost_preempt_hump (bool b_always)
     apphost_start();
     apphost_run(500U);
     g_b_preempt_accel_always = b_always;
-    g_raw_accel[0] = 199;
-    g_raw_accel[2] = 980;
+    g_vehicle_accel[0] = 199;
+    g_vehicle_accel[2] = 980;
     apphost_run(800U);
     g_b_preempt_accel = true;
     apphost_run(800U);
     CHECK(!g_b_preempt_accel);
     CHECK(b_always ? (g_preemptions > 100U) : (1U == g_preemptions));
-    g_raw_accel[0] = -199;
+    g_vehicle_accel[0] = -199;
     apphost_run(1800U);
-    g_raw_accel[0] = 0;
-    g_raw_accel[2] = 1000;
+    g_vehicle_accel[0] = 0;
+    g_vehicle_accel[2] = 1000;
     apphost_run(600U);
     g_b_preempt_accel_always = false;
     CHECK(VEHICLE_FOLLOW == apphost_state());
@@ -2385,7 +2449,14 @@ static void apphost_preempt_hump (bool b_always)
  */
 static double apphost_steady_speed (void)
 {
-    return (0.2 * 1.000001) * 2.0 * CORE_PI * ROBOT_WHEEL_RADIUS_M /
+    /* Whole counts per 5 ms nearest one count at 360 counts per turn
+     * (0.113 m/s), so a 5 ms path skew still reads as about 5.7 m/s^2.
+     */
+    double per_period = fmax(1.0,
+        round((double)ROBOT_ENCODER_COUNTS_PER_REV / 360.0));
+
+    return (0.2 * per_period * 1.000001) * 2.0 * CORE_PI *
+           ROBOT_WHEEL_RADIUS_M /
            (0.001 * (double)ROBOT_ENCODER_COUNTS_PER_REV);
 }
 
@@ -2422,11 +2493,11 @@ static void apphost_preempt_steady (uint32_t preempt_ms)
     }
     CHECK(!g_b_preempt_accel);
     /* -3.92 m/s^2 longitudinal with |a| = 0.9996 g, as collision_guard. */
-    g_raw_accel[0] = -400;
-    g_raw_accel[2] = 916;
+    g_vehicle_accel[0] = -400;
+    g_vehicle_accel[2] = 916;
     apphost_run(20U);
-    g_raw_accel[0] = 0;
-    g_raw_accel[2] = 1000;
+    g_vehicle_accel[0] = 0;
+    g_vehicle_accel[2] = 1000;
     apphost_run(100U);
     CHECK(preempt_ms == g_preemptions);
     /* Motion (phase 1) published at +1 ms, and at +6 ms when doubled. */
@@ -2511,18 +2582,26 @@ static void apphost_collision (bool b_preempt)
     g_motion_phase = 1U;
     apphost_start();
     g_b_preempt_accel_always = b_preempt;
+    /* Run up at the pinned steady speed: stopping from it is a clear
+     * encoder deceleration at any counts per turn, while the untuned plant
+     * (about 0.04 m/s) is not once count quantisation stops faking one.
+     */
+    g_left_fraction = 0.0;
+    g_right_fraction = 0.0;
+    g_steady_mps = apphost_steady_speed();
     apphost_run(1000U);
     CHECK(VEHICLE_FOLLOW == apphost_state());
+    g_steady_mps = 0.0;
     g_b_block_left = true;
     g_b_block_right = true;
     g_left_speed = 0.0;
     g_right_speed = 0.0;
     /* -3.92 m/s^2 longitudinal with |a| = 0.9996 g: inside the gravity band. */
-    g_raw_accel[0] = -400;
-    g_raw_accel[2] = 916;
+    g_vehicle_accel[0] = -400;
+    g_vehicle_accel[2] = 916;
     apphost_run(40U);
-    g_raw_accel[0] = 0;
-    g_raw_accel[2] = 1000;
+    g_vehicle_accel[0] = 0;
+    g_vehicle_accel[2] = 1000;
     apphost_run(60U);
     g_b_preempt_accel_always = false;
     CHECK(b_preempt == (g_preemptions > 90U));

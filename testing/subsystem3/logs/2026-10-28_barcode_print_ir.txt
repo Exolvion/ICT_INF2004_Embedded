@@ -1,0 +1,17 @@
+Printed barcode IR check, 2026-10-28 (before S3-U04/U05 with real prints).
+Raw data: 2026-10-28_S3_line_bench.txt, 1 s "IR ... B" lines, car parked.
+
+18:09 line run (log line 6732): the barcode sensor passed along the whole
+printed practice code but its 100 ms trace shows no run of bars: only
+isolated black samples at about 3, 5, 10 and 30 cm and a faint 150-320 ripple
+at about 52-63 cm.
+
+Parked check, printed sheet under the barcode sensor:
+  white space (log line 7412)        B ~165 (118-213)
+  wide printed black bar (line 7467) B ~170 (134-192)
+  for comparison: tile white ~137, black tape ~4043 (S3-U03 recal)
+
+Result: the printed black is invisible to the IR sensor (same as the white
+paper), most likely dye-based inkjet black. Reprint on a laser printer (carbon
+toner) or build the practice code from the black tape. Check any print first:
+a bar must read above the barcode DARK threshold, 3067 (aim > 3000).

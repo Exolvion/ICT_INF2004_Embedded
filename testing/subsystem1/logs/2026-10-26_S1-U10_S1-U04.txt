@@ -1,0 +1,7 @@
+16:53:36 watching inf2004/is29/status for 240 s
+16:54:49 inf2004/is29/status 0
+16:55:15 inf2004/is29/status 1
+16:57:37 Timed out
+16:57:37 broker log:
+1793004889: Client inf2004-is29 [172.17.0.1:48594] disconnected: exceeded timeout.
+1793004915: New client connected from 172.17.0.1:44168 as inf2004-is29 (p4, c1, k15).

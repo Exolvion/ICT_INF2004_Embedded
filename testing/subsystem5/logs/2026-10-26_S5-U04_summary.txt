@@ -1,0 +1,10 @@
+S5-U04 Sonar range, 2026-10-26, run by Siang Hong
+Build: build-target/mqtt (2d121bc + uncommitted: WIRING=1, SysTick SYST_CVR fix, encoder pin remap, left encoder sign -1)
+Target: flat wall, sonar roughly square to it. Distances were placed ROUGHLY, not tape-measured.
+Readings (20 status frames each, all rv=1):
+  ~200 mm -> 205 mm (2026-10-26_S5-U04.jsonl, box)
+  ~250 mm -> 264 mm median (263-265)   2026-10-26_S5-U04_250mm.jsonl
+  ~500 mm -> 511 mm median (511-513)   2026-10-26_S5-U04_500mm.jsonl (first spot read 379 mm: an object in the beam; moved)
+  ~1000 mm -> 973 mm median (965-979)  2026-10-26_S5-U04_1000mm_recheck.jsonl (first placement read 1100 mm)
+Firmware sound speed 343 m/s (20 C); a warmer room reads slightly short.
+Result: FUNCTIONAL PASS (valid, stable, tracks distance). Accuracy NOT measured: repeat at 200/250/500/1000 mm with a tape measure.

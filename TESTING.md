@@ -262,6 +262,99 @@ mission), so the **bench** tests in section 7 use small bench programs.
   telemetry as `cal`.
 - Re-check B3's barcode decoding whenever B2's counts per revolution change.
 
+### 5.1 Bench image
+
+One bench image covers S2-U06 (roll test), S2-U07, S3-U03, S3-U06, S4-U03,
+S4-U04 and S5-U06. It is not the robot firmware: flash the normal image
+back afterwards. Build it in WSL (it goes to `build-target/bench/`):
+
+```bash
+bash firmware/bench/build.sh mqtt
+```
+
+**Check the encoder signs first:** zero the distance (`\xab`), push the car
+about 30 cm straight forward on the floor by hand, and check that both ENC
+distances rise. The sweep's motor-sign verdict is only right if they do.
+
+**Then put the car on its stand with both wheels off the ground**: the duty
+sweep drives both motors up to 60% duty.
+
+Read the results (Git Bash):
+
+```bash
+docker exec mqtt mosquitto_sub -t inf2004/is29/telemetry -N
+```
+
+Once a second it prints the three IR readings (mean and min-max), the
+accelerometer in mg (sensor axes, mean and min..max) and the wheel distance
+since RESET (counts and mm, + = forward).
+
+Commands: the car's **START** button runs the duty sweep, its **STOP**
+button aborts and brakes. The other commands are one byte each:
+
+```bash
+printf '\xab' | docker exec -i mqtt mosquitto_pub -t inf2004/is29/command -s
+```
+
+| Byte | Does |
+|---|---|
+| `\xa9` | STOP: abort the sweep, brake |
+| `\xaa` | START: duty sweep, about 2.5 min |
+| `\xab` | Zero the wheel distance |
+| `\xac` / `\xad` | Servo pulse down / up one step |
+| `\xae` | Servo to 1500 us |
+| `\xaf` | Servo step 10 us <-> 100 us |
+
+After the sweep it prints every step (duty %, counts/s and mm/s per wheel)
+and, per wheel and direction, the duty where it first moves, the duty from
+which it turns steadily, the duty it keeps turning down to, the top speed
+and whether the motor sign is right. The last line is the lower bound for
+`ROBOT_STALL_DUTY` (largest steady duty + 2%). `E` on a step above about
+50% duty means the bench read the encoders too slowly for that speed, not
+an encoder fault.
+
+### 5.2 Motion bench image (S2-U08, S2-U09, S2-U10, S5-U07, S5-U08)
+
+A second bench image runs the robot's own speed controller (`motion.c`,
+the robot's 35% duty limit) instead of the sweep. Build it in WSL:
+
+```bash
+bash firmware/bench/build.sh mqtt motion
+```
+
+Output: `build-target/bench/bench_motion_mqtt.uf2`. IR, accelerometer and
+ENC distance still print once a second, so S2-U06 (roll test) and S3-U06
+work with it too. The car's START button and `\xaa` run the selected test;
+STOP aborts and brakes.
+
+| Byte | Does |
+|---|---|
+| `\xa9` | STOP: abort the test, brake |
+| `\xaa` | START: run the selected test |
+| `\xab` | Zero the wheel distance |
+| `\xac` / `\xad` | Previous / next gain set |
+| `\xae` | Back to the configured gains (set 0) |
+| `\xaf` | Next test |
+
+Gain sets (P, I; D stays as configured): 0 is the configured
+`ROBOT_PID_*`, then 1.0/3.0, 2.0/5.0, 2.0/10.0, 3.0/15.0 and 4.0/20.0. Each
+selection prints the test and gains.
+
+| Test | Where | What it prints |
+|---|---|---|
+| PID steps (S2-U08) | **on the stand, wheels off the ground** | Each wheel from rest to 80 mm/s, to 150 mm/s, then the pivot speed (about 42 mm/s each way), 4 s each. Per wheel: rise (90%) and settling (10%) time, peak, steady mean and ripple over the last 2 s, mean duty, ticks at the duty limit, longest stall-like run, and a 2 s trace |
+| DIST 1 m (S2-U09) | floor, clear path | ENC distance and odometry heading at completion and 1 s later. Mark the start and measure the real distance |
+| LEFT 90, RIGHT 90, TURN 180 (S2-U10) | floor | The same, for pivots at `ROBOT_TURN_RATE_RPS`. Measure the real angle |
+| LINE follow 80, 120, 150 mm/s (before SYS-08) | floor, front line sensors centred on the start of a line | Steers with the robot's `line_ctrl` and FOLLOW law (`ROBOT_LINE_GAIN_RPS`; straight-line speed `ROBOT_LINE_SPEED_MPS`, 120 mm/s or `ROBOT_MAX_SPEED_MPS`, halved at full steering). Unlike the robot, which halts while the line state is SEARCHING, it keeps its last command through short white gaps and calls the line lost after 0.5 s (the robot: 0.1 s). Stops at a junction, a lost line, 1.5 m or 60 s. Refuses to start unless the first sample is TRACKING. Prints why it stopped, ENC distance and heading, then a 250 ms trace: centre distance, raw IR L/R/B, steering, line state, heading. Measure where the sensors stopped against the line and the T |
+| LINE + stop within 10 cm (S5-U08, before INT-11) | floor, front line sensors on the start of the line, an obstacle somewhere on the line; hand near STOP | The 120 mm/s line test with the front sonar polled as the robot does (servo centred). A VALID range of at most 100 mm halts the car: it only stops, with no scan or bypass. Also records where the robot's own rule (`ROBOT_FRONT_STOP_DISTANCE_MM`, 250 mm) would have halted. Ranges that are not VALID are counted (each would halt the robot, RANGE_WAIT), and the test goes on. Prints the range at detection, the line travelled, the range and roll-on 1 s later, the readings, and the line trace with an `f` front-range column. The car finds the obstacle itself: nobody gives it the distance |
+| SCAN obstacle (S5-U07) | floor, car still where the LINE + stop test left it, the obstacle ahead | One robot obstacle scan: `scanner.c` with `app_cfg_scanner()` and the robot's servo endpoints, ±`ROBOT_SCAN_HALF_ANGLE_DEG`, coarse 10° then fine 2°. Prints the scan time, beams taken and refused triggers, then nearest distance, apparent width, left/right clearance, chosen side, valid/unknown beams, what the robot's Vehicle would do with it (bypass side, offset and length, or why it would fault; `ROBOT_CORRIDOR_CONFIRMED` assumed set), and every beam as angle:mm |
+| LINE centre 120, 150 mm/s (before SYS-08) | track, on a straight, the line between or under the front line sensors; hand near STOP | Proportional centring instead of the FOLLOW law's full steering whenever only one sensor sees the line: steering is `BENCH_CENTRE_KP` x (right darkness - left darkness), so it corrects gently and runs straight while the line lies between the sensors. Both white for more than 50 mm: turns toward the side last seen; the line is lost after 1.5 s of that. Drives straight through crossings (both sensors dark). Runs until STOP, a lost line or 60 s. Prints the distance, mean speed, time in each phase (TRACK, GAP, SEARCH, CROSS) and at full steering, gaps, crossings, searches, the darkest raw L/R, then the 250 ms trace with a `c` phase column |
+
+For S2-U08, run the step test with each gain set and pick the one that
+settles fastest with little overshoot, no ticks at the limit and no stall
+run near `ROBOT_STALL_MS`. Enter it as `ROBOT_PID_*`, then run S2-U09 and
+S2-U10 with it (10 runs each).
+
 ## 6. First drives
 
 ### 6.1 Start conditions
@@ -371,6 +464,8 @@ Phase: **P2** after section 4, **bench** in section 5, **P4** after section
 | S5-U04 | P2 | Sonar range |
 | S5-U05 | P2 | No echo |
 | S5-U06 | bench | Servo endpoints and centre |
+| S5-U07 | bench | Obstacle profile from a stationary scan |
+| S5-U08 | bench | Obstacle stop while following the line |
 
 ### Integration ([log](testing/integration/TEST_LOG.md))
 

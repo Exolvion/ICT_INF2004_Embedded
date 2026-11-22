@@ -1,0 +1,14 @@
+S5-U04 Sonar range (tape measure), 2026-10-27, run by Siang Hong
+Build: build-target/mqtt, normal firmware (2d121bc + uncommitted: WIRING=1, SysTick SYST_CVR fix, encoder pin remap, left encoder sign -1), broker <broker IP>, uf2 sha256 76eb4b1ea4c82dc7...
+Car: on the stand, USB power from the laptop. State FAULT (ENCODER latched 16.9 s after boot when a wheel was turned by hand); this does not affect the sonar reading.
+Target: flat cardboard box, square to the sonar. Tape zero: front face of the two transducer cans (metal mesh), measured from the top.
+Readings (about 6 s each, every status frame valid):
+  tape  200 mm ->  207 mm median (207-209),  error +7 mm (+3.5%)   2026-10-27_S5-U04_tape_200mm.jsonl  (29 frames)
+  tape  250 mm ->  257 mm median (256-258),  error +7 mm (+2.8%)   2026-10-27_S5-U04_tape_250mm.jsonl  (30 frames)
+  tape  500 mm ->  502 mm median (501-503),  error +2 mm (+0.4%)   2026-10-27_S5-U04_tape_500mm.jsonl  (30 frames)
+  tape 1000 mm ->  995 mm median (994-1003), error -5 mm (-0.5%)   2026-10-27_S5-U04_tape_1000mm.jsonl (28 frames)
+Fit: rg = 0.9845 x tape + 10.3 mm (residuals under 1 mm). A fixed offset of about +10 mm plus a scale 1.5% short.
+  The scale matches sound at about 348 m/s (about 28 C) against the firmware's 343 m/s (20 C). Room temperature was not measured.
+At the 250 mm front-stop distance the sonar reads 7 mm long, so the car would stop about 7 mm closer than set.
+Retakes: the first 200 mm attempt used a cup (curved, small: NO_ECHO every frame), the second had the box short of 200 mm (184 mm). Both were overwritten by the run above.
+Result: PASS (rv 1 in every frame; max error 7 mm across 200-1000 mm; spread at most 9 mm).

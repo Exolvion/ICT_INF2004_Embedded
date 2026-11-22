@@ -1037,6 +1037,14 @@ static void boardirq_motor_commit (void)
 #endif
 
 #if ROBOT_ENCODER_CHANNELS == 1
+/* One-channel demand that counts +1 on each wheel: the ISR multiplies the
+ * demand by the configured motor and encoder signs, so the expected counts
+ * below hold for any sign choice.
+ */
+#define BOARDIRQ_LEFT_FORWARD (ROBOT_LEFT_MOTOR_SIGN * ROBOT_LEFT_ENCODER_SIGN)
+#define BOARDIRQ_RIGHT_FORWARD \
+    (ROBOT_RIGHT_MOTOR_SIGN * ROBOT_RIGHT_ENCODER_SIGN)
+
 /** @brief Constant B counts only in explicitly confirmed one-channel mode.
  * Sticky bits are consumed between cases, so each case shows its own error.
  */
@@ -1046,8 +1054,9 @@ static void boardirq_single_channel (void)
     uint16_t right_total = 0U;
 
     boardirq_reset();
-    g_motor_directions = (BOARD_DIRECTION_ENCODE(1) |
-                          (BOARD_DIRECTION_ENCODE(-1) << 2U)) & 0xFU;
+    g_motor_directions =
+        (BOARD_DIRECTION_ENCODE(BOARDIRQ_LEFT_FORWARD) |
+         (BOARD_DIRECTION_ENCODE(-BOARDIRQ_RIGHT_FORWARD) << 2U)) & 0xFU;
     boardirq_inject(0x08080000U, 2U, 2U);
     boardirq_inject(0x04040000U, 0U, 0U);
     board_encoder_totals(&left_total, &right_total);
@@ -1062,7 +1071,8 @@ static void boardirq_single_channel (void)
                    (-2 == boardirq_delta(BOARD_RIGHT)) &&
                    (0U == g_encoder_errors), "B-only edges ignored");
     boardirq_reset();
-    g_motor_directions = (BOARD_DIRECTION_ENCODE(1) << 2U) & 0xFU;
+    g_motor_directions =
+        (BOARD_DIRECTION_ENCODE(BOARDIRQ_RIGHT_FORWARD) << 2U) & 0xFU;
     boardirq_inject(0x08080000U, 2U, 2U);
     boardirq_check((0 == boardirq_delta(BOARD_LEFT)) &&
                    (0U == (g_encoder_totals & BOARD_TOTAL_MASK)) &&
@@ -1076,7 +1086,7 @@ static void boardirq_single_channel (void)
                    (BOARD_ENCODER_ERROR_LEFT == g_encoder_errors),
                    "the reserved direction code never counts");
     boardirq_reset();
-    g_motor_directions = BOARD_DIRECTION_ENCODE(1);
+    g_motor_directions = BOARD_DIRECTION_ENCODE(BOARDIRQ_LEFT_FORWARD);
     boardirq_inject(0x000C0000U, 2U, 0U);
     boardirq_check((0 == boardirq_delta(BOARD_LEFT)) &&
                    (BOARD_ENCODER_ERROR_LEFT == boardirq_read_errors()),
@@ -1123,8 +1133,9 @@ static void boardirq_single_discard (void)
     uint16_t right_total = 0U;
 
     boardirq_reset();
-    g_motor_directions = (BOARD_DIRECTION_ENCODE(1) |
-                          (BOARD_DIRECTION_ENCODE(-1) << 2U)) & 0xFU;
+    g_motor_directions =
+        (BOARD_DIRECTION_ENCODE(BOARDIRQ_LEFT_FORWARD) |
+         (BOARD_DIRECTION_ENCODE(-BOARDIRQ_RIGHT_FORWARD) << 2U)) & 0xFU;
     boardirq_inject(0x08080000U, 2U, 2U);
     boardirq_inject(0x04040000U, 0U, 0U);
     boardirq_inject(0x0C0C0000U, 2U, 2U);
@@ -1137,7 +1148,7 @@ static void boardirq_single_discard (void)
                    (2U == left_before) && (0xFFFEU == right_before),
                    "boot-window A edges count on both wheels");
 #endif
-    g_motor_directions = BOARD_DIRECTION_ENCODE(1);
+    g_motor_directions = BOARD_DIRECTION_ENCODE(BOARDIRQ_LEFT_FORWARD);
     boardirq_arm(0x00040000U, 0U, 2U);
     regions = g_test_regions;
     board_encoders_discard();

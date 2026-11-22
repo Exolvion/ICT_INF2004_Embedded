@@ -24,6 +24,11 @@ cyw43_t cyw43_state;
 static mqtt_client_t mqtt_client;
 static uint32_t clock_ms;
 static uint32_t joins;
+static uint32_t power_save_off_joins;
+static bool b_power_save_off;
+static uint32_t radio_pm;
+static uint32_t pm_reads;
+static bool b_pm_stuck;
 static uint32_t leaves;
 static uint32_t connects;
 static uint32_t disconnects;
@@ -58,6 +63,7 @@ static void mqttnet_test_reconnect (struct netif * p_interface);
 static void mqttnet_test_backpressure (struct netif * p_interface);
 static void mqttnet_test_rollover (struct netif * p_interface);
 static void mqttnet_test_suback_timeout (struct netif * p_interface);
+static void mqttnet_test_power_save (struct netif * p_interface);
 
 /** @brief Exercise one complete deterministic simulated client lifecycle. */
 int main (void)
@@ -66,6 +72,8 @@ int main (void)
     const uint8_t frame[17] = {0xD1U, 0x17U};
     int result;
 
+    /* The radio starts in the driver default, as cyw43_wifi_set_up() sets. */
+    radio_pm = CYW43_PERFORMANCE_PM;
     mqttnet_test_check(net_mqtt_start(), "queues initialized");
     mqttnet_test_check(!net_mqtt_send(NULL, 1U), "NULL send rejected");
     mqttnet_test_check(!net_mqtt_send(frame, SIZE_MAX),
@@ -81,6 +89,7 @@ int main (void)
     mqttnet_test_reconnect(&interface);
     mqttnet_test_rollover(&interface);
     mqttnet_test_suback_timeout(&interface);
+    mqttnet_test_power_save(&interface);
     result = printf("mqttnet mocked adapter: %u checks, %u failures\n",
                       checks, failures);
     if ((result < 0) || (failures > 0U))
@@ -112,6 +121,34 @@ int cyw43_wifi_join (cyw43_t * p_state, size_t ssid_length,
     (void)p_bssid;
     (void)channel;
     joins++;
+    /* Each join must be preceded by its own power-saving-off request. */
+    if (b_power_save_off)
+    {
+        power_save_off_joins++;
+    }
+    b_power_save_off = false;
+    return 0;
+}
+
+/** @brief Record the requested radio power mode without hardware. */
+int cyw43_wifi_pm (cyw43_t * p_state, uint32_t pm)
+{
+    /* Mock does not implement hardware interfaces. */
+    (void)p_state;
+    b_power_save_off = (CYW43_NONE_PM == pm);
+    radio_pm = pm;
+    return 0;
+}
+
+/** @brief Read back the mock radio's mode; a stuck radio keeps the driver
+ * default whatever was requested.
+ */
+int cyw43_wifi_get_pm (cyw43_t * p_state, uint32_t * p_pm)
+{
+    /* Mock does not implement hardware interfaces. */
+    (void)p_state;
+    pm_reads++;
+    *p_pm = b_pm_stuck ? CYW43_PERFORMANCE_PM : radio_pm;
     return 0;
 }
 
@@ -289,6 +326,23 @@ bool net_mqtt_ipc_put_rx (uint8_t command)
     return true;
 }
 
+/** @brief Junction maps (navmap.h): this adapter test sends none, so any
+ * map reaching the queue is a routing error the command checks catch.
+ */
+bool net_mqtt_ipc_put_map (const uint8_t * p_map)
+{
+    (void)p_map;
+    commands++;
+    return true;
+}
+
+/** @brief No map is ever waiting in this test. */
+bool net_mqtt_ipc_receive_map (uint8_t * p_map)
+{
+    (void)p_map;
+    return false;
+}
+
 /** @brief Record assertions without hiding later independent failures. */
 static void mqttnet_test_check (bool b_result, const char * p_label)
 {
@@ -331,10 +385,15 @@ static void mqttnet_test_join (struct netif * p_interface)
     clock_ms = 31000U;
     net_mqtt_poll(p_interface);
     mqttnet_test_check(2U == joins, "join retry after delay");
+    mqttnet_test_check(joins == power_save_off_joins,
+                        "radio power saving off before every join");
+    mqttnet_test_check(0U == pm_reads, "no readback before the link is up");
     p_interface->flags |= NETIF_FLAG_LINK_UP;
     p_interface->ip_addr.addr = 1U;
     clock_ms = 32000U;
     net_mqtt_poll(p_interface);
+    mqttnet_test_check((1U == pm_reads) && b_power_save_off,
+                        "power saving off re-applied and read back at link-up");
     mqttnet_test_check(1U == connects, "MQTT starts after actual link/IP");
     connection_callback(&mqtt_client, NULL, MQTT_CONNECT_ACCEPTED);
     mqttnet_test_check(1U == subscribes, "CONNACK triggers subscribe");
@@ -463,6 +522,8 @@ static void mqttnet_test_reconnect (struct netif * p_interface)
     clock_ms = 66000U;
     net_mqtt_poll(p_interface);
     mqttnet_test_check(3U == connects, "second retry after 2 seconds");
+    mqttnet_test_check(1U == pm_reads,
+                        "a verified mode is not read again while linked");
     p_interface->flags = NETIF_FLAG_UP;
     clock_ms = 66100U;
     net_mqtt_poll(p_interface);
@@ -565,6 +626,43 @@ static void mqttnet_test_suback_timeout (struct netif * p_interface)
     net_mqtt_poll(p_interface);
     mqttnet_test_check(disconnects == (original_disconnects + 1U),
                         "retry after a closed connection clears the close");
+}
+
+/** @brief A radio that reads back power saving on is retried at most once a
+ * second until it reads off; a link loss forces a new check.
+ */
+static void mqttnet_test_power_save (struct netif * p_interface)
+{
+    uint32_t original_reads = pm_reads;
+
+    b_pm_stuck = true;
+    p_interface->flags = NETIF_FLAG_UP;
+    clock_ms = 3000U;
+    net_mqtt_poll(p_interface);
+    mqttnet_test_check(pm_reads == original_reads,
+                        "no readback while the link is down");
+    p_interface->flags = NETIF_FLAG_UP | NETIF_FLAG_LINK_UP;
+    clock_ms = 3100U;
+    net_mqtt_poll(p_interface);
+    mqttnet_test_check(pm_reads == (original_reads + 1U),
+                        "link loss forces a new readback");
+    clock_ms = 4099U;
+    net_mqtt_poll(p_interface);
+    mqttnet_test_check(pm_reads == (original_reads + 1U),
+                        "failed readback waits a second");
+    clock_ms = 4100U;
+    net_mqtt_poll(p_interface);
+    mqttnet_test_check(pm_reads == (original_reads + 2U),
+                        "failed readback retried after a second");
+    b_pm_stuck = false;
+    clock_ms = 5100U;
+    net_mqtt_poll(p_interface);
+    mqttnet_test_check(pm_reads == (original_reads + 3U),
+                        "retry reads power saving off");
+    clock_ms = 6100U;
+    net_mqtt_poll(p_interface);
+    mqttnet_test_check(pm_reads == (original_reads + 3U),
+                        "no readback once power saving reads off");
 }
 
 /* End of file. */

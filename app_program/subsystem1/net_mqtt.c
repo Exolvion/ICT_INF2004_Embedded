@@ -8,6 +8,7 @@
 #include "net_mqtt.h"
 #include "net_mqtt_ipc.h"
 #include "mqttcmd.h"
+#include "navmap.h"
 #include "telemetry.h"
 
 #include <stdint.h>
@@ -20,6 +21,10 @@ _Static_assert(MQTTCMD_LENGTH == NET_MQTT_IPC_RX_MAX,
                "A command is exactly one IPC byte");
 _Static_assert(MQTTCMD_STOP_BYTE == NET_MQTT_IPC_STOP_BYTE,
                "STOP routing uses the command format's STOP byte");
+_Static_assert(NAVMAP_LENGTH == NET_MQTT_IPC_MAP_MAX,
+               "A junction map is exactly one IPC map message");
+_Static_assert(NAVMAP_LENGTH != MQTTCMD_LENGTH,
+               "Maps and commands are told apart by their length");
 
 #if ROBOT_MQTT
 #include "cyw43.h"
@@ -37,7 +42,10 @@ _Static_assert(MQTTCMD_STOP_BYTE == NET_MQTT_IPC_STOP_BYTE,
 #define NET_MQTT_PUBLISH_MS 100U
 #define NET_MQTT_KEEPALIVE_S 15U
 #define NET_MQTT_RETAIN_MASK 0x01U
-#define NET_MQTT_TX_DRAIN_LIMIT 4U
+#define NET_MQTT_TX_DRAIN_LIMIT 8U  /* the IPC queue depth */
+#define NET_MQTT_TX_BURST 16U       /* frames sent per 100 ms, at most */
+/* cyw43_wifi_get_pm() packs 0x00adbrrm: the low nibble is the mode. */
+#define NET_MQTT_PM_MODE_MASK 0x0FU
 /* Presence on the status topic: one byte, '1' online and '0' offline. */
 #define NET_MQTT_ONLINE "1"
 #define NET_MQTT_OFFLINE "0"
@@ -45,6 +53,7 @@ _Static_assert(MQTTCMD_STOP_BYTE == NET_MQTT_IPC_STOP_BYTE,
 
 static mqtt_client_t * gp_client = NULL;
 static mqttcmd_t       g_command;
+static navmap_rx_t     g_map;
 static ip_addr_t       g_broker_address;
 static uint32_t        g_retry_started;
 static uint32_t        g_retry_delay;
@@ -52,6 +61,8 @@ static uint32_t        g_connect_started;
 static uint32_t        g_publish_started;
 static uint32_t        g_wifi_started;
 static uint32_t        g_wifi_delay;
+static uint32_t        g_power_checked;
+static bool            gb_power_save_off;
 static bool            gb_connecting;
 static bool            gb_connected;
 static bool            gb_subscribed;
@@ -100,6 +111,7 @@ static void net_mqtt_retry (uint32_t now);
 static void net_mqtt_transmit (uint32_t now);
 static void net_mqtt_take_tx (void);
 static void net_mqtt_wifi (uint32_t now, struct netif * p_interface);
+static bool net_mqtt_power_save_off (void);
 static void net_mqtt_connection (mqtt_client_t * p_mqtt, void * p_context,
                                  mqtt_connection_status_t status);
 static void net_mqtt_subscribed (void * p_context, err_t error);
@@ -122,7 +134,7 @@ bool net_mqtt_send (const uint8_t * p_frame, size_t length)
     {
         return false;
     }
-    /* At most 20 bytes, exactly representable in uint32_t. */
+    /* At most NET_MQTT_IPC_TX_MAX bytes, exactly representable in uint32_t. */
     return net_mqtt_ipc_send(p_frame, (uint32_t)length);
 }
 
@@ -248,6 +260,7 @@ static void net_mqtt_retry (uint32_t now)
     g_pending_length = 0U;
     gb_command_topic = false;
     mqttcmd_begin(&g_command, 0U, false);
+    navmap_begin(&g_map, 0U, false);
     if (g_retry_delay < NET_MQTT_RETRY_MIN_MS)
     {
         g_retry_delay = NET_MQTT_RETRY_MIN_MS;
@@ -265,7 +278,8 @@ static void net_mqtt_retry (uint32_t now)
 /** @brief QoS0 means accepted for transmission, never delivery guaranteed. */
 static void net_mqtt_transmit (uint32_t now)
 {
-    err_t result;
+    err_t    result;
+    uint32_t burst;
 
     if (gb_online_pending)
     {
@@ -274,25 +288,40 @@ static void net_mqtt_transmit (uint32_t now)
                                0U, NULL, NULL);
         gb_online_pending = ERR_OK != result;
     }
-    if (0U == g_pending_length)
+    /* Every frame waiting, in order, up to NET_MQTT_TX_BURST (19 Nov: one
+     * frame per 100 ms held the bench's text to ~150 characters/s). A full
+     * lwIP output buffer (ERR_MEM) keeps the frame for the next 100 ms.
+     */
+    for (burst = 0U; burst < NET_MQTT_TX_BURST; burst++)
     {
-        return;
-    }
-    /* IPC lengths are <=20, exactly representable in lwIP's u16_t. */
-    result = mqtt_publish(gp_client, NET_MQTT_TELEMETRY_TOPIC, g_pending_tx,
-                           (u16_t)g_pending_length, 0U, 0U, NULL, NULL);
-    if (ERR_OK == result)
-    {
-        g_pending_length = 0U;
-    }
-    else if (ERR_MEM == result)
-    {
-        /* Keep exactly one pending sample until the next 100 ms attempt. */
-    }
-    else
-    {
-        mqtt_disconnect(gp_client);
-        net_mqtt_retry(now);
+        if (0U == g_pending_length)
+        {
+            g_pending_length = net_mqtt_ipc_take_tx(g_pending_tx,
+                                                  sizeof(g_pending_tx));
+        }
+        if (0U == g_pending_length)
+        {
+            return;
+        }
+        /* IPC lengths are <= 64, exactly representable in lwIP's u16_t. */
+        result = mqtt_publish(gp_client, NET_MQTT_TELEMETRY_TOPIC,
+                               g_pending_tx, (u16_t)g_pending_length, 0U, 0U,
+                               NULL, NULL);
+        if (ERR_OK == result)
+        {
+            g_pending_length = 0U;
+        }
+        else if (ERR_MEM == result)
+        {
+            /* Keep exactly one pending frame until the next attempt. */
+            return;
+        }
+        else
+        {
+            mqtt_disconnect(gp_client);
+            net_mqtt_retry(now);
+            return;
+        }
     }
 }
 
@@ -312,7 +341,7 @@ static void net_mqtt_take_tx (void)
         }
         return;
     }
-    /* Drain at most the four-message queue depth and retain the newest
+    /* Drain at most the eight-message queue depth and retain the newest
      * sample. A full outage must not replay an unbounded telemetry history. */
     for (index = 0U; index < NET_MQTT_TX_DRAIN_LIMIT; index++)
     {
@@ -340,8 +369,18 @@ static void net_mqtt_wifi (uint32_t now, struct netif * p_interface)
         gb_wifi_joining = false;
         g_wifi_delay    = NET_MQTT_RETRY_MIN_MS;
         g_wifi_started  = now;
+        /* Once per association, power saving off is applied again and read
+         * back; a failed readback is retried at most once a second.
+         */
+        if ((!gb_power_save_off) &&
+            ((now - g_power_checked) >= NET_MQTT_RETRY_MIN_MS))
+        {
+            g_power_checked   = now;
+            gb_power_save_off = net_mqtt_power_save_off();
+        }
         return;
     }
+    gb_power_save_off = false;
     if (gb_wifi_joining)
     {
         if ((now - g_wifi_started) < NET_MQTT_CONNECT_MS)
@@ -358,6 +397,13 @@ static void net_mqtt_wifi (uint32_t now, struct netif * p_interface)
     {
         return;
     }
+    /* Radio power saving off before every join, the first included. The
+     * driver default (CYW43_PERFORMANCE_PM) stalled the link for 1.6-2.6 s
+     * and lost 0.2-4.1% of telemetry frames per 5 min (S1-U06, 26 Oct);
+     * with CYW43_NONE_PM set after start-up two runs lost none. The extra
+     * battery current is not measured yet. Verified after link-up above.
+     */
+    (void)cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
     result = cyw43_wifi_join(&cyw43_state, sizeof(g_wifi_ssid) - 1U,
                               g_wifi_ssid, sizeof(g_wifi_password) - 1U,
                               g_wifi_password, UTK_WIFI_AUTH, NULL,
@@ -376,6 +422,21 @@ static void net_mqtt_wifi (uint32_t now, struct netif * p_interface)
     {
         g_wifi_delay = NET_MQTT_RETRY_MAX_MS;
     }
+}
+
+/** @brief Request radio power saving off and read the mode back. Only the
+ * mode is compared: the radio may round the listen-interval fields.
+ */
+static bool net_mqtt_power_save_off (void)
+{
+    uint32_t pm = 0U;
+
+    if ((0 != cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM)) ||
+        (0 != cyw43_wifi_get_pm(&cyw43_state, &pm)))
+    {
+        return false;
+    }
+    return (uint32_t)CYW43_NO_POWERSAVE_MODE == (pm & NET_MQTT_PM_MODE_MASK);
 }
 
 /** @brief Subscribe anew on every clean-session connection. */
@@ -443,6 +504,8 @@ static void net_mqtt_publication (void * p_context, const char * p_topic,
      */
     gb_command_topic = b_topic_matches;
     mqttcmd_begin(&g_command, total_length, b_topic_matches);
+    /* A 3-byte payload is a junction map (navmap.h), never a command. */
+    navmap_begin(&g_map, total_length, b_topic_matches);
 }
 
 /** @brief Fragment assembly validates declared size before each copy. */
@@ -451,10 +514,22 @@ static void net_mqtt_fragment (void * p_context, const u8_t * p_data,
 {
     bool b_queued;
     bool b_last = 0U != (flags & MQTT_DATA_FLAG_LAST);
+    bool b_map;
 
     /* Callback ABI context is unused in this single-client service. */
     (void)p_context;
-    if (mqttcmd_feed(&g_command, p_data, length, b_last))
+    /* Both assemblers see every fragment; at most one accepted the length. */
+    b_map = navmap_feed(&g_map, p_data, length, b_last);
+    if (b_map)
+    {
+        /* A full map queue drops it, counted with the rejected payloads. */
+        if (!net_mqtt_ipc_put_map(g_map.bytes))
+        {
+            /* Unsigned increment wraps modulo 256; readers difference it. */
+            g_rejected_commands = (uint8_t)(g_rejected_commands + 1U);
+        }
+    }
+    else if (mqttcmd_feed(&g_command, p_data, length, b_last))
     {
         b_queued = net_mqtt_ipc_put_rx(g_command.command);
         /* STOP has its own queue (a duplicate pending STOP reports success),

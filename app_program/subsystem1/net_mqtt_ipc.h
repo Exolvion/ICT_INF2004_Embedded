@@ -14,25 +14,42 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/** Largest frame is 17 bytes; 20 is the kernel's 4-byte message unit. */
-#define NET_MQTT_IPC_TX_MAX 20U
+/** The robot's largest frame is 17 bytes; the bench image sends text lines
+ * through the same queue, so 64 (a 4-byte multiple): a 120-character line
+ * is 2 frames, not 6 (19 Nov: the text link ran at ~150 characters/s).
+ */
+#define NET_MQTT_IPC_TX_MAX 64U
 #define NET_MQTT_IPC_RX_MAX 1U
 #define NET_MQTT_IPC_STOP_BYTE 0xA9U
+/** A junction map (navmap.h) is 3 bytes; net_mqtt.c checks it. */
+#define NET_MQTT_IPC_MAP_MAX 3U
 
 /** Create three bounded message buffers; clean up on partial failure. */
 bool net_mqtt_ipc_start (void);
 
-/** Queue 1..20 telemetry bytes. Return false on invalid input/full queue. */
+/** Queue 1..NET_MQTT_IPC_TX_MAX telemetry bytes. Return false on invalid
+ * input/full queue.
+ */
 bool net_mqtt_ipc_send (const uint8_t * p_frame, uint32_t length);
 
 /** Receive one command byte, STOP first. True when a byte was written. */
 bool net_mqtt_ipc_receive (uint8_t * p_command);
 
-/** Radio-owner only: dequeue one frame; capacity must be >= 20 bytes. */
+/** Radio-owner only: dequeue one frame; capacity must be >=
+ * NET_MQTT_IPC_TX_MAX bytes.
+ */
 uint32_t net_mqtt_ipc_take_tx (uint8_t * p_frame, uint32_t capacity);
 
 /** Radio-owner only: enqueue one validated command byte. */
 bool net_mqtt_ipc_put_rx (uint8_t command);
+
+/** Radio-owner only: enqueue one validated 3-byte junction map. */
+bool net_mqtt_ipc_put_map (const uint8_t * p_map);
+
+/** Receive one 3-byte junction map into p_map (room for 3 bytes). True when
+ * a map was written.
+ */
+bool net_mqtt_ipc_receive_map (uint8_t * p_map);
 
 #endif /* NET_MQTT_IPC_H */
 

@@ -1,0 +1,14 @@
+16:50:13 docker stop mqtt
+mqtt
+16:51:14 docker start mqtt
+mqtt
+16:51:17 broker ready; watching status for 90 s
+16:51:26 inf2004/is29/status 1
+16:52:47 Timed out
+16:52:47 first telemetry frame after restart:
+{"frame": "perception", "seq": 185, "ms": 386811, "run": 0, "cal": 0, "ba": 0, "bl": 0, "yr": null, "mc": 0, "sw": 0, "sn": 0, "ss": 0, "sv": 0, "su": 0, "tv": false, "ha": false, "sc": false, "so": false}
+{"frame": "diagnostic", "seq": 185, "ms": 386811, "run": 0, "fc": 6, "fm": 5118, "bu": 0, "br": 0, "mp": 0, "mv": false, "mask": 2, "src": 0, "faults": ["ENCODER"], "stop_source": []}
+{"frame": "status", "seq": 186, "ms": 387011, "drop": 255, "ign": 0, "age": 17, "st": 7, "vl": 0, "vr": 0, "pt": null, "pk": 0, "rg": 203, "stop": true, "fault": true, "hv": false, "rv": true, "state": "FAULT"}
+16:52:49 broker log:
+1793004675: Opening ipv4 listen socket on port 1883.
+1793004684: New client connected from 172.17.0.1:48594 as inf2004-is29 (p4, c1, k15).

@@ -1,0 +1,1758 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IS29 Car Dashboard</title>
+<script type="importmap">{ "imports": { "three": "/static/vendor/three.module.min.js", "three/addons/": "/static/vendor/" } }</script>
+<script>try { const t = localStorage.getItem("is29-theme"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch (e) { /* storage blocked */ }</script>
+<style>
+/* Flat, grey-first, colour only where it means something (a state or a
+ * sensor series); hairline-divided panels, no shadows or gradients.
+ * Neutral and series values: the dataviz reference palette (validated). */
+:root {
+  --bg: #f4f4f1; --card: #fcfcfb; --subtle: #f4f4f1; --side: #f4f4f1;
+  --text: #0b0b0b; --text2: #42413e; --muted: #64635e; --faint: #898781;
+  --line: #dcdbd4; --line2: #e9e8e2;
+  --accent: #2a78d6; --accent-soft: rgba(42, 120, 214, .09);
+  --ok: #0ca30c; --warn: #e09b00; --bad: #d03b3b;
+  --ok-text: #006300; --warn-text: #8a5a00;
+  --chip: #ecebe6; --radius: 6px;
+  --side-w: 220px; --top-h: 56px;
+  --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, monospace;
+  /* sensor series: dataviz categorical slots 1-3 */
+  --s-l: #2a78d6; --s-r: #eb6834; --s-b: #1baf7a;
+  --ph-gap: rgba(224, 155, 0, .14); --ph-search: rgba(208, 59, 59, .11); --ph-cross: rgba(42, 120, 214, .12);
+  --hit: #9a3412; --glass: #fcfcfb; --lineband: rgba(11, 11, 11, .14);
+  --paper: #ffffff; --ink: #111111;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d0d0d; --card: #1a1a19; --subtle: #20201e; --side: #121211;
+    --text: #f0efec; --text2: #c3c2b7; --muted: #a3a29a; --faint: #7d7c76;
+    --line: #2c2c2a; --line2: #252523;
+    --accent: #3987e5; --accent-soft: rgba(57, 135, 229, .14);
+    --ok: #0ca30c; --warn: #fab219; --bad: #e05252;
+    --ok-text: #3cc13c; --warn-text: #fab219;
+    --chip: #262624;
+    --s-l: #3987e5; --s-r: #d95926; --s-b: #199e70;
+    --ph-gap: rgba(250, 178, 25, .13); --ph-search: rgba(224, 82, 82, .14); --ph-cross: rgba(57, 135, 229, .15);
+    --hit: #ec835a; --glass: #1a1a19; --lineband: rgba(240, 239, 236, .16);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d0d0d; --card: #1a1a19; --subtle: #20201e; --side: #121211;
+  --text: #f0efec; --text2: #c3c2b7; --muted: #a3a29a; --faint: #7d7c76;
+  --line: #2c2c2a; --line2: #252523;
+  --accent: #3987e5; --accent-soft: rgba(57, 135, 229, .14);
+  --ok: #0ca30c; --warn: #fab219; --bad: #e05252;
+  --ok-text: #3cc13c; --warn-text: #fab219;
+  --chip: #262624;
+  --s-l: #3987e5; --s-r: #d95926; --s-b: #199e70;
+  --ph-gap: rgba(250, 178, 25, .13); --ph-search: rgba(224, 82, 82, .14); --ph-cross: rgba(57, 135, 229, .15);
+  --hit: #ec835a; --glass: #1a1a19; --lineband: rgba(240, 239, 236, .16);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 13.5px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; }
+
+/* ---------- shell ---------- */
+.side { position: fixed; inset: 0 auto 0 0; width: var(--side-w); background: var(--side);
+  border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 16px 12px; z-index: 6; }
+.brand { padding: 2px 8px 18px; }
+.brand b { display: block; font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.brand span { display: block; font-size: 12px; color: var(--muted); }
+.logo { display: none; }
+.navlbl { display: none; }
+.nav { display: flex; flex-direction: column; gap: 1px; }
+.nav a { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 4px;
+  color: var(--text2); text-decoration: none; white-space: nowrap; }
+.nav a svg { width: 16px; height: 16px; flex: none; color: var(--faint); }
+.nav a:hover { background: var(--chip); color: var(--text); }
+.nav a.active { background: var(--chip); color: var(--text); font-weight: 600; }
+.nav a.active svg { color: var(--text); }
+.side-foot { margin-top: auto; padding: 12px 8px 2px; border-top: 1px solid var(--line);
+  font-size: 12px; color: var(--muted); }
+kbd { font: 600 11px/1 var(--mono); padding: 2px 5px; border-radius: 3px;
+  border: 1px solid var(--line); background: var(--card); color: var(--text2); }
+
+.wrap { margin-left: var(--side-w); min-width: 0; }
+.top { position: sticky; top: 0; z-index: 5; height: var(--top-h); display: flex; align-items: center; gap: 16px;
+  padding: 0 24px; background: var(--glass); border-bottom: 1px solid var(--line); }
+.top h1 { font-size: 15px; font-weight: 650; margin: 0; }
+.top .sub { font-size: 12px; color: var(--muted); }
+.conn { display: flex; gap: 14px; margin-left: auto; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); white-space: nowrap; }
+/* state marker: a small square, never a glow */
+.dot { width: 7px; height: 7px; border-radius: 1px; background: var(--faint); flex: none; }
+.dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); } .dot.warn { background: var(--warn); }
+.state { font: 600 12px/1 var(--mono); padding: 6px 9px; border-radius: 4px; border: 1px solid var(--line);
+  color: var(--text2); letter-spacing: .02em; white-space: nowrap; }
+.state.run { color: var(--ok-text); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.state.fault { color: var(--bad); border-color: var(--bad); }
+.state.obst { color: var(--warn-text); border-color: color-mix(in srgb, var(--warn) 55%, var(--line)); }
+.estop { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--bad); background: var(--bad); color: #fff;
+  font-weight: 700; padding: 7px 14px; border-radius: 4px; cursor: pointer; letter-spacing: .03em; white-space: nowrap; }
+.estop:hover { background: #b42f2f; border-color: #b42f2f; }
+.estop svg { width: 13px; height: 13px; }
+
+/* Panels share hairlines: the grid's 1px gaps show the line colour. */
+main { display: grid; gap: 1px; margin: 20px 24px 40px; grid-template-columns: repeat(12, minmax(0, 1fr));
+  max-width: 1480px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.c4 { grid-column: span 4; } .c8 { grid-column: span 8; } .c12 { grid-column: span 12; }
+section[id] { scroll-margin-top: calc(var(--top-h) + 16px); }
+
+/* ---------- panels ---------- */
+.card { background: var(--card); padding: 18px 20px 20px; min-width: 0; }
+.card-h { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.card-h h2 { font-size: 14px; font-weight: 650; margin: 0; }
+.card-h p { margin: 1px 0 0; font-size: 12px; color: var(--muted); }
+.card-h .meta { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  justify-content: flex-end; min-width: 0; }
+.card-h > div:first-child { min-width: 0; flex: none; }
+#run-sel { min-width: 0; max-width: 380px; text-overflow: ellipsis; }
+.card h3 { font-size: 12px; font-weight: 600; color: var(--text2); margin: 18px 0 6px; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 12px; line-height: 1.55; }
+.meta .pill { border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; }
+
+/* ---------- overview strip ---------- */
+.kpis { grid-column: span 12; display: grid; gap: 1px; background: var(--line); grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.kpi { background: var(--card); padding: 14px 18px 15px; min-width: 0; }
+.kpi .k { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.kpi .k::before { content: ""; width: 7px; height: 7px; border-radius: 1px; background: transparent; flex: none; display: none; }
+.kpi.ok .k::before, .kpi.warn .k::before, .kpi.bad .k::before { display: block; }
+.kpi.ok .k::before { background: var(--ok); } .kpi.warn .k::before { background: var(--warn); }
+.kpi.bad .k::before { background: var(--bad); }
+.kpi .v { font-size: 22px; font-weight: 650; letter-spacing: -.015em; margin-top: 3px;
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .v.txt { font-size: 16px; line-height: 29px; letter-spacing: 0; }
+.kpi .v small { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.kpi .s { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- buttons ---------- */
+button { border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 6px 12px;
+  border-radius: 4px; cursor: pointer; }
+button:hover { background: var(--chip); }
+button:focus-visible, select:focus-visible, .nav a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.big { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.big button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px;
+  font-size: 14px; font-weight: 700; letter-spacing: .04em; border-radius: 4px; }
+.big button svg { width: 13px; height: 13px; }
+.go { background: var(--text) !important; color: var(--card) !important; border-color: var(--text) !important; }
+.go:hover { opacity: .88; }
+.stop { background: var(--bad) !important; border-color: var(--bad) !important; color: #fff !important; }
+.stop:hover { background: #b42f2f !important; }
+.row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.row3 button { padding: 7px 8px; text-align: left; }
+.row3 button small { display: block; font-size: 11px; color: var(--muted); }
+input[type=checkbox] { accent-color: var(--accent); vertical-align: -2px; }
+.navmap { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line2); display: grid; gap: 10px; }
+.navmap-h { font-weight: 600; font-size: 12px; color: var(--text2); }
+.navmap-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.navmap-row label { display: grid; gap: 4px; font-size: 11.5px; color: var(--muted); }
+.navmap-row input { width: 100%; min-width: 0; text-align: center; text-transform: uppercase;
+  font: 600 18px/1 var(--mono); padding: 8px 0; border: 1px solid var(--line); border-radius: 4px; background: var(--card); color: var(--text); }
+.navmap-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.navmap-ack { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.navmap-ack.ok { color: var(--ok-text); }
+select { border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 5px 8px;
+  border-radius: 4px; max-width: 100%; }
+
+.selbox { margin-top: 14px; padding: 10px 12px; border-radius: 4px; background: var(--subtle);
+  border: 1px solid var(--line2); font-size: 13px; color: var(--text2); }
+.selbox b { display: block; font-weight: 650; color: var(--text); }
+.selbox span { display: block; font-size: 12.5px; }
+.selbox.warn span:last-child { color: var(--warn-text); font-weight: 600; }
+
+/* ---------- telemetry readouts ---------- */
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1px;
+  border: 1px solid var(--line2); border-radius: 4px; overflow: hidden; }
+/* each tile draws its own right and bottom hairline, so a part-filled row
+ * leaves plain panel, not a grey block */
+.stat { background: var(--card); padding: 10px 12px; min-width: 0; box-shadow: 1px 0 0 var(--line2), 0 1px 0 var(--line2); }
+.stat[hidden] { display: none; }
+.stat .k { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.stat .k i { width: 10px; height: 2px; display: inline-block; }
+.stat .v { font-size: 19px; font-weight: 650; margin-top: 1px;
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat .v.sm { font-size: 14.5px; line-height: 29px; }
+.stat .s { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat.flag .k { color: var(--bad); }
+.bar { height: 4px; background: var(--chip); overflow: hidden; margin-top: 8px; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .25s; }
+.chartbox { margin-top: 16px; border-top: 1px solid var(--line2); padding: 12px 0 0; }
+canvas { width: 100%; height: 200px; display: block; }
+#trace { height: 280px; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 14px; height: 2px; margin-right: 6px; vertical-align: middle; }
+.legend i.sw { height: 10px; width: 12px; border-radius: 2px; vertical-align: -1px; }
+
+/* ---------- live map ---------- */
+.map-grid { display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); gap: 20px; }
+.mapbox { margin-top: 0; border: 1px solid var(--line2); border-radius: 4px; padding: 10px 12px 8px; }
+#mapc { height: 500px; }
+#map3d { height: 500px; overflow: hidden; border-radius: 2px; }
+#map3d[hidden], #mapc[hidden], .m3-bar[hidden], .legend[hidden] { display: none; }
+.m3-bar { display: flex; gap: 12px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.m3-bar .seg { flex: none; }
+.map-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { border: none; border-radius: 0; background: transparent; padding: 4px 11px; font-size: 12.5px; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover { background: var(--chip); color: var(--text); }
+.seg button.on { background: var(--chip); color: var(--text); font-weight: 600; }
+.obst-card { border: 1px solid var(--line2); border-radius: 4px; padding: 12px 14px; }
+.obst-card.measuring { border-color: var(--accent); }
+.obst-card.around, .obst-card.none { border-color: color-mix(in srgb, var(--warn) 60%, var(--line)); }
+.obst-card.rejoined { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.obst-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.obst-top .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+.badge { font: 600 11.5px/1.4 var(--mono); padding: 1px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.badge.measuring { color: var(--accent); border-color: var(--accent); }
+.badge.around { color: var(--warn-text); border-color: var(--warn); } .badge.none { color: var(--bad); border-color: var(--bad); }
+.badge.rejoined { color: var(--ok-text); border-color: var(--ok); }
+.obst-size { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 6px; margin: 6px 0 2px;
+  font-variant-numeric: tabular-nums; }
+.obst-size span:not(.x) { font-size: 28px; font-weight: 650; letter-spacing: -.02em; }
+.obst-size small { font-size: 12.5px; color: var(--muted); }
+.obst-size .x { font-size: 18px; color: var(--faint); margin: 0 4px; }
+.obst-card .s { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.map-avoid { margin-top: 12px; max-height: 150px; }
+
+/* ---------- run ---------- */
+.run-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; }
+.phasebar { display: flex; height: 8px; gap: 2px; overflow: hidden; margin: 4px 0 6px; }
+.phasebar div { height: 100%; }
+.phaselbl { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.runlines { margin: 0; max-height: 236px; overflow: auto; font: 12px/1.6 var(--mono);
+  background: var(--subtle); border: 1px solid var(--line2); border-radius: 4px; padding: 10px 12px;
+  white-space: pre-wrap; word-break: break-word; color: var(--text2); }
+details { margin-top: 14px; border: 1px solid var(--line2); border-radius: 4px; }
+summary { cursor: pointer; padding: 9px 12px; font-weight: 600; font-size: 12.5px; color: var(--text2); }
+.ttbox { max-height: 360px; overflow: auto; border-top: 1px solid var(--line2); }
+table.tt { font-size: 12px; font-variant-numeric: tabular-nums; }
+table.tt th { position: sticky; top: 0; background: var(--card); text-align: right; font-weight: 600; color: var(--muted);
+  padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.tt td, table.tt td:last-child { text-align: right; padding: 3px 8px; font-weight: 400; color: var(--text2); white-space: nowrap; }
+table.tt tr.end td { font-weight: 700; color: var(--text); }
+table.tt td.GAP { background: var(--ph-gap); } table.tt td.SEARCH { background: var(--ph-search); }
+table.tt td.CROSS { background: var(--ph-cross); }
+
+/* ---------- tables and log ---------- */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td { padding: 7px 0; border-bottom: 1px solid var(--line2); color: var(--text2); }
+tr:last-child td { border-bottom: none; }
+td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text); padding-left: 12px; }
+.log { height: 320px; overflow: auto; font: 12px/1.6 var(--mono);
+  background: var(--subtle); border: 1px solid var(--line2); border-radius: 4px; padding: 8px 12px; }
+.log div { white-space: pre-wrap; word-break: break-word; border-bottom: 1px solid var(--line2); padding: 2px 0; }
+.log .tm { color: var(--faint); margin-right: 10px; }
+.log .warn { color: var(--warn-text); } .log .bad { color: var(--bad); font-weight: 600; } .log .ok { color: var(--ok-text); }
+.log .sent, .log .mode { color: var(--accent); } .log .garbled, .log .per { color: var(--faint); }
+.toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar label { font-size: 12.5px; color: var(--text2); }
+
+#toast { position: fixed; right: 24px; bottom: 24px; padding: 9px 14px; border-radius: 4px; z-index: 20;
+  background: var(--text); color: var(--card); opacity: 0; transform: translateY(4px);
+  transition: opacity .15s, transform .15s; pointer-events: none; max-width: 80vw; }
+#toast.show { opacity: 1; transform: none; }
+
+/* ---------- mission ---------- */
+.mission-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px; }
+.score { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+.score b { font-size: 13px; } .score span { font-size: 12px; color: var(--muted); }
+.reqs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line2);
+  border: 1px solid var(--line2); border-radius: 4px; overflow: hidden; }
+.req { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0 10px; align-items: center;
+  padding: 8px 10px; background: var(--card); min-width: 0; }
+.req .n { grid-row: span 2; width: 22px; height: 22px; border-radius: 3px; display: grid; place-items: center;
+  font: 600 11.5px/1 var(--mono); color: var(--muted); border: 1px solid var(--line); }
+.req .t { font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.req .d { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums; }
+.req.ok .n { background: var(--ok); border-color: var(--ok); color: #fff; }
+.req.live .n { border-color: var(--accent); color: var(--accent); }
+.req.warn .n { background: var(--warn); border-color: var(--warn); color: #111; }
+.req.warn .d { color: var(--warn-text); }
+.moves { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line2);
+  border: 1px solid var(--line2); border-radius: 4px; overflow: hidden; }
+.move { padding: 9px 6px 7px; text-align: center; background: var(--card); min-width: 0; }
+.move svg { width: 18px; height: 18px; color: var(--faint); display: block; margin: 0 auto 2px; }
+.move .l { font: 650 22px/1.2 var(--mono); color: var(--text); }
+.move .l.none { color: var(--faint); }
+.move .m { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.move.held { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.move.held svg, .move.held .m { color: var(--accent); }
+.held-line { font-size: 12.5px; color: var(--text2); margin-top: 10px; min-height: 19px; }
+.held-line b { color: var(--text); }
+.timeline { list-style: none; margin: 0; padding: 0; max-height: 236px; overflow: auto; }
+.timeline li { display: grid; grid-template-columns: 64px 8px minmax(0, 1fr); gap: 10px; align-items: baseline;
+  padding: 4px 0; font-size: 12.5px; border-bottom: 1px solid var(--line2); color: var(--text2); }
+.timeline li:last-child { border-bottom: none; }
+.timeline .tm { color: var(--faint); font: 11.5px/1.5 var(--mono); }
+.timeline .pt { width: 6px; height: 6px; border-radius: 1px; background: var(--faint); align-self: center; }
+.timeline .ok .pt { background: var(--ok); } .timeline .warn .pt { background: var(--warn); }
+.timeline .info .pt { background: var(--accent); }
+.timeline .empty { display: block; color: var(--muted); border: none; }
+.theme { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; flex: none; }
+.theme svg { width: 15px; height: 15px; }
+
+/* ---------- barcodes ---------- */
+.bc-grid { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 24px; }
+.bc-list svg.mini { display: block; align-self: center; }
+.bc-list svg.mini rect { fill: var(--ink); }
+.bc-list svg.mini rect.pp { fill: var(--paper); stroke: var(--line); }
+.bc-list { display: flex; flex-direction: column; border: 1px solid var(--line2); border-radius: 4px; overflow: hidden; align-self: start; }
+.bc-list button { display: grid; grid-template-columns: 18px 26px 56px minmax(0, 1fr); align-items: center; gap: 8px;
+  border: none; border-bottom: 1px solid var(--line2); border-radius: 0; text-align: left; padding: 8px 10px; background: var(--card); }
+.bc-list button:last-child { border-bottom: none; }
+.bc-list button:hover { background: var(--chip); }
+.bc-list button.on { background: var(--chip); box-shadow: inset 2px 0 0 var(--text); }
+.bc-list .no { font: 11.5px/1 var(--mono); color: var(--faint); }
+.bc-list .ch { font: 700 16px/1 var(--mono); color: var(--text); }
+.bc-list .ch.none { color: var(--faint); font-weight: 500; font-size: 13px; }
+.bc-list .at { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.bc-head .bc-big { display: block; margin: 0; font: 700 34px/1 var(--mono); letter-spacing: .02em; }
+.bc-head .bc-big.none { color: var(--faint); font-size: 22px; }
+.bc-head .mv { font-size: 14px; font-weight: 600; }
+.bc-head .where { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bc-svg { width: 100%; display: block; }
+.bc-svg text { font: 11px system-ui, sans-serif; fill: var(--muted); }
+.bc-svg text.lbl { fill: var(--text2); font-weight: 600; }
+.bc-svg text.ch { font: 700 13px var(--mono); fill: var(--text); }
+.bc-svg .paper { fill: var(--paper); stroke: var(--line); }
+.bc-svg .ink { fill: var(--ink); }
+.bc-svg .ink:hover, .bc-svg .gap:hover { fill: var(--accent); }
+.bc-svg .gap { fill: transparent; }
+.bc-svg .wide { fill: var(--text2); }
+.bc-svg .grp { stroke: var(--line); fill: none; }
+.bc-svg .axis { stroke: var(--line); }
+.bc-svg .raw { fill: color-mix(in srgb, var(--s-b) 22%, transparent); stroke: var(--s-b); stroke-width: 1.5; }
+table.dec { margin-top: 14px; font-size: 12.5px; }
+table.dec th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 0 12px 6px 0; border-bottom: 1px solid var(--line); }
+table.dec td { text-align: left; font-weight: 400; color: var(--text2); padding: 6px 12px 6px 0; vertical-align: baseline; }
+table.dec td:first-child { color: var(--text); font-weight: 600; white-space: nowrap; }
+table.dec td.r { font: 700 13px var(--mono); color: var(--text); white-space: nowrap; }
+table.dec td.r.none { color: var(--faint); font-weight: 500; }
+table.dec tr.vote td { border-top: 1px solid var(--line); }
+.bc-empty { color: var(--muted); font-size: 12.5px; padding: 6px 0; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1280px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1100px) { .c4, .c8 { grid-column: span 12; } .run-grid { grid-template-columns: 1fr; } .map-grid { grid-template-columns: 1fr; }
+  .mission-grid { grid-template-columns: 1fr; } .bc-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .reqs { grid-template-columns: 1fr; } .move .l { font-size: 19px; } }
+@media (max-width: 900px) {
+  .side { position: sticky; top: 0; inset: auto; width: auto; height: auto; flex-direction: row; align-items: center;
+    padding: 8px 12px; border-right: none; border-bottom: 1px solid var(--line); }
+  .brand { padding: 0 10px 0 0; } .brand span, .side-foot { display: none; }
+  .nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .nav a { padding: 6px 9px; }
+  .wrap { margin-left: 0; }
+  .top { position: static; height: auto; flex-wrap: wrap; padding: 12px 16px; gap: 10px; }
+  .conn { margin-left: 0; width: 100%; flex-wrap: wrap; order: 3; }
+  .top .titles { flex: 1; }
+  main { margin: 12px 16px 32px; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  section[id] { scroll-margin-top: 64px; }
+  .card { padding: 14px 16px 16px; }
+  .card-h { flex-wrap: wrap; }
+  .card-h > div:first-child { flex: 1 1 100%; }
+  .card-h .meta { margin-left: 0; justify-content: flex-start; width: 100%; }
+  #run-sel { max-width: 100%; flex: 1 1 100%; }
+  .bc-list { flex-direction: row; overflow-x: auto; }
+  .bc-list button { border-bottom: none; border-right: 1px solid var(--line2); min-width: 210px; }
+}
+</style>
+</head>
+<body>
+<aside class="side">
+  <div class="brand"><b>IS29 car</b><span>INF2004 · mission control</span></div>
+  <nav class="nav" id="nav">
+    <a href="#overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Overview</a>
+    <a href="#mission"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg>Mission</a>
+    <a href="#barcodes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="butt"><path d="M4 5v14M7 5v14M11 5v14M13 5v14M17 5v14M20 5v14"/></svg>Barcodes</a>
+    <a href="#control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Control</a>
+    <a href="#live"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Live sensors</a>
+    <a href="#map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>Live map</a>
+    <a href="#run"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M3.5 18a9 9 0 1 1 17 0"/></svg>Run results</a>
+    <a href="#events"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>Event log</a>
+  </nav>
+  <div class="side-foot">
+    <div style="margin-bottom:8px"><kbd>Space</kbd> &nbsp;emergency stop</div>
+    <div>Telemetry: <span id="t-age">no data yet</span></div>
+  </div>
+</aside>
+
+<div class="wrap">
+<header class="top">
+  <div class="titles"><h1>Mission control</h1></div>
+  <div class="conn">
+    <span class="pill"><span class="dot" id="d-srv"></span>Dashboard</span>
+    <span class="pill"><span class="dot" id="d-mqtt"></span>MQTT broker</span>
+    <span class="pill"><span class="dot" id="d-car"></span><span id="t-car">Car offline</span></span>
+  </div>
+  <span class="state" id="state">IDLE</span>
+  <button class="theme" id="b-theme" title="Light or dark" aria-label="Switch light or dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
+  <button class="estop" id="b-estop" title="Emergency stop (Space)"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>STOP</button>
+</header>
+
+<main>
+  <section class="kpis" id="overview">
+    <div class="kpi" id="kc-car"><div class="k">Car</div><div class="v txt" id="k-car">offline</div>
+      <div class="s" id="k-car-s">no message yet</div></div>
+    <div class="kpi" id="kc-run"><div class="k">Run</div><div class="v txt" id="k-run">none yet</div>
+      <div class="s" id="k-run-s">since the dashboard started</div></div>
+    <div class="kpi" id="kc-card"><div class="k">Card held</div><div class="v txt" id="k-card">none</div>
+      <div class="s" id="k-card-s">no barcode read this run</div></div>
+    <div class="kpi" id="kc-hump"><div class="k">Highest hump</div><div class="v"><span id="k-hump">–</span><small>mm</small></div>
+      <div class="s" id="k-hump-s">no hump this run</div></div>
+    <div class="kpi info"><div class="k">Wheel distance</div><div class="v"><span id="k-odo">–</span><small>m</small></div>
+      <div class="s" id="k-odo-s">mean of both encoders</div></div>
+    <div class="kpi info"><div class="k">Last run distance</div><div class="v"><span id="k-last">–</span><small>m</small></div>
+      <div class="s" id="k-last-s">centre path, from the run report</div></div>
+  </section>
+
+  <section class="card c4" id="control">
+    <div class="card-h"><div><h2>Control</h2><p>One command byte per button</p></div></div>
+    <div class="big">
+      <button class="go" id="b-start"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>START</button>
+      <button class="stop" id="b-stop"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>STOP</button>
+    </div>
+    <div class="row3">
+      <button id="b-reset" title="RESET 0xAB: zero the wheel distance">Reset<small>distance</small></button>
+    </div>
+    <div class="hint">START (0xAA) runs the mission (line at 100 mm/s, barcodes and junction moves live), STOP (0xA9)
+      aborts it and brakes, Reset (0xAB) zeroes the wheel distance. The robot firmware image acts on STOP only.</div>
+    <form class="navmap" id="navmap" autocomplete="off">
+      <div class="navmap-h">Junction map</div>
+      <div class="navmap-row">
+        <label for="m-f">Forward<input id="m-f" maxlength="1" placeholder="A"></label>
+        <label for="m-u">U-turn<input id="m-u" maxlength="1" placeholder="Z"></label>
+        <label for="m-l">Left<input id="m-l" maxlength="1" placeholder="B"></label>
+        <label for="m-r">Right<input id="m-r" maxlength="1" placeholder="C"></label>
+      </div>
+      <button type="submit" id="b-map">Send map to car</button>
+      <div class="navmap-ack" id="map-ack">The car has not confirmed a map yet. Send it again after every reboot.</div>
+    </form>
+  </section>
+
+  <section class="card c8" id="mission">
+    <div class="card-h"><div><h2>Mission</h2><p>The 10 requirements, from what the car reported this run</p></div>
+      <div class="meta"><span class="pill score" id="score"><b id="score-n">0</b><span>of 10 shown</span></span>
+        <span class="pill" id="mission-run">no run yet</span></div></div>
+    <div class="mission-grid">
+      <div class="reqs" id="reqs"></div>
+      <div>
+        <div class="moves" id="moves"></div>
+        <div class="held-line" id="held">No card held.</div>
+        <h3>This run</h3>
+        <ul class="timeline" id="timeline"><li class="empty">Press START. Cards, junctions, humps and obstacles appear here.</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="card c12" id="barcodes">
+    <div class="card-h"><div><h2>Barcodes</h2><p>What the side sensor saw on each card, the bars the car measured, and what each decoder read</p></div>
+      <div class="meta"><span class="pill" id="bc-count">no card yet</span></div></div>
+    <div class="bc-grid">
+      <div class="bc-list" id="bc-list"><div class="bc-empty" style="padding:10px 12px">No card this run.</div></div>
+      <div id="bc-view"><div class="bc-empty">Cards appear here as the car decodes them while it drives.</div></div>
+    </div>
+  </section>
+
+  <section class="card c12" id="live">
+    <div class="card-h"><div><h2>Live sensors</h2><p>The car's once-a-second report while it is idle</p></div>
+      <div class="meta"><span class="pill" id="live-age">waiting for the car</span></div></div>
+    <div class="stats">
+      <div class="stat"><div class="k"><i style="background:var(--s-l)"></i>IR left</div><div class="v" id="ir-L">–</div>
+        <div class="s" id="ir-L-s">raw 0–4095, high is dark</div><div class="bar"><div id="irb-L" style="background:var(--s-l)"></div></div></div>
+      <div class="stat"><div class="k"><i style="background:var(--s-r)"></i>IR right</div><div class="v" id="ir-R">–</div>
+        <div class="s" id="ir-R-s">raw 0–4095, high is dark</div><div class="bar"><div id="irb-R" style="background:var(--s-r)"></div></div></div>
+      <div class="stat"><div class="k"><i style="background:var(--s-b)"></i>IR barcode</div><div class="v" id="ir-B">–</div>
+        <div class="s" id="ir-B-s">side sensor, raw 0–4095</div><div class="bar"><div id="irb-B" style="background:var(--s-b)"></div></div></div>
+      <div class="stat"><div class="k">Wheel distance</div><div class="v" id="enc">–</div>
+        <div class="s" id="enc-s">L – · R – mm</div></div>
+      <div class="stat" id="encc-t"><div class="k">Encoder counts</div><div class="v sm" id="encc">–</div>
+        <div class="s" id="encc-s">L / R, errors –</div></div>
+      <div class="stat"><div class="k">Accelerometer</div><div class="v sm" id="acc">–</div>
+        <div class="s" id="acc-s">x / y / z mean, mg</div></div>
+      <div class="stat" hidden id="rb-state"><div class="k">Robot state</div><div class="v sm" id="rb-st">–</div>
+        <div class="s" id="rb-st-s">robot firmware frame</div></div>
+      <div class="stat" hidden id="rb-speed"><div class="k">Wheel speed</div><div class="v sm" id="rb-v">–</div>
+        <div class="s">L / R mm/s</div></div>
+      <div class="stat" hidden id="rb-range"><div class="k">Sonar range</div><div class="v sm" id="rb-rg">–</div>
+        <div class="s" id="rb-rg-s">front</div></div>
+      <div class="stat" hidden id="rb-fault"><div class="k">Faults</div><div class="v sm" id="rb-f">–</div>
+        <div class="s" id="rb-f-s">diagnostic frame</div></div>
+    </div>
+    <div class="chartbox">
+      <canvas id="chart"></canvas>
+      <div class="legend"><span><i style="background:var(--s-l)"></i>IR left</span>
+        <span><i style="background:var(--s-r)"></i>IR right</span>
+        <span><i style="background:var(--s-b)"></i>IR barcode</span>
+        <span style="margin-left:auto">raw 0–4095, last 60 s</span></div>
+    </div>
+  </section>
+
+  <section class="card c12" id="map">
+    <div class="card-h"><div><h2>Live map</h2><p id="m-sub">What is ahead of the car; at an obstacle, the whole obstacle and the way round it</p></div>
+      <div class="meta"><div class="seg" role="group" aria-label="Map view">
+        <button id="mv-3d" class="on" aria-pressed="true">3D</button><button id="mv-ahead" aria-pressed="false">Ahead of car</button><button id="mv-run" aria-pressed="false">Whole run</button></div></div></div>
+    <div class="map-grid">
+      <div class="chartbox mapbox"><canvas id="mapc"></canvas>
+        <div id="map3d" hidden></div>
+        <div class="m3-bar" id="m3-bar" hidden>
+          <div class="seg"><button id="m3-follow" class="on" aria-pressed="true">Follow car</button><button id="m3-fit">Show whole run</button></div>
+          <span>Drag to turn, right-drag to move, scroll to zoom. Black tape: the path the car drove on the line; dashed: off it, round an obstacle.
+            Cards, junctions and humps sit where the car read them. Obstacle depth and height are assumed.</span>
+        </div>
+        <div class="legend" id="map-legend">
+          <span><i style="background:var(--text)"></i>Car (sonar dot)</span>
+          <span><i style="background:var(--accent)"></i>Path</span>
+          <span><i style="background:var(--lineband)"></i>Track line at the obstacle</span>
+          <span><i class="sw" style="background:color-mix(in srgb, var(--warn) 30%, var(--card));border:1px solid var(--warn)"></i>Obstacle (dashed back: depth assumed)</span>
+          <span><i class="sw" style="background:var(--hit);border-radius:50%"></i>Sonar echo</span>
+          <span><i style="background:repeating-linear-gradient(90deg,var(--ok) 0 4px,transparent 4px 7px)"></i>Planned way round</span>
+        </div>
+      </div>
+      <div>
+        <div class="obst-card" id="m-ob">
+          <div class="obst-top"><span class="k">Obstacle</span><span class="badge" id="m-enc">none yet</span></div>
+          <div class="obst-size"><span id="m-w">–</span><small>wide</small><span class="x">×</span><span id="m-d">–</span><small>deep</small></div>
+          <div class="s" id="m-wsub">The car stops 130 mm short of an obstacle and sweeps the sonar left and right to measure it.</div>
+        </div>
+        <div class="stats map-stats">
+          <div class="stat"><div class="k">Face ahead</div><div class="v sm" id="m-face">–</div><div class="s" id="m-face-s">from the wheel axle</div></div>
+          <div class="stat"><div class="k">Left · right of line</div><div class="v sm" id="m-lr">–</div><div class="s" id="m-lr-s">edges from the line</div></div>
+          <div class="stat"><div class="k">Way round</div><div class="v sm" id="m-go">–</div><div class="s" id="m-plan">out – · along –</div></div>
+          <div class="stat"><div class="k">Sonar beams</div><div class="v sm" id="m-beams">–</div><div class="s" id="m-beams-s">echoes / beams</div></div>
+          <div class="stat"><div class="k">Car</div><div class="v sm" id="m-pos">–</div><div class="s" id="m-head">heading –</div></div>
+          <div class="stat"><div class="k">Path · obstacles</div><div class="v sm" id="m-len">–</div><div class="s" id="m-pts">no pose yet</div></div>
+        </div>
+        <div class="runlines map-avoid" id="m-avoid">No go-around yet. The car stops when the sonar reads 70 mm or less, sweeps left and right to measure the obstacle, then drives round the shorter clear side.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card c12" id="run">
+    <div class="card-h"><div><h2>Run results</h2><p>The report and trace the car prints when a test ends</p></div>
+      <div class="meta toolbar">
+        <select id="run-sel" aria-label="Run"><option>No run yet</option></select>
+        <button id="b-csv" disabled>Download trace CSV</button>
+      </div></div>
+    <div class="run-grid">
+      <div>
+        <table id="sum"><tr><td>No run yet. Press START; the report arrives when the test ends.</td><td></td></tr></table>
+        <div id="phase" hidden>
+          <h3>Time per phase</h3>
+          <div class="phasebar" id="phasebar"></div>
+          <div class="phaselbl" id="phaselbl"></div>
+        </div>
+      </div>
+      <div>
+        <div class="chartbox" style="margin-top:0">
+          <canvas id="trace"></canvas>
+          <div class="legend"><span><i style="background:var(--s-l)"></i>heading deg (+ left)</span>
+            <span><i style="background:var(--s-r)"></i>steering q7 (+ right)</span>
+            <span><i class="sw" style="background:var(--ph-gap)"></i>GAP</span>
+            <span><i class="sw" style="background:var(--ph-search)"></i>SEARCH</span>
+            <span><i class="sw" style="background:var(--ph-cross)"></i>CROSS</span>
+            <span style="margin-left:auto" id="trace-n"></span></div>
+        </div>
+        <h3>Report lines</h3>
+        <pre class="runlines" id="run-lines">–</pre>
+      </div>
+    </div>
+    <details id="tt-wrap"><summary id="tt-sum">Trace rows</summary><div class="ttbox" id="tt-box"></div></details>
+  </section>
+
+  <section class="card c12" id="events">
+    <div class="card-h"><div><h2>Event log</h2><p>Every line from the car except the periodic sensor report and trace rows</p></div>
+      <div class="meta toolbar">
+        <label><input type="checkbox" id="f-per"> show periodic lines</label>
+        <label><input type="checkbox" id="f-auto" checked> auto-scroll</label>
+        <button id="b-clear">Clear</button>
+        <button id="b-save">Download log</button>
+      </div></div>
+    <div class="log" id="log"></div>
+    <div class="hint" id="stats"></div>
+  </section>
+</main>
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const S = { skew: 0, srv: false, mqtt: false, lastTel: 0, presence: null, live: {}, irHist: [], mode: null,
+            runs: [], latest: null, view: null, follow: true, logLines: [], pending: 0, stats: null };
+const HIST_S = 60;
+const now = () => Date.now() / 1000 + S.skew;          /* server clock */
+const sg = (v) => (v > 0 ? "+" : "") + v;
+
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 2500);
+}
+function hhmmss(ts) { return new Date((ts || now()) * 1000).toLocaleTimeString(); }
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function rows(id, pairs) { $(id).innerHTML = pairs.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join(""); }
+function shortMode(name) { return (name || "").replace(/\s*\([^()]*\)\s*$/, ""); }
+
+/* ---------- commands ---------- */
+const CMD_TXT = { START: "START (0xAA)", STOP: "STOP (0xA9)", RESET: "RESET (0xAB)" };
+async function send(cmd) {
+  try {
+    const r = await fetch("/api/cmd", { method: "POST", headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ cmd }) });
+    const j = await r.json();
+    if (!r.ok) { toast("Not sent: " + j.error); return; }
+    toast("Sent " + CMD_TXT[cmd]);
+  } catch (e) { toast("Dashboard server not reachable"); }
+}
+/* Junction map: four letters, sent as navmap.h's 3-byte message (server.py /api/map). */
+$("navmap").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = { F: $("m-f").value, U: $("m-u").value, L: $("m-l").value, R: $("m-r").value };
+  try {
+    const r = await fetch("/api/map", { method: "POST", headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) { toast("Map not sent: " + j.error); return; }
+    toast("Sent map: " + j.sent);
+    $("map-ack").classList.remove("ok");
+    $("map-ack").textContent = "Sent " + j.sent + ". Waiting for the car to confirm...";
+  } catch (err) { toast("Dashboard server not reachable"); }
+});
+["m-f", "m-u", "m-l", "m-r"].forEach((id) => {
+  $(id).addEventListener("input", (e) => { e.target.value = e.target.value.replace(/[^a-z]/gi, "").toUpperCase(); });
+});
+function onMapAck(text) {
+  const m = /MAP set:\s*(.*)$/.exec(text || "");
+  if (!m) return;
+  $("map-ack").classList.add("ok");
+  $("map-ack").textContent = "Car confirmed: " + m[1];
+}
+[["b-start", "START"], ["b-stop", "STOP"], ["b-estop", "STOP"], ["b-reset", "RESET"]].forEach(([id, cmd]) => {
+  /* Blur, so a later Space can never press START again. */
+  $(id).onclick = (e) => { e.currentTarget.blur(); send(cmd); };
+});
+const typing = (el) => el && ["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName) && el.type !== "checkbox";
+document.addEventListener("keydown", (e) => {             /* Space = emergency stop */
+  if (e.code !== "Space" || typing(document.activeElement)) return;
+  e.preventDefault();                                       /* never press a focused button */
+  if (!e.repeat) send("STOP");
+}, true);
+document.addEventListener("keyup", (e) => {
+  if (e.code === "Space" && !typing(document.activeElement)) e.preventDefault();
+}, true);
+
+/* ---------- header and overview ---------- */
+function setDot(id, cls) { $(id).className = "dot " + cls; }
+function kpi(id, v, s, tone) {
+  $("k-" + id).textContent = v;
+  if (s != null) $("k-" + id + "-s").textContent = s;
+  if (tone != null && $("kc-" + id)) $("kc-" + id).className = "kpi " + tone;
+}
+function lastRun() { return S.runs[S.runs.length - 1]; }
+function carStatus() {
+  const age = now() - S.lastTel, run = lastRun();
+  if (S.lastTel && age < 3) return ["ok", "online", "last message " + (age < 1.5 ? "just now" : Math.round(age) + " s ago")];
+  if (run && run.state === "running" && S.presence !== false && now() - run.t0 < 900)
+    return ["ok", "driving", "quiet while a test runs"];
+  if (S.presence === false) return ["bad", "offline", "the car's last will arrived"];
+  if (S.lastTel && age < 60) return ["warn", "quiet", Math.round(age) + " s since the last message"];
+  return ["bad", "offline", S.lastTel ? "last message " + hhmmss(S.lastTel) : "no message yet"];
+}
+function header() {
+  setDot("d-srv", S.srv ? "ok" : "bad");
+  setDot("d-mqtt", S.mqtt ? "ok" : "bad");
+  const [tone, word, detail] = carStatus();
+  setDot("d-car", tone);
+  $("t-car").textContent = "Car " + word;
+  kpi("car", word, detail, tone);
+  const age = now() - S.lastTel;
+  $("t-age").textContent = !S.lastTel ? "no data yet" : age < 2 ? "live" : age < 120 ? Math.round(age) + " s ago" : hhmmss(S.lastTel);
+  const ir = S.live.ir;
+  $("live-age").textContent = !ir ? "waiting for the car" : now() - ir.t < 3 ? "live" : "last report " + hhmmss(ir.t);
+  /* state pill: robot firmware state when its frames are fresh, else the bench run */
+  const el = $("state"), rb = S.live.robot && S.live.robot.status, run = lastRun();
+  let txt = "IDLE", cls = "";
+  if (rb && now() - rb.t < 3) {
+    txt = rb.state || "?";
+    cls = /FAULT/.test(txt) ? "fault" : /SCAN|BYPASS|REACQUIRE|RANGE_WAIT/.test(txt) ? "obst" : /FOLLOW|NAVIGATE/.test(txt) ? "run" : "";
+  } else if (run && run.state === "running") { txt = "RUNNING"; cls = "run"; }
+  el.textContent = txt; el.className = "state" + (cls ? " " + cls : "");
+  renderReqs();
+}
+setInterval(header, 1000);
+
+function runKpis() {
+  const r = lastRun();
+  if (!r) return;
+  if (r.state === "running") kpi("run", "running", `#${r.id} · started ${hhmmss(r.t0)}`, "ok");
+  else {
+    const reason = (r.reason || "ended").replace(/^stopped:\s*/, "stopped, ");
+    const tone = /fail|fault/i.test(reason) ? "bad" : /stopped,|aborted|not received/.test(reason) ? "warn" : "ok";
+    kpi("run", reason, `#${r.id}` + (r.secs != null ? ` · ${r.secs.toFixed(1)} s` : "") + " · " + shortMode(r.mode), tone);
+  }
+  const done = [...S.runs].reverse().find((x) => x.centre || x.end_d != null);
+  if (done && done.centre) {
+    $("k-last").textContent = (done.centre.mm / 1000).toFixed(2);
+    $("k-last-s").textContent = `#${done.id} · ${done.centre.secs.toFixed(1)} s · mean ${done.centre.mean} mm/s`;
+  } else if (done) {
+    $("k-last").textContent = (done.end_d / 1000).toFixed(2);
+    $("k-last-s").textContent = `#${done.id} · from the trace end` + (done.secs != null ? ` · ${done.secs.toFixed(1)} s` : "");
+  }
+}
+
+/* ---------- mission ----------
+ * server.py's mission tracker: NAV card / junction / turned lines, MAP set,
+ * RAMP / SIDE / TERRAIN humps and the ramp report, obstacle stops, OBST,
+ * the go-around and its return to the line. One message per change. */
+S.mission = null;
+const MOVES = [
+  ["F", "Forward", '<path d="M12 20V5M6 11l6-6 6 6"/>'],
+  ["U", "U-turn", '<path d="M8 20V10a4 4 0 0 1 8 0v8"/><path d="M12 14l4 4 4-4"/>'],
+  ["L", "Left", '<path d="M20 12H5M11 6l-6 6 6 6"/>'],
+  ["R", "Right", '<path d="M4 12h15M13 6l6 6-6 6"/>'],
+];
+const MOVE_KEY = { FORWARD: "F", "U-TURN": "U", LEFT: "L", RIGHT: "R" };
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+function pathLen(path) {
+  let len = 0;
+  for (let i = 1; i < path.length; i++) len += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
+  return len;
+}
+function missionReqs() {
+  const m = S.mission || {}, run = lastRun(), running = !!(run && run.state === "running");
+  const codes = m.codes || [], jn = m.junctions || [], humps = m.humps || [];
+  const watch = running ? "live" : "";
+  const out = [];
+  /* 1 line following */
+  const plen = S.map && S.map.path ? pathLen(S.map.path) : 0;
+  const rd = run && (run.centre ? run.centre.mm : run.end_d);
+  if (running) out.push(["live", plen ? `following · ${(plen / 1000).toFixed(2)} m so far` : "following the line"]);
+  else if (m.end && /line lost/.test(m.end)) out.push(["warn", "line lost" + (run && run.secs ? ` after ${run.secs.toFixed(1)} s` : "")]);
+  else if (m.end) out.push(["ok", "followed" + (rd ? ` ${(rd / 1000).toFixed(2)} m` : "") + (run && run.secs ? ` in ${run.secs.toFixed(1)} s` : "")]);
+  else out.push(["", "no run yet"]);
+  /* 2 barcodes */
+  out.push(codes.length ? ["ok", `${plural(codes.length, "card")}: ${codes.map((c) => c.code).join(", ")}`] : [watch, "no card read yet"]);
+  /* 3 navigation commands */
+  const moved = jn.filter((j) => j.code);
+  const held = m.held && m.held.code ? m.held : null;
+  const done = moved.slice(-2).map((j) => `${j.code} → ${j.move}` + (j.turned != null ? ` ${sg(j.turned)}°` : "")).join(" · ");
+  /* A card held for the next junction comes first: a move already made
+   * stayed on show over the next card's (19 Nov: A → FORWARD hid Z → U-TURN). */
+  /* While running the field clears after each move (19 Nov: A → FORWARD
+   * stayed on show after junction 1): waiting for the next card, the last
+   * move small beside it. The moves made stay listed once the run ends. */
+  const last = moved.length ? moved[moved.length - 1] : null;
+  const lastTxt = last ? `${last.code} → ${last.move}` + (last.turned != null ? ` ${sg(last.turned)}°` : "") : "";
+  if (held && MOVE_KEY[held.move]) out.push(["live", `holding ${held.code} → ${held.move}`]);
+  else if (moved.length && running) out.push(["live", `waiting for the next card · last: ${lastTxt}`]);
+  else if (moved.length) out.push(["ok", done]);
+  else if (jn.length) out.push([watch, `${plural(jn.length, "junction")}, straight on (no card)`]);
+  else out.push([watch, "no junction yet"]);
+  /* 4 humps, 5 highest peak */
+  const none5 = m.ramp_report === 0;
+  out.push(humps.length ? ["ok", `${plural(humps.length, "hump")} detected`] : [watch, none5 ? "none above 5 mm" : "no hump yet"]);
+  const top = humps.reduce((a, h) => (!a || h.peak > a.peak ? h : a), null);
+  out.push(m.highest ? ["ok", `${m.highest} mm` + (top && top.peak === m.highest && top.mm != null ? ` at ${top.mm} mm` : "")]
+    : [watch, none5 ? "0 mm: no rise over 5 mm" : "reported when the run ends"]);
+  /* 6-9 obstacle */
+  out.push(m.stops ? ["ok", `${plural(m.stops, "stop")} at the sonar`] : [watch, "none met"]);
+  const o = m.obst;
+  const est = S.map && S.map.sweep && S.map.sweep.est;
+  out.push(est ? ["live", `measuring: ~${est.width} mm wide, face ${est.face} mm`]
+    : S.map && S.map.sweep ? ["live", "sweeping the sonar"]
+    : o ? ["ok", `${o.width}${o.open ? "+" : ""} × ≤${o.depth} mm, face ${o.face} mm`] : [watch, "no obstacle profiled"]);
+  out.push(m.around ? ["ok", `${plural(m.around, "go-around")}` + (o && o.go !== "none" ? `, last on the ${o.go === "R" ? "right" : "left"}` : "")]
+    : o && o.go === "none" ? ["warn", "no clear way round"] : [watch, "no go-around yet"]);
+  const lost = (m.around || 0) - (m.rejoined || 0);
+  out.push(m.rejoined && !(lost > 0 && !running) ? ["ok", `back on the line ${m.rejoined} of ${m.around}`]
+    : lost > 0 && !running ? ["warn", `${lost} go-around${lost === 1 ? "" : "s"} did not find the line`]
+    : [lost > 0 ? "live" : watch, lost > 0 ? "returning to the line" : "no go-around yet"]);
+  /* 10 telemetry */
+  const [tone, word] = carStatus();
+  const lines = S.stats ? S.stats.lines : 0;
+  out.push(tone === "ok" ? ["ok", `${word} · ${lines} lines`] : tone === "warn" ? ["warn", `quiet · ${lines} lines so far`] : ["", "car offline"]);
+  return out;
+}
+const REQ_NAMES = ["Follow the line", "Decode barcodes", "Execute card moves", "Detect humps",
+  "Highest hump peak", "Detect obstacles", "Profile the obstacle", "Go round it", "Reacquire the line", "Telemetry over Wi-Fi"];
+function renderReqs() {
+  const r = missionReqs();
+  $("reqs").innerHTML = r.map(([tone, d], i) =>
+    `<div class="req ${tone}" title="${esc(REQ_NAMES[i] + ": " + d)}"><span class="n">${i + 1}</span><span class="t">${REQ_NAMES[i]}</span><span class="d">${esc(d)}</span></div>`).join("");
+  $("score-n").textContent = r.filter(([t]) => t === "ok").length;
+  const m = S.mission, run = lastRun();
+  $("mission-run").textContent = !m || m.run == null && !m.timeline.length ? "no run yet"
+    : `run #${m.run ?? "?"}` + (run && run.state === "running" && run.id === m.run ? " · running" : m.end ? " · " + m.end : "");
+}
+function renderMission() {
+  const m = S.mission || { codes: [], humps: [], timeline: [] }, nm = m.navmap || {};
+  const held = m.held && m.held.code ? m.held : null, hk = held ? MOVE_KEY[held.move] : null;
+  /* the map boxes in Control show what the car holds, as placeholders */
+  [["F", "m-f"], ["U", "m-u"], ["L", "m-l"], ["R", "m-r"]].forEach(([k, id]) => { if (nm[k]) $(id).placeholder = nm[k]; });
+  $("moves").innerHTML = MOVES.map(([k, name, icon]) =>
+    `<div class="move${k === hk ? " held" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>` +
+    `<div class="l${nm[k] ? "" : " none"}">${nm[k] || "?"}</div><div class="m">${name}</div></div>`).join("");
+  $("held").innerHTML = held ? (hk ? `Holding <b>${esc(held.code)}</b> → <b>${esc(held.move)}</b> at the next junction`
+      : `Holding <b>${esc(held.code)}</b>: ${esc(held.move || "")}`)
+    : nm.F || nm.U || nm.L || nm.R ? `Map confirmed by the car at ${hhmmss(nm.t)}. No card held.`
+    : "No map confirmed yet: send it from Control (again after every reboot).";
+  const tl = (m.timeline || []).slice().reverse();
+  $("timeline").innerHTML = tl.length ? tl.map((e) =>
+    `<li class="${esc(e.tone || "")}"><span class="tm">${new Date(e.t * 1000).toLocaleTimeString([], { hour12: false })}</span><span class="pt"></span><span>${esc(e.text)}</span></li>`).join("")
+    : '<li class="empty">Press START. Cards, junctions, humps and obstacles appear here.</li>';
+  /* overview tiles */
+  const codes = m.codes || [];
+  if (held) kpi("card", hk ? `${held.code} → ${held.move}` : held.code, "for the next junction", "info");
+  else if (codes.length) kpi("card", codes[codes.length - 1].code, `last card · ${plural(codes.length, "card")} this run`, "ok");
+  else kpi("card", "none", "no barcode read this run", "");
+  const humps = m.humps || [];
+  $("k-hump").textContent = m.highest ? m.highest : m.ramp_report === 0 ? "0" : "–";
+  $("k-hump-s").textContent = humps.length ? `${plural(humps.length, "hump")} this run` : m.ramp_report === 0 ? "no rise over 5 mm" : "no hump this run";
+  $("kc-hump").className = "kpi" + (m.highest ? " ok" : "");
+  renderReqs();
+  renderBarcodes();
+}
+
+/* ---------- barcodes ----------
+ * server.py collects, per card, each decoder's line (Decoder 1: CODE /
+ * GROUP; Decoder 2, formerly NEW; D0; the CAR vote; the NAV letter; the old
+ * names CURRENT / NEW are read too), D0's bar and space widths in
+ * decoder units (bar first) and the side sensor's RAW rows. Code 39 is the
+ * firmware's own table (bench_main.c g_code39_chars / g_code39_patterns):
+ * nine elements bar, space, ..., bar, the first in bit 8, 1 for wide. D0
+ * calls the 3 widest of every 9 wide, and so does this page. */
+const C39_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. *$/+%";
+const C39_PAT = [0x034, 0x121, 0x061, 0x160, 0x031, 0x130, 0x070, 0x025, 0x124, 0x064, 0x109, 0x049, 0x148, 0x019,
+  0x118, 0x058, 0x00D, 0x10C, 0x04C, 0x01C, 0x103, 0x043, 0x142, 0x013, 0x112, 0x052, 0x007, 0x106, 0x046, 0x016,
+  0x181, 0x0C1, 0x1C0, 0x091, 0x190, 0x0D0, 0x085, 0x184, 0x0C4, 0x094, 0x0A8, 0x0A2, 0x08A, 0x02A];
+const UNIT_MM = 0.322;          /* a decoder unit: 8 encoder half-counts */
+const D0_WIDTHS_MAX = 36;       /* widths on one D0 line (BENCH_D0_WIDTHS) */
+S.bcSel = null;                 /* card picked; null follows the newest */
+function c39Char(nine) {
+  const wide = nine.map((w, i) => [w, i]).sort((p, q) => q[0] - p[0]).slice(0, 3).map((x) => x[1]);
+  let pat = 0;
+  wide.forEach((i) => { pat |= 1 << (8 - i); });
+  const k = C39_PAT.indexOf(pat);
+  return { ch: k < 0 ? "?" : C39_CHARS[k], wide };
+}
+/* Groups of 9 elements (+1 gap) in reading order, mapped back to the order
+ * the car crossed them: [{ch, first, last, wide: [scan index]}]. */
+function c39Groups(widths, rev) {
+  const n = widths.length, idx = (k) => (rev ? n - 1 - k : k), out = [];
+  const seq = rev ? widths.slice().reverse() : widths;
+  for (let g = 0; g * 10 + 9 <= n; g++) {
+    const r = c39Char(seq.slice(g * 10, g * 10 + 9));
+    const a = idx(g * 10), b = idx(g * 10 + 8);
+    out.push({ ch: r.ch, first: Math.min(a, b), last: Math.max(a, b), wide: r.wide.map((i) => idx(g * 10 + i)) });
+  }
+  return out;
+}
+/* Ideal Code 39 widths in modules (narrow 1, wide 3, 1 between characters). */
+function c39Ideal(text) {
+  const out = [];
+  [...text].forEach((ch, i) => {
+    const k = C39_CHARS.indexOf(ch);
+    if (k < 0) return;
+    if (i) out.push(1);
+    for (let j = 0; j < 9; j++) out.push(C39_PAT[k] & (1 << (8 - j)) ? 3 : 1);
+  });
+  return out;
+}
+function cardLetter(c) {
+  for (const r of [c.car, c.nav && { text: c.nav.letter }, c.d0, c.cur, c.new]) if (r && r.text) return r.text;
+  return null;
+}
+/* The raw cut that covers most of the card. */
+function rawFor(c, raws) {
+  let best = null, most = 0;
+  raws.forEach((r) => {
+    const a = r.start, b = r.start + r.data.length * UNIT_MM;
+    const over = Math.min(b, c.to) - Math.max(a, c.from);
+    if (over > most) { most = over; best = r; }
+  });
+  return best;
+}
+/* bench_raw_text: '#'.. below 'c' is white - 10 + 2 (c - '#'), from 'c' up
+ * white + 118 + 140 (c - 'c'); '!' no reading. */
+function rawValue(code, white) {
+  if (code === 33) return null;
+  return code < 99 ? white - 10 + 2 * (code - 35) : white + 118 + 140 * (code - 99);
+}
+function barcodeSvg(c, raws, W) {
+  const d0 = c.d0, w = d0 && d0.widths && d0.widths.length ? d0.widths : null;
+  const at = d0 ? d0.at : [c.from, c.to];
+  const sum = w ? w.reduce((p, q) => p + q, 0) : 0;
+  const unit = w && w.length < D0_WIDTHS_MAX && at[1] > at[0] ? (at[1] - at[0]) / sum : UNIT_MM;
+  const span = w ? sum * unit : at[1] - at[0];
+  const a = at[0] - 12, b = at[0] + span + 12;
+  const L = 112, R = 6, X = (mm) => L + (mm - a) / (b - a) * (W - L - R);
+  const out = [], label = (y, t1, t2) => out.push(`<text class="lbl" x="0" y="${y}">${esc(t1)}</text>` +
+    (t2 ? `<text x="0" y="${y + 14}">${esc(t2)}</text>` : ""));
+  let y = 0;
+  /* side sensor, darkness above the card's white, square-root scale */
+  const raw = rawFor(c, raws);
+  if (raw) {
+    const H = 62, pts = [];
+    for (let i = 0; i < raw.data.length; i++) {
+      const mm = raw.start + i * UNIT_MM;
+      if (mm < a || mm > b) continue;
+      const v = rawValue(raw.data.charCodeAt(i), raw.white);
+      if (v != null) pts.push([mm, Math.max(0, v - raw.white)]);
+    }
+    if (pts.length > 1) {
+      const top = Math.max(60, ...pts.map((p) => p[1]));
+      const Y = (d) => y + H - Math.sqrt(d / top) * (H - 4);
+      const line = pts.map(([mm, d], i) => `${i ? "L" : "M"}${X(mm).toFixed(1)},${Y(d).toFixed(1)}`).join("");
+      out.push(`<path class="raw" d="${line}L${X(pts[pts.length - 1][0]).toFixed(1)},${y + H}L${X(pts[0][0]).toFixed(1)},${y + H}Z">` +
+        `<title>Side sensor, raw: white ${raw.white}, darkest +${Math.round(top)} above it</title></path>`);
+      out.push(`<line class="axis" x1="${L}" x2="${W - R}" y1="${y + H + .5}" y2="${y + H + .5}"/>`);
+      label(y + 14, "Side sensor", "darker ↑ (√ scale)");
+      y += H + 14;
+    }
+  }
+  /* the bars as D0 measured them, on paper */
+  const PH = 52;
+  label(y + 22, "Bars measured", w ? `D0 · ${w.length} widths` : "D0 · no widths");
+  out.push(`<rect class="paper" x="${X(a)}" y="${y}" width="${X(b) - X(a)}" height="${PH}"/>`);
+  /* Code 39 is 9 elements a character and 1 between: 29 widths for *X*.
+   * Any other count is no code (a line, a tape join), so nothing is decoded
+   * from it, as D0 does not. */
+  const whole = !!w && w.length >= 9 && (w.length + 1) % 10 === 0;
+  const groups = whole ? c39Groups(w, !!(d0 && d0.rev)) : [];
+  const wideSet = new Set(groups.flatMap((g) => g.wide));
+  if (w) {
+    let mm = at[0];
+    w.forEach((u, i) => {
+      const x0 = X(mm), x1 = X(mm + u * unit), bar = i % 2 === 0;
+      const tip = `${bar ? "bar" : "space"} ${Math.floor(i / 2) + 1}: ${u} units ≈ ${(u * unit).toFixed(1)} mm${wideSet.has(i) ? ", wide" : ""}`;
+      out.push(`<rect class="${bar ? "ink" : "gap"}" x="${x0.toFixed(2)}" y="${y + 4}" width="${Math.max(.6, x1 - x0).toFixed(2)}" height="${PH - 8}"><title>${tip}</title></rect>`);
+      if (wideSet.has(i)) out.push(`<rect class="wide" x="${x0.toFixed(2)}" y="${y + PH + 3}" width="${Math.max(1, x1 - x0).toFixed(2)}" height="3"/>`);
+      mm += u * unit;
+    });
+  } else {
+    out.push(`<text x="${X(a) + 10}" y="${y + PH / 2 + 4}">The bar widths for this card did not arrive.</text>`);
+  }
+  y += PH + 8;
+  if (w && !whole) {
+    label(y + 14, "Not decoded", `${w.length} widths: not a Code 39 count`);
+    y += 30;
+  }
+  /* the characters those widths make */
+  if (groups.length) {
+    const edge = [];
+    let mm = at[0];
+    w.forEach((u) => { edge.push(mm); mm += u * unit; });
+    edge.push(mm);
+    groups.forEach((g) => {
+      const x0 = X(edge[g.first]), x1 = X(edge[g.last + 1]);
+      out.push(`<path class="grp" d="M${x0.toFixed(1)},${y + 2}v5H${x1.toFixed(1)}v-5"/>` +
+        `<text class="ch" x="${((x0 + x1) / 2).toFixed(1)}" y="${y + 22}" text-anchor="middle">${esc(g.ch)}</text>`);
+    });
+    label(y + 14, "Decoded", (d0 && d0.rev ? "read end to start" : "read in order") + " · wide marked");
+    y += 42;
+  }
+  /* the ideal Code 39 bars of the answer, over the same span */
+  const letter = cardLetter(c);
+  const text = letter ? (letter.startsWith("*") ? letter : `*${letter}*`) : null;
+  const ideal = text ? c39Ideal(text) : [];
+  if (ideal.length) {
+    const rev = !!((d0 && d0.text && d0.rev) || (!(d0 && d0.text) && c.cur && c.cur.rev));
+    const els = rev ? ideal.slice().reverse() : ideal, mods = els.reduce((p, q) => p + q, 0), k = span / mods;
+    const IH = 30;
+    label(y + 12, `Code 39 ${text}`, "narrow 1 : wide 3");
+    out.push(`<rect class="paper" x="${X(a)}" y="${y}" width="${X(b) - X(a)}" height="${IH}"/>`);
+    let mm = at[0];
+    els.forEach((m, i) => {
+      if (i % 2 === 0) out.push(`<rect class="ink" x="${X(mm).toFixed(2)}" y="${y + 3}" width="${Math.max(.6, X(mm + m * k) - X(mm)).toFixed(2)}" height="${IH - 6}"/>`);
+      mm += m * k;
+    });
+    y += IH + 6;
+  }
+  /* mm along the side sensor's path */
+  const step = [10, 20, 25, 50, 100, 200].find((s) => (b - a) / s <= 8) || 500;
+  out.push(`<line class="axis" x1="${X(a)}" x2="${X(b)}" y1="${y + .5}" y2="${y + .5}"/>`);
+  for (let t = Math.ceil(a / step) * step; t <= b; t += step) {
+    out.push(`<line class="axis" x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${y}" y2="${y + 4}"/>` +
+      `<text x="${X(t).toFixed(1)}" y="${y + 16}" text-anchor="middle">${t}</text>`);
+  }
+  label(y + 14, "mm along the path", "");
+  y += 22;
+  return `<svg class="bc-svg" width="${W}" height="${y}" viewBox="0 0 ${W} ${y}" role="img" aria-label="Barcode ${esc(text || "with no code")}: measured bars and decode">${out.join("")}</svg>`;
+}
+/* The list's icon: the bars as D0 measured them, else the Code 39 of the
+ * card's answer, else an empty card. */
+function miniBarcode(c) {
+  const W = 56, H = 16;
+  let els = c.d0 && c.d0.widths && c.d0.widths.length ? c.d0.widths : null, measured = !!els;
+  if (!els) {
+    const l = cardLetter(c);
+    els = l ? c39Ideal(l.startsWith("*") ? l : `*${l}*`) : [];
+  }
+  const sum = els.reduce((p, q) => p + q, 0);
+  let x = 2, bars = "";
+  els.forEach((u, i) => {
+    const w = u / sum * (W - 4);
+    if (i % 2 === 0) bars += `<rect x="${x.toFixed(2)}" y="2" width="${Math.max(.5, w).toFixed(2)}" height="${H - 4}"/>`;
+    x += w;
+  });
+  const tip = measured ? "bars as D0 measured them" : els.length ? "Code 39 of the answer (no widths received)" : "no bars";
+  return `<svg class="mini" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><title>${tip}</title>` +
+    `<rect class="pp" x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="1.5"/>${bars}</svg>`;
+}
+function decRow(name, how, res, extra) {
+  if (!res) return `<tr><td>${name}</td><td class="r none">–</td><td>${how}: nothing sent for this card</td></tr>`;
+  const notes = [];
+  if (res.text) {
+    if (res.rev) notes.push("read end to start");
+    if (res.margin != null) notes.push(`margin ${res.margin.toFixed(2)} over *${esc(res.other)}* (1.30 needed)`);
+  } else if (res.note) notes.push(esc(res.note));
+  if (extra) notes.push(extra);
+  return `<tr><td>${name}</td><td class="r${res.text ? "" : " none"}">${res.text ? "*" + esc(res.text) + "*" : "no read"}</td>` +
+    `<td>${how}${notes.length ? " · " + notes.join(" · ") : ""}</td></tr>`;
+}
+function renderBarcodes() {
+  const m = S.mission || {}, cards = m.cards || [], raws = m.raws || [];
+  $("bc-count").textContent = cards.length ? `${plural(cards.length, "card")} this run` : "no card yet";
+  if (!cards.length) {
+    $("bc-list").innerHTML = '<div class="bc-empty" style="padding:10px 12px">No card this run.</div>';
+    $("bc-view").innerHTML = '<div class="bc-empty">Cards appear here as the car decodes them while it drives.</div>';
+    return;
+  }
+  /* Following: the newest card with a read (a dark mark with none, such as
+   * a junction's tape, stays in the list but is not opened by itself). */
+  let newest = cards.length - 1;
+  for (let i = cards.length - 1; i >= 0; i--) {
+    if (cardLetter(cards[i])) { newest = i; break; }
+  }
+  const sel = S.bcSel != null && S.bcSel < cards.length ? S.bcSel : newest;
+  $("bc-list").innerHTML = cards.map((c, i) => {
+    const l = cardLetter(c);
+    return `<button data-i="${i}" class="${i === sel ? "on" : ""}"><span class="no">${i + 1}</span>` +
+      `<span class="ch${l ? "" : " none"}">${l ? esc(l) : "–"}</span>${miniBarcode(c)}<span class="at">${c.from}–${c.to} mm</span></button>`;
+  }).join("");
+  const c = cards[sel], l = cardLetter(c), nav = c.nav;
+  const mv = nav ? `${nav.move === "U-TURN" || /^(LEFT|RIGHT|FORWARD)$/.test(nav.move) ? "→ " + nav.move + " at the next junction" : nav.move}` : "";
+  const W = Math.max(320, $("bc-view").clientWidth || 800);
+  $("bc-view").innerHTML =
+    `<div class="bc-head"><span class="bc-big${l ? "" : " none"}">${l ? "*" + esc(l) + "*" : "no code"}</span>` +
+    (mv ? `<span class="mv">${esc(mv)}</span>` : "") +
+    `<span class="where">card ${sel + 1} · ${c.from}–${c.to} mm along the side sensor's path</span></div>` +
+    barcodeSvg(c, raws, W) +
+    `<table class="dec"><thead><tr><th>Decoder</th><th>Result</th><th>How</th></tr></thead><tbody>` +
+    decRow("Decoder 1", "turning points in darkness", c.cur) +
+    decRow("Decoder 2", "Code 39 model fit", c.new) +
+    decRow("D0", "module's digital output, 3 widest of 9 wide", c.d0) +
+    (c.car ? `<tr class="vote"><td>Car's answer</td><td class="r${c.car.text ? "" : " none"}">${c.car.text ? "*" + esc(c.car.text) + "*" : "no code"}</td>` +
+      `<td>vote of the three (${esc(c.car.votes)})</td></tr>`
+      : `<tr class="vote"><td>Car's answer</td><td class="r none">–</td><td>the vote is sent after the run; at a junction the car uses the reads that are in</td></tr>`) +
+    `</tbody></table>`;
+}
+$("bc-list").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-i]");
+  if (!b) return;
+  const i = Number(b.dataset.i), n = ((S.mission || {}).cards || []).length;
+  S.bcSel = i === n - 1 ? null : i;     /* the last one: follow again */
+  renderBarcodes();
+});
+
+/* ---------- theme ---------- */
+function redrawAll() { if (S.view) drawTrace(S.view); theme3d(); drawMapSoon(); }
+$("b-theme").onclick = (e) => {
+  e.currentTarget.blur();
+  const root = document.documentElement, sys = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const next = (root.dataset.theme || sys) === "dark" ? "light" : "dark";
+  root.dataset.theme = next;
+  try { localStorage.setItem("is29-theme", next); } catch (err) { /* private window: this page only */ }
+  redrawAll();
+};
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redrawAll);
+
+/* ---------- live sensors ---------- */
+function onIr(d) {
+  for (const k of ["L", "R", "B"]) {
+    const [m, lo, hi] = d[k];
+    $("ir-" + k).textContent = m;
+    $("ir-" + k + "-s").textContent = `min ${lo} · max ${hi}`;
+    $("irb-" + k).style.width = Math.min(100, m / 4095 * 100).toFixed(1) + "%";
+  }
+}
+function onAcc(d) {
+  if (!d.x) { $("acc").textContent = "no samples"; $("acc-s").textContent = "n 0"; return; }
+  $("acc").textContent = `${sg(d.x[0])}  ${sg(d.y[0])}  ${sg(d.z[0])}`;
+  $("acc-s").textContent = `x / y / z mean mg · n ${d.n}`;
+  $("acc").title = `x ${sg(d.x[1])}..${sg(d.x[2])}, y ${sg(d.y[1])}..${sg(d.y[2])}, z ${sg(d.z[1])}..${sg(d.z[2])} mg`;
+}
+function onEnc(d) {
+  const mean = (d.mm[0] + d.mm[1]) / 2;
+  $("enc").textContent = (mean / 1000).toFixed(2) + " m";
+  $("enc-s").textContent = `L ${sg(d.mm[0])} · R ${sg(d.mm[1])} mm`;
+  $("encc").textContent = `${sg(d.counts[0])}  ${sg(d.counts[1])}`;
+  $("encc").title = `L ${sg(d.counts[0])}, R ${sg(d.counts[1])} counts`;
+  $("encc-s").textContent = `L / R counts · errors ${d.err}`;
+  $("encc-t").classList.toggle("flag", d.err > 0);
+  $("k-odo").textContent = (mean / 1000).toFixed(2);
+  $("k-odo-s").textContent = `L ${sg(d.mm[0])} · R ${sg(d.mm[1])} mm`;
+}
+function onFrame(name, d) {
+  if (name === "status") {
+    $("rb-state").hidden = $("rb-speed").hidden = $("rb-range").hidden = false;
+    $("rb-st").textContent = d.state || ("state " + d.st);
+    $("rb-st-s").textContent = (d.stop ? "STOP held · " : "") + (d.fault ? "hard fault · " : "") + "robot firmware";
+    $("rb-v").textContent = `${d.vl ?? "–"}  ${d.vr ?? "–"}`;
+    $("rb-rg").textContent = d.rv ? d.rg + " mm" : "no range";
+    $("rb-rg-s").textContent = d.pt != null ? `front · pitch ${(d.pt * 0.0572958).toFixed(1)}°` : "front";
+  } else if (name === "diagnostic") {
+    $("rb-fault").hidden = false;
+    $("rb-f").textContent = d.faults && d.faults.length ? d.faults.join(", ") : "none";
+    $("rb-f").title = $("rb-f").textContent;
+    $("rb-fault").classList.toggle("flag", !!(d.faults && d.faults.length));
+  }
+}
+function periodicText(type, d) {
+  if (type === "ir") return `IR L ${d.L[0]} ${d.L[1]}-${d.L[2]} R ${d.R[0]} ${d.R[1]}-${d.R[2]} B ${d.B[0]} ${d.B[1]}-${d.B[2]}`;
+  if (type === "acc") return d.x ? `ACC mg n ${d.n} x ${sg(d.x[0])} y ${sg(d.y[0])} z ${sg(d.z[0])}` : `ACC mg n ${d.n}`;
+  return `ENC counts L ${sg(d.counts[0])} R ${sg(d.counts[1])} mm L ${sg(d.mm[0])} R ${sg(d.mm[1])} err ${d.err}`;
+}
+
+/* ---------- 60 s IR chart ---------- */
+function canvasCtx(c) {
+  const dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+  const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const css = getComputedStyle(document.documentElement);
+  return { g, w, h, col: (n) => css.getPropertyValue(n).trim() };
+}
+function draw() {
+  const { g, w, h, col } = canvasCtx($("chart"));
+  const t1 = now(), x = (t) => 34 + (w - 34) * (1 - (t1 - t) / HIST_S);
+  const y = (v) => h - 8 - (v / 4095) * (h - 16);
+  while (S.irHist.length && S.irHist[0][0] < t1 - HIST_S - 5) S.irHist.shift();
+  g.font = "11px system-ui"; g.lineWidth = 1;
+  [0, 1024, 2048, 3072, 4095].forEach((v) => {
+    g.strokeStyle = col("--line2"); g.beginPath(); g.moveTo(34, y(v)); g.lineTo(w, y(v)); g.stroke();
+    g.fillStyle = col("--muted"); g.fillText(v, 0, y(v) + 4);
+  });
+  if (!S.irHist.length) {
+    g.fillStyle = col("--faint"); g.fillText("Waiting for IR lines from the car (only while it is idle)", 44, h / 2);
+  }
+  [[1, "--s-l"], [2, "--s-r"], [3, "--s-b"]].forEach(([k, c]) => {
+    g.strokeStyle = col(c); g.lineWidth = 2; g.beginPath();
+    let prev = null;
+    for (const p of S.irHist) {
+      const xx = x(p[0]), yy = y(p[k]);
+      if (prev && p[0] - prev < 5) g.lineTo(xx, yy); else g.moveTo(xx, yy);
+      prev = p[0];
+    }
+    g.stroke();
+  });
+  setTimeout(draw, 250);
+}
+
+/* ---------- runs ---------- */
+function upsertMeta(meta) {
+  const i = S.runs.findIndex((r) => r.id === meta.id);
+  if (i >= 0) S.runs[i] = meta; else { S.runs.push(meta); if (S.runs.length > 12) S.runs.shift(); }
+  if (S.latest && S.latest.id === meta.id) Object.assign(S.latest, meta);
+  else if (!S.latest || meta.id > S.latest.id) S.latest = Object.assign({ trace: [], trace_end: null }, meta);
+  if (S.follow) S.view = S.latest;
+  renderRunSel(); renderRun(); runKpis();
+}
+function renderRunSel() {
+  const sel = $("run-sel");
+  if (!S.runs.length) { sel.innerHTML = "<option>No run yet</option>"; return; }
+  const cur = S.view ? S.view.id : null;
+  sel.innerHTML = [...S.runs].reverse().map((r, i) =>
+    `<option value="${r.id}"${r.id === cur ? " selected" : ""}>#${r.id}${i === 0 ? " (latest)" : ""} · ${esc(shortMode(r.mode))} · ${esc(r.state === "running" ? "running" : r.reason || "ended")}</option>`).join("");
+}
+$("run-sel").onchange = async (e) => {
+  const id = Number(e.target.value);
+  if (S.latest && id === S.latest.id) { S.follow = true; S.view = S.latest; renderRun(); return; }
+  S.follow = false;
+  try {
+    const r = await fetch("/api/run?id=" + id);
+    if (!r.ok) { toast("That run is no longer on the server"); return; }
+    S.view = await r.json(); renderRun();
+  } catch (err) { toast("Dashboard server not reachable"); }
+};
+let runTimer = 0;
+function renderRunSoon() { if (!runTimer) runTimer = setTimeout(() => { runTimer = 0; renderRun(); }, 150); }
+const PHASES = [["TRACK", "--s-l"], ["GAP", "--warn"], ["SEARCH", "--bad"], ["CROSS", "--faint"]];
+function renderRun() {
+  const r = S.view;
+  if (!r) return;
+  const c = r.centre, gp = r.gaps, end = r.trace_end;
+  const pairs = [
+    ["Result", r.state === "running" ? "running" : r.reason || "ended"],
+    ["Test", r.mode || "–"],
+    ["Started", hhmmss(r.t0)],
+    ["Duration", r.secs != null ? r.secs.toFixed(1) + " s" : end ? (end[0] / 1000).toFixed(1) + " s (trace)" : "–"],
+    ["Centre distance", c ? (c.mm / 1000).toFixed(2) + " m" : end ? (end[1] / 1000).toFixed(2) + " m (trace)" : "–"],
+    ["Mean speed", c ? c.mean + " mm/s" : "–"],
+    ["Full steer", c ? c.full_steer + " % of the time" : "–"],
+    ["Gaps · crossings · searches", gp ? `${gp.gaps} · ${gp.crossings} · ${gp.searches}` : "–"],
+    ["Longest search", gp ? gp.longest_ms + " ms" : "–"],
+    ["Junctions crossed straight on", r.junctions ?? "–"],
+    ["Darkest raw L · R", gp ? `${gp.dark_L} · ${gp.dark_R}` : "–"],
+    ["Loop dt max", r.dt_max != null ? r.dt_max.toFixed(1) + " ms" + (r.enc_errors ? ", ENCODER ERRORS" : "") : "–"],
+  ].filter(([k, v], i) => i < 3 || v !== "–");
+  rows("sum", pairs);
+  $("phase").hidden = !c;
+  if (c) {
+    $("phasebar").innerHTML = PHASES.map(([p, v]) => `<div style="width:${c.phase[p]}%;background:var(${v})" title="${p} ${c.phase[p]} %"></div>`).join("");
+    $("phaselbl").innerHTML = PHASES.map(([p, v]) => `<span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(${v})"></i>${p} ${c.phase[p]} %</span>`).join("");
+  }
+  $("run-lines").textContent = (r.lines || []).join("\n") || "–";
+  const trace = traceRows(r);
+  $("trace-n").textContent = trace.length ? `${trace.length} rows` : "";
+  $("b-csv").disabled = !trace.length;
+  $("tt-sum").textContent = `Trace rows (${trace.length})`;
+  if ($("tt-wrap").open) renderTable(r);
+  drawTrace(r);
+}
+function traceRows(r) { return (r.trace || []).concat(r.trace_end ? [r.trace_end] : []); }
+const COLS = ["t ms", "d mm", "IR L", "IR R", "IR B", "steer", "line", "heading", "phase", "wheel L", "wheel R", "duty L", "duty R", "front mm"];
+function renderTable(r) {
+  const tr = traceRows(r), endAt = r.trace_end ? tr.length - 1 : -1;
+  if (!tr.length) { $("tt-box").innerHTML = '<div class="hint" style="padding:0 14px 12px">No trace rows for this run.</div>'; return; }
+  const hasF = tr.some((x) => x[13] != null), hasC = tr.some((x) => x[8]);
+  const cols = COLS.map((c, i) => [c, i]).filter(([, i]) => (i !== 13 || hasF) && (i !== 8 || hasC));
+  $("tt-box").innerHTML = `<table class="tt"><thead><tr>${cols.map(([c]) => `<th>${c}</th>`).join("")}</tr></thead><tbody>` +
+    tr.map((x, n) => `<tr${n === endAt ? ' class="end"' : ""}>` + cols.map(([, i]) => {
+      const v = x[i];
+      const txt = v == null ? "–" : (i === 1 || i === 5 || i >= 9 && i <= 12) ? sg(v) : i === 7 ? v.toFixed(1) : v;
+      return `<td${i === 8 ? ` class="${esc(v)}"` : ""}>${esc(txt)}</td>`;
+    }).join("") + "</tr>").join("") + "</tbody></table>";
+}
+$("tt-wrap").addEventListener("toggle", () => { if ($("tt-wrap").open && S.view) renderTable(S.view); });
+
+function drawTrace(r) {
+  const { g, w, h, col } = canvasCtx($("trace"));
+  const tr = traceRows(r), L = 40, top = 8, gapY = 30, ph = (h - top - gapY - 22) / 2;
+  g.font = "11px system-ui";
+  if (!tr.length) {
+    g.fillStyle = col("--faint");
+    g.fillText(r.state === "running" ? "Running. The trace arrives after the test ends." : "No trace for this run (only line tests print one).", L, h / 2);
+    return;
+  }
+  const tmax = Math.max(1000, tr[tr.length - 1][0]);
+  const x = (t) => L + (w - L - 6) * t / tmax;
+  const hmax = Math.max(45, Math.ceil(Math.max(...tr.map((p) => Math.abs(p[7]))) / 45) * 45);
+  const y1 = (v) => top + ph / 2 - (v / hmax) * (ph / 2);               /* heading panel */
+  const y2top = top + ph + gapY, y2 = (v) => y2top + ph / 2 - (v / 127) * (ph / 2);
+  /* phase bands over both panels */
+  const band = { GAP: "--ph-gap", SEARCH: "--ph-search", CROSS: "--ph-cross" };
+  for (let i = 0; i < tr.length - 1; i++) {
+    const b = band[tr[i][8]];
+    if (!b) continue;
+    g.fillStyle = col(b);
+    g.fillRect(x(tr[i][0]), top, Math.max(1, x(tr[i + 1][0]) - x(tr[i][0])), ph);
+    g.fillRect(x(tr[i][0]), y2top, Math.max(1, x(tr[i + 1][0]) - x(tr[i][0])), ph);
+  }
+  /* axes */
+  g.lineWidth = 1;
+  const grid = (yy, label) => { g.strokeStyle = col("--line"); g.beginPath(); g.moveTo(L, yy); g.lineTo(w - 6, yy); g.stroke();
+    g.fillStyle = col("--muted"); g.fillText(label, 2, yy + 4); };
+  [hmax, 0, -hmax].forEach((v) => grid(y1(v), (v > 0 ? "+" : "") + v + "°"));
+  [127, 0, -127].forEach((v) => grid(y2(v), (v > 0 ? "+" : "") + v));
+  const step = [1, 2, 5, 10, 15, 20, 30, 60, 120].find((s) => tmax / 1000 / s <= 10) || 300;
+  g.fillStyle = col("--muted");
+  for (let s = 0; s * 1000 <= tmax; s += step) g.fillText(s + " s", Math.min(x(s * 1000) - 6, w - 30), h - 4);
+  const line = (k, yf, c) => {
+    g.strokeStyle = col(c); g.lineWidth = 1.8; g.beginPath();
+    tr.forEach((p, i) => (i ? g.lineTo(x(p[0]), yf(p[k])) : g.moveTo(x(p[0]), yf(p[k]))));
+    g.stroke();
+  };
+  line(7, y1, "--s-l"); line(5, y2, "--s-r");
+}
+$("b-csv").onclick = () => {
+  const r = S.view; if (!r) return;
+  const head = "row,t_ms,d_mm,ir_l,ir_r,ir_b,steer_q7,line,heading_deg,phase,wheel_l_mms,wheel_r_mms,duty_l_pm,duty_r_pm,front_mm";
+  const out = [head];
+  (r.trace || []).forEach((x, i) => out.push([i, ...x].map((v) => v ?? "").join(",")));
+  if (r.trace_end) out.push(["end", ...r.trace_end].map((v) => v ?? "").join(","));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([out.join("\n") + "\n"], { type: "text/csv" }));
+  a.download = `is29_run${r.id}_trace_${new Date(r.t0 * 1000).toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+  a.click();
+};
+
+/* ---------- event log ---------- */
+function addLog(t, cls, text, keep = true) {
+  if (keep) { S.logLines.push(`${hhmmss(t)} ${text}`); if (S.logLines.length > 5000) S.logLines.shift(); }
+  const el = $("log"), d = document.createElement("div");
+  d.innerHTML = `<span class="tm">${hhmmss(t)}</span><span class="${esc(cls)}">${esc(text)}</span>`;
+  el.appendChild(d); while (el.childNodes.length > 800) el.removeChild(el.firstChild);
+  if ($("f-auto").checked) el.scrollTop = el.scrollHeight;
+}
+$("b-clear").onclick = () => { $("log").innerHTML = ""; S.logLines = []; };
+$("b-save").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([S.logLines.join("\n") + "\n"], { type: "text/plain" }));
+  a.download = "is29_dashboard_" + new Date().toISOString().replace(/[:.]/g, "-") + ".txt"; a.click();
+};
+function renderStats() {
+  const s = S.stats; if (!s) return;
+  $("stats").textContent = `Since the server started: ${s.lines} lines, ${s.garbled} cut short by a lost MQTT message`
+    + (s.frames ? `, ${s.frames} robot frames` : "") + ".";
+}
+
+/* ---------- live map ----------
+ * World frame: the car's odometry from START, x ahead (at START), y + left, mm.
+ * An obstacle line (OBST) gives the pose of the first stop (x0, y0, h0: its
+ * own frame, x along the line heading), the face ahead of it, the extents left
+ * and right of the line and the depth allowed for; its sonar rows (M) are
+ * 20 mm cells in that frame, 41 across with the line in the middle, the left
+ * first. While the car measures, server.py keeps the sweep: the frame of the
+ * stop, the sonar beams (back mm behind the stop, deg from the line heading
+ * + left, range mm from the sonar, 0 for no echo) and the first estimate.
+ *
+ * Views: "ahead" turns the map with the car (its heading up) and shows about
+ * a metre in front; during an obstacle encounter it turns with the line
+ * heading at the stop instead and fits the whole obstacle, its echoes and the
+ * way round. "run" is the whole path with START's heading up. */
+S.map = { path: [], obst: [], marks: [], avoid: "", sweep: null, enc: null };
+/* 3D by default (19 Nov); a view picked since is remembered under a
+ * new key, so a browser that last used "Ahead of car" also opens on 3D. */
+S.mapMode = "3d";
+try { const mm = localStorage.getItem("is29-mapview"); if (mm === "ahead" || mm === "run" || mm === "3d") S.mapMode = mm; } catch (e) { /* storage blocked */ }
+{ const q = new URLSearchParams(location.search).get("map"); if (["ahead", "run", "3d"].includes(q)) S.mapMode = q; } /* ?map=3d */
+const MAP_CELL = 20, MAP_COLS = 41, MAP_MID = 20;
+const MAP_CAR = { rear: 60, front: 130, half: 80 };   /* mm about the axle: front sensors 130 ahead, 160 wide (3 Nov); rear unmeasured */
+const SONAR_MM = 70;          /* sonar ahead of the axle (BENCH_AVOID_SONAR_MM) */
+const DEPTH_MM = 150;         /* depth allowed for while measuring (BENCH_AVOID_DEPTH_MM) */
+const LINE_MM = 19;           /* track tape width, drawn as a band */
+const ENC_TXT = { measuring: "Measuring", around: "Going round", none: "No way round", rejoined: "Back on the line" };
+let mapRaf = 0;
+function drawMapSoon() {
+  if (!mapRaf) mapRaf = requestAnimationFrame(() => {
+    mapRaf = 0;
+    if (S.mapMode === "3d") { if (map3d) map3d.update(S.map); } else drawMap();
+  });
+}
+function frameOf(f) {
+  const h = f.h0 * Math.PI / 180, c = Math.cos(h), s = Math.sin(h);
+  return (x, y) => [f.x0 + x * c - y * s, f.y0 + x * s + y * c];
+}
+function obstCorners(o) {
+  const tf = frameOf(o);
+  return [[o.face, -o.right], [o.face, o.left], [o.face + o.depth, o.left], [o.face + o.depth, -o.right]].map(([x, y]) => tf(x, y));
+}
+function obstPlan(o) {
+  if (o.go === "none") return [];
+  /* From the pivot: back mm behind the first stop after any reverse. */
+  const tf = frameOf(o), y = (o.go === "R" ? -1 : 1) * o.out, b = -(o.back || 0);
+  return [[b, 0], [b, y], [b + o.along, y], [b + o.along, 0]].map(([a, c]) => tf(a, c));
+}
+/* A beam in its frame: [sonar, end, echo?]; no echo: a 350 mm stub. */
+function beamGeom(tf, [back, deg, mm]) {
+  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const reach = mm > 0 ? mm : 350;
+  return [tf(SONAR_MM * c - back, SONAR_MM * s), tf((SONAR_MM + reach) * c - back, (SONAR_MM + reach) * s), mm > 0];
+}
+function carPoly(p) {
+  const h = p[2] * Math.PI / 180, c = Math.cos(h), s = Math.sin(h);
+  return [[MAP_CAR.front, MAP_CAR.half], [MAP_CAR.front, -MAP_CAR.half], [-MAP_CAR.rear, -MAP_CAR.half], [-MAP_CAR.rear, MAP_CAR.half]]
+    .map(([x, y]) => [p[0] + x * c - y * s, p[1] + x * s + y * c]);
+}
+/* The obstacle being dealt with: the live sweep, else the last mapped one
+ * while the car is still going round it. */
+function encounter() {
+  const m = S.map;
+  if (m.sweep) return { kind: "sweep", f: m.sweep };
+  const o = m.obst[m.obst.length - 1];
+  if (o && (m.enc === "around" || m.enc === "none")) return { kind: "obst", f: o };
+  return null;
+}
+/* Every point the encounter view must show. */
+function encounterPoints(en, car) {
+  const pts = car ? carPoly(car) : [];
+  const f = en.f, tf = frameOf(f);
+  pts.push(tf(-MAP_CAR.rear - 40, 0));
+  if (en.kind === "obst") {
+    obstCorners(f).forEach((q) => pts.push(q));
+    obstPlan(f).forEach((q) => pts.push(q));
+  } else if (f.est) {
+    pts.push(tf(f.est.face, f.est.left), tf(f.est.face + DEPTH_MM, -f.est.right));
+  } else {
+    pts.push(tf(320, 160), tf(320, -160));          /* room for the sweep */
+  }
+  (f.beams || []).forEach((b) => { const [, e, hit] = beamGeom(tf, b); if (hit) pts.push(e); });
+  return pts;
+}
+/* The view: ref heading (rad, screen up), anchor A (world), centre (u, v
+ * from A, u ahead, v left) and scale k px/mm. */
+function mapView(w, h) {
+  const path = S.map.path, car = path[path.length - 1];
+  const fit = (ref, A, pts, pad, minSpan) => {
+    const c = Math.cos(ref), s = Math.sin(ref);
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    pts.forEach(([x, y]) => {
+      const dx = x - A[0], dy = y - A[1], u = dx * c + dy * s, v = -dx * s + dy * c;
+      u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
+    });
+    const su = Math.max(u1 - u0 + 2 * pad, minSpan), sv = Math.max(v1 - v0 + 2 * pad, minSpan);
+    return { ref, A, cu: (u0 + u1) / 2, cv: (v0 + v1) / 2, k: Math.min(h / su, w / sv) };
+  };
+  if (S.mapMode === "run") {
+    const pts = [[0, 0], ...path.map((p) => [p[0], p[1]])];
+    if (car) carPoly(car).forEach((q) => pts.push(q));
+    S.map.obst.forEach((o) => { obstCorners(o).forEach((q) => pts.push(q)); obstPlan(o).forEach((q) => pts.push(q)); });
+    return Object.assign(fit(0, [0, 0], pts, 150, 800), { label: "whole run · START's heading up" });
+  }
+  const en = encounter();
+  if (en) {
+    const f = en.f;
+    return Object.assign(fit(f.h0 * Math.PI / 180, [f.x0, f.y0], encounterPoints(en, car), 110, 650),
+      { label: "obstacle · line heading at the stop up", en });
+  }
+  if (!car) return null;
+  /* Following: the car near the bottom, about 1 m ahead in view. */
+  const span = 1350, k = h / span;
+  return { ref: car[2] * Math.PI / 180, A: [car[0], car[1]], cu: span / 2 - 280, cv: 0, k, label: "car heading up", follow: true };
+}
+function drawMap() {
+  const cnv = $("mapc");
+  if (!cnv || !cnv.clientWidth) return;
+  const { g, w, h, col } = canvasCtx(cnv);
+  const path = S.map.path, car = path[path.length - 1];
+  const v = mapView(w, h);
+  g.font = "11px system-ui";
+  if (!v) {
+    g.fillStyle = col("--faint"); g.font = "12px system-ui";
+    g.fillText(S.map.ended ? mapEndedText() : "Waiting for the car's position: press START.", 16, h / 2);
+    return;
+  }
+  const cr = Math.cos(v.ref), sr = Math.sin(v.ref);
+  const UV = (x, y) => { const dx = x - v.A[0], dy = y - v.A[1]; return [dx * cr + dy * sr, -dx * sr + dy * cr]; };
+  const SX = (u, vv) => [w / 2 - (vv - v.cv) * v.k, h / 2 - (u - v.cu) * v.k];
+  const P = (x, y) => { const [u, vv] = UV(x, y); return SX(u, vv); };
+  const poly = (pts) => { g.beginPath(); pts.forEach(([x, y], i) => { const [a, b] = P(x, y); i ? g.lineTo(a, b) : g.moveTo(a, b); }); };
+  const seg = (p, q) => { g.beginPath(); g.moveTo(...P(...p)); g.lineTo(...P(...q)); g.stroke(); };
+  const label = (text, [x, y], dx, dy, color, bold) => {
+    const [a, b] = P(x, y);
+    g.font = (bold ? "600 " : "") + "12px system-ui";
+    const tw = g.measureText(text).width;
+    g.fillStyle = col("--card"); g.globalAlpha = .85; g.fillRect(a + dx - tw / 2 - 4, b + dy - 10, tw + 8, 15); g.globalAlpha = 1;
+    g.fillStyle = color; g.fillText(text, a + dx - tw / 2, b + dy + 1);
+    g.font = "11px system-ui";
+  };
+  /* grid in the view frame, from the anchor (the car, or START) */
+  const step = v.k * 100 < 14 ? 500 : 100;
+  const uMin = v.cu - h / 2 / v.k, uMax = v.cu + h / 2 / v.k, vMin = v.cv - w / 2 / v.k, vMax = v.cv + w / 2 / v.k;
+  g.lineWidth = 1;
+  for (let u = Math.ceil(uMin / step) * step; u <= uMax; u += step) {
+    const [, y] = SX(u, 0), major = u % 500 === 0;
+    g.strokeStyle = col(major ? "--line" : "--line2"); g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
+    if (v.follow && u > 0 && u % 200 === 0) { g.fillStyle = col("--faint"); g.fillText(`${u / 10} cm`, 6, y - 3); }
+    else if (!v.follow && major) { g.fillStyle = col("--faint"); g.fillText((u / 1000).toFixed(1) + " m", 6, y - 3); }
+  }
+  for (let vv = Math.ceil(vMin / step) * step; vv <= vMax; vv += step) {
+    const [x] = SX(0, vv);
+    g.strokeStyle = col(vv % 500 === 0 ? "--line" : "--line2"); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+  }
+  /* track line through each obstacle (and the live sweep) */
+  const lineBand = (f, from, to) => {
+    const tf = frameOf(f);
+    g.strokeStyle = col("--lineband"); g.lineWidth = Math.max(4, LINE_MM * v.k); g.lineCap = "butt";
+    seg(tf(from, 0), tf(to, 0)); g.lineWidth = 1;
+  };
+  S.map.obst.forEach((o) => lineBand(o, -400 - (o.back || 0), o.face + o.depth + Math.max(400, o.along)));
+  if (S.map.sweep) lineBand(S.map.sweep, -400, 900);
+  /* path */
+  if (path.length) {
+    g.strokeStyle = col("--accent"); g.lineWidth = 2.5; g.lineJoin = "round"; g.lineCap = "round";
+    poly([[0, 0], ...path.map((p) => [p[0], p[1]])]); g.stroke(); g.lineWidth = 1;
+  }
+  const [s0x, s0y] = P(0, 0);
+  g.fillStyle = col("--ok"); g.beginPath(); g.arc(s0x, s0y, 5, 0, 2 * Math.PI); g.fill();
+  /* sonar beams: live sweep strong, a mapped obstacle's lighter */
+  const beams = (f, strong) => {
+    const tf = frameOf(f);
+    (f.beams || []).forEach((b) => {
+      const [s, e, hit] = beamGeom(tf, b);
+      g.strokeStyle = col(hit ? "--hit" : "--faint"); g.globalAlpha = hit ? (strong ? .35 : .18) : (strong ? .25 : .1);
+      g.setLineDash(hit ? [] : [3, 4]); g.lineWidth = 1; seg(s, e); g.setLineDash([]);
+      g.globalAlpha = strong ? 1 : .7;
+      if (hit) { const [a, c] = P(...e); g.fillStyle = col("--hit"); g.beginPath(); g.arc(a, c, strong ? 3.5 : 2.5, 0, 2 * Math.PI); g.fill(); }
+      g.globalAlpha = 1;
+    });
+  };
+  /* mapped obstacles: box (back dashed: assumed), sonar cells, plan, dimensions */
+  const latest = S.map.obst[S.map.obst.length - 1];
+  S.map.obst.forEach((o) => {
+    const cs = obstCorners(o), tf = frameOf(o);
+    g.fillStyle = col("--warn"); g.globalAlpha = .16; poly(cs); g.closePath(); g.fill(); g.globalAlpha = 1;
+    g.strokeStyle = col("--warn"); g.lineWidth = 2;
+    poly([cs[3], cs[0], cs[1], cs[2]]); g.stroke();
+    g.setLineDash([5, 4]); poly([cs[2], cs[3]]); g.stroke(); g.setLineDash([]);
+    const px = Math.max(2, MAP_CELL * v.k);
+    (o.rows || []).forEach(([rx, cells]) => {
+      for (let i = 0; i < MAP_COLS && i < cells.length; i++) {
+        const ch = cells[i];
+        if (ch !== "#" && ch !== "+") continue;
+        const [a, b] = P(...tf(rx, (MAP_COLS - 1 - i - MAP_MID) * MAP_CELL));
+        g.fillStyle = col(ch === "#" ? "--hit" : "--faint"); g.globalAlpha = .35;
+        g.fillRect(a - px / 2, b - px / 2, px, px); g.globalAlpha = 1;
+      }
+    });
+    beams(o, o === latest && v.en);
+    const plan = obstPlan(o);
+    if (plan.length) { g.strokeStyle = col("--ok"); g.lineWidth = 2; g.setLineDash([6, 4]); poly(plan); g.stroke(); g.setLineDash([]); }
+    if (o === latest || S.mapMode === "run") dims(o, tf, o.left + o.right, o.left_open || o.right_open, o.depth, false);
+  });
+  /* the live sweep: echoes so far and the first estimate */
+  const sw = S.map.sweep;
+  if (sw) {
+    beams(sw, true);
+    if (sw.est) {
+      const tf = frameOf(sw), e = sw.est;
+      const cs = [[e.face, -e.right], [e.face, e.left], [e.face + DEPTH_MM, e.left], [e.face + DEPTH_MM, -e.right]].map(([x, y]) => tf(x, y));
+      g.fillStyle = col("--accent"); g.globalAlpha = .1; poly(cs); g.closePath(); g.fill(); g.globalAlpha = 1;
+      g.strokeStyle = col("--accent"); g.lineWidth = 1.5; g.setLineDash([6, 4]); poly(cs); g.closePath(); g.stroke(); g.setLineDash([]);
+      dims(e, tf, e.width, e.left_open || e.right_open, DEPTH_MM, true);
+    }
+  }
+  /* marks, where along the path the car met them (server.py mark_at):
+   * cards (a bar, 80 mm left: under the barcode sensor), junctions (a
+   * crossing tick), humps (right wheel), obstacle stops */
+  S.map.marks.forEach((m) => {
+    const hr = (m.h || 0) * Math.PI / 180, lx = -Math.sin(hr), ly = Math.cos(hr);
+    const kind = m.kind || (m.text === "stop" ? "stop" : "card");
+    const at = kind === "card" ? [m.x + lx * 80, m.y + ly * 80] : kind === "hump" ? [m.x - lx * 65, m.y - ly * 65] : [m.x, m.y];
+    const [sx, sy] = P(...at);
+    if (kind === "junction") {
+      g.strokeStyle = col("--text"); g.lineWidth = Math.max(2, 18 * v.k);
+      seg([m.x - lx * 150, m.y - ly * 150], [m.x + lx * 150, m.y + ly * 150]); g.lineWidth = 1;
+    } else {
+      g.fillStyle = col(kind === "stop" ? "--bad" : kind === "hump" ? "--warn" : "--s-b");
+      g.beginPath(); g.moveTo(sx, sy - 6); g.lineTo(sx + 6, sy); g.lineTo(sx, sy + 6); g.lineTo(sx - 6, sy); g.closePath(); g.fill();
+    }
+    g.fillStyle = col("--text2"); g.font = "600 11px system-ui";
+    g.fillText(kind === "card" ? `*${m.text}*` : m.text, sx + 9, sy + 4);
+    g.font = "11px system-ui";
+  });
+  /* the car, its sonar and heading */
+  if (car) {
+    const cp = carPoly(car), hr = car[2] * Math.PI / 180;
+    g.fillStyle = col("--text"); g.strokeStyle = col("--text"); g.lineWidth = 1.5;
+    poly(cp); g.closePath(); g.globalAlpha = .14; g.fill(); g.globalAlpha = 1; g.stroke();
+    const tip = [car[0] + (MAP_CAR.front + 50) * Math.cos(hr), car[1] + (MAP_CAR.front + 50) * Math.sin(hr)];
+    seg([car[0], car[1]], tip);
+    const [sx, sy] = P(car[0] + SONAR_MM * Math.cos(hr), car[1] + SONAR_MM * Math.sin(hr));
+    g.fillStyle = col("--hit"); g.beginPath(); g.arc(sx, sy, 3.5, 0, 2 * Math.PI); g.fill();
+  }
+  g.fillStyle = col("--muted"); g.font = "11px system-ui";
+  const foot = `grid ${step} mm · ${v.label}` + (S.map.ended ? ` · run ${S.map.ended.run ?? ""} ended` : "");
+  g.fillText(foot, w - g.measureText(foot).width - 8, h - 8);
+
+  /* width across the face (just short of it), depth along the side, face distance from the axle */
+  function dims(f, tf, width, open, depth, est) {
+    const colr = col(est ? "--accent" : "--warn"), tick = 10;
+    g.strokeStyle = colr; g.lineWidth = 1.2;
+    const xf = f.face - 28, l = f.left, r = -f.right;
+    seg(tf(xf, r), tf(xf, l)); seg(tf(xf - tick / 2, r), tf(xf + tick / 2, r)); seg(tf(xf - tick / 2, l), tf(xf + tick / 2, l));
+    label(`${est ? "~" : ""}${width}${open ? "+" : ""} mm wide${est ? " (measuring)" : ""}`, tf(xf, (l + r) / 2), 0, 16, colr, true);
+    const ys = r - 26;
+    seg(tf(f.face, ys), tf(f.face + depth, ys)); seg(tf(f.face, ys - tick / 2), tf(f.face, ys + tick / 2));
+    g.setLineDash([3, 3]); seg(tf(f.face + depth, ys - tick / 2), tf(f.face + depth, ys + tick / 2)); g.setLineDash([]);
+    label(`≤${depth} deep (assumed)`, tf(f.face + depth / 2, ys), 0, 0, colr, false);
+    /* face distance: from the axle at the stop, on the left of the obstacle */
+    const yl = l + 26;
+    g.strokeStyle = col("--muted"); g.setLineDash([2, 3]); seg(tf(0, 0), tf(0, yl)); seg(tf(f.face, l), tf(f.face, yl)); g.setLineDash([]);
+    seg(tf(0, yl), tf(f.face, yl)); seg(tf(0, yl - tick / 2), tf(0, yl + tick / 2)); seg(tf(f.face, yl - tick / 2), tf(f.face, yl + tick / 2));
+    label(`face ${f.face} mm ahead`, tf(f.face / 2, yl), 0, 0, col("--text2"), false);
+  }
+}
+/* The server marks the map ended once the car is idle after a run; it stays
+ * until the next START. */
+function mapEndedText() {
+  const e = S.map.ended || {};
+  return `Run ${e.run != null ? e.run + " " : ""}ended${e.reason ? ` (${e.reason})` : ""}. The map stays until the next START.`;
+}
+/* 3D: static/map3d.js and the vendored three.js, loaded on first use. */
+let map3d = null, map3dLoad = null;
+function theme3d() {
+  if (!map3d) return;
+  const root = document.documentElement, dark = root.dataset.theme ? root.dataset.theme === "dark"
+    : matchMedia("(prefers-color-scheme: dark)").matches;
+  map3d.setTheme(dark, getComputedStyle(root).getPropertyValue("--card").trim());
+}
+function setFollowBtn(on) { $("m3-follow").classList.toggle("on", on); $("m3-follow").setAttribute("aria-pressed", on); }
+function load3d() {
+  if (!map3dLoad) {
+    map3dLoad = import("/static/map3d.js").then((mod) => {
+      map3d = mod.createMap3d($("map3d"));
+      map3d.onFollow = setFollowBtn;
+      theme3d();
+      map3d.update(S.map);
+      map3d.show(S.mapMode === "3d");
+    }).catch((err) => {
+      console.error(err);
+      $("map3d").innerHTML = '<div class="hint" style="padding:16px">The 3D view could not load (static/map3d.js or static/vendor/three.module.min.js).</div>';
+    });
+  }
+  return map3dLoad;
+}
+$("m3-follow").onclick = (e) => { e.currentTarget.blur(); if (map3d) { const on = !map3d.follow; map3d.setFollow(on); setFollowBtn(on); } };
+$("m3-fit").onclick = (e) => { e.currentTarget.blur(); if (map3d) { map3d.fit(); setFollowBtn(false); } };
+function setMapMode(mode) {
+  S.mapMode = mode;
+  try { localStorage.setItem("is29-mapview", mode); } catch (e) { /* storage blocked */ }
+  [["mv-ahead", "ahead"], ["mv-run", "run"], ["mv-3d", "3d"]].forEach(([id, m]) => {
+    $(id).classList.toggle("on", mode === m); $(id).setAttribute("aria-pressed", mode === m);
+  });
+  const is3d = mode === "3d";
+  $("mapc").hidden = is3d; $("map-legend").hidden = is3d;
+  $("map3d").hidden = !is3d; $("m3-bar").hidden = !is3d;
+  if (is3d) load3d().then(() => { if (map3d) { map3d.update(S.map); map3d.show(true); } });
+  else if (map3d) map3d.show(false);
+  drawMapSoon();
+}
+$("mv-ahead").onclick = (e) => { e.currentTarget.blur(); setMapMode("ahead"); };
+$("mv-run").onclick = (e) => { e.currentTarget.blur(); setMapMode("run"); };
+$("mv-3d").onclick = (e) => { e.currentTarget.blur(); setMapMode("3d"); };
+setMapMode(S.mapMode);
+function renderMap() {
+  const m = S.map, path = m.path, last = path[path.length - 1];
+  $("m-pos").textContent = last ? `${last[0]}, ${last[1]} mm` : "–";
+  $("m-head").textContent = last ? `heading ${sg(last[2])}° (+ left of START)` : "heading –";
+  $("m-len").textContent = path.length ? `${(pathLen(path) / 1000).toFixed(2)} m · ${m.obst.length}` : "–";
+  $("m-pts").textContent = path.length ? `path · ${plural(m.obst.length, "obstacle")} mapped` : "no pose yet";
+  const o = m.obst[m.obst.length - 1], sw = m.sweep, e = sw && sw.est;
+  const enc = m.enc;
+  const badge = $("m-enc");
+  badge.textContent = enc ? (enc === "around" && o ? `Going round the ${o.go === "R" ? "right" : "left"}` : ENC_TXT[enc]) : "none yet";
+  badge.className = "badge" + (enc ? " " + enc : "");
+  $("m-ob").className = "obst-card" + (enc ? " " + enc : "");
+  const echoes = (f) => (f && f.beams ? f.beams.filter((b) => b[2] > 0).length : 0);
+  if (sw) {                                      /* measuring now */
+    $("m-w").textContent = e ? `~${e.width}${e.left_open || e.right_open ? "+" : ""}` : "…";
+    $("m-d").textContent = `≤${DEPTH_MM}`;
+    $("m-wsub").textContent = e ? `First estimate from the sweep, in mm; the map follows once the car has found its edges.`
+      : `Sweeping the sonar left and right: ${plural(echoes(sw), "echo")} so far.`;
+    $("m-face").textContent = e ? `${e.face} mm` : "–";
+    $("m-lr").textContent = e ? `${e.left}${e.left_open ? "+" : ""} · ${e.right}${e.right_open ? "+" : ""} mm` : "–";
+    $("m-go").textContent = "deciding";
+    $("m-plan").textContent = "after the sweep";
+    $("m-beams").textContent = `${echoes(sw)} / ${(sw.beams || []).length}`;
+  } else if (o) {
+    const w = o.left + o.right, open = o.left_open || o.right_open;
+    $("m-w").textContent = `${w}${open ? "+" : ""}`;
+    $("m-d").textContent = `≤${o.depth}`;
+    $("m-wsub").textContent = `mm. Face ${o.face} mm ahead of the axle at the stop; depth is assumed (the sonar sees the face only)`
+      + (open ? "; an edge was not seen, so it may be wider." : ".");
+    $("m-face").textContent = `${o.face} mm`;
+    $("m-lr").textContent = `${o.left}${o.left_open ? "+" : ""} · ${o.right}${o.right_open ? "+" : ""} mm`;
+    $("m-go").textContent = ({ R: "Right", L: "Left", none: "None: stopped" })[o.go];
+    $("m-plan").textContent = o.go !== "none" ? `out ${o.out} · along ${o.along} mm${o.back > 0 ? ` · backed ${o.back}` : ""}` : (o.back > 0 ? `backed up ${o.back} mm` : "–");
+    $("m-beams").textContent = o.beams && o.beams.length ? `${echoes(o)} / ${o.beams.length}` : "–";
+  } else {
+    $("m-w").textContent = "–"; $("m-d").textContent = "–";
+    $("m-wsub").textContent = "The car stops 130 mm short of an obstacle and sweeps the sonar left and right to measure it.";
+    ["m-face", "m-lr", "m-go", "m-beams"].forEach((id) => { $(id).textContent = "–"; });
+    $("m-plan").textContent = "out – · along –";
+  }
+  if (m.avoid) $("m-avoid").textContent = m.avoid;
+  drawMapSoon();
+}
+
+/* ---------- stream ---------- */
+function onMsg(x) {
+  if (x.now) S.skew = x.now - Date.now() / 1000;
+  if (x.last_tel != null) S.lastTel = x.last_tel;
+  if (x.stats && x.type !== "snapshot") { S.stats = x.stats; renderStats(); }
+  switch (x.type) {
+    case "snapshot":
+      S.mqtt = x.mqtt_ok; S.presence = x.presence; S.live = x.live || {}; S.irHist = x.ir_hist || [];
+      S.mode = x.mode; S.runs = x.runs || []; S.latest = x.last_run; S.stats = x.stats;
+      if (S.follow || !S.view) S.view = S.latest;
+      $("log").innerHTML = ""; S.logLines = [];
+      (x.events || []).forEach((e) => { addLog(e.host_t, e.cls, e.text); onMapAck(e.text); });
+      if (S.live.ir) onIr(S.live.ir);
+      if (S.live.acc) onAcc(S.live.acc);
+      if (S.live.enc) onEnc(S.live.enc);
+      if (S.live.robot) Object.entries(S.live.robot).forEach(([n, d]) => onFrame(n, d));
+      renderRunSel(); renderRun(); runKpis(); renderStats();
+      S.map = x.map || { path: [], obst: [], marks: [], avoid: "" };
+      if (S.map.ended && !S.map.avoid) $("m-avoid").textContent = mapEndedText();
+      renderMap();
+      S.mission = x.mission || null; renderMission();
+      break;
+    case "mission": S.mission = x.data; renderMission(); break;
+    case "sweep": S.map.sweep = x.data.sweep; S.map.enc = x.data.enc; renderMap(); renderReqs(); break;
+    case "obstbeams": if (S.map.obst.length) { const o = S.map.obst[S.map.obst.length - 1]; (o.beams = o.beams || []).push(...x.data); renderMap(); } break;
+    case "map": S.map = x.data; $("m-avoid").textContent = S.map.avoid || (S.map.ended ? mapEndedText() : "No go-around yet this run."); renderMap(); break;
+    case "pose": S.map.path.push(x.data); renderMap(); break;
+    case "obst": S.map.obst.push(x.data); renderMap(); break;
+    case "maprow": if (S.map.obst.length) { S.map.obst[S.map.obst.length - 1].rows.push(x.data); drawMapSoon(); } break;
+    case "mapmark": {
+      /* one mark per card, junction or hump: replace it when it moves */
+      const i = x.data.key != null ? S.map.marks.findIndex((m) => m.key === x.data.key) : -1;
+      if (i >= 0) S.map.marks[i] = x.data; else S.map.marks.push(x.data);
+      drawMapSoon(); break;
+    }
+    case "avoid": S.map.avoid = x.data; renderMap(); break;
+    case "ir": case "acc": case "enc":
+      S.live[x.type] = x.data;
+      if (x.type === "ir") { onIr(x.data); S.irHist.push([x.data.t, x.data.L[0], x.data.R[0], x.data.B[0]]); }
+      else if (x.type === "acc") onAcc(x.data); else onEnc(x.data);
+      if ($("f-per").checked) addLog(x.data.t, "per", periodicText(x.type, x.data), false);
+      break;
+    case "frame":
+      S.live.robot = S.live.robot || {}; S.live.robot[x.name] = x.data; onFrame(x.name, x.data); break;
+    case "mode": S.mode = x.data; break;
+    case "run": upsertMeta(x.data); break;
+    case "trace":
+      if (S.latest && S.latest.id === x.id) {
+        if (x.end) S.latest.trace_end = x.row; else S.latest.trace.push(x.row);
+        if (S.view === S.latest) renderRunSoon();
+      }
+      break;
+    case "event": addLog(x.host_t, x.cls, x.text); onMapAck(x.text); break;
+    case "presence": S.presence = x.online; break;
+    case "mqtt": S.mqtt = x.ok; break;
+  }
+  header();
+}
+function connect() {
+  const es = new EventSource("/events");
+  es.onopen = () => { S.srv = true; header(); };
+  es.onerror = () => { S.srv = false; S.mqtt = false; header(); };
+  es.onmessage = (m) => { try { onMsg(JSON.parse(m.data)); } catch (e) { console.error(e); } };
+}
+connect();
+draw();
+renderMission();
+window.addEventListener("resize", () => { if (S.view) drawTrace(S.view); drawMapSoon(); renderBarcodes(); });
+
+/* ---------- sidebar: highlight the section in view ---------- */
+const navLinks = [...document.querySelectorAll("#nav a")];
+const spy = new IntersectionObserver((list) => {
+  list.forEach((en) => {
+    if (!en.isIntersecting) return;
+    navLinks.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + en.target.id));
+  });
+}, { rootMargin: "-30% 0px -60% 0px" });
+navLinks.forEach((a) => spy.observe(document.querySelector(a.getAttribute("href"))));
+navLinks[0].classList.add("active");
+navLinks.forEach((a) => a.addEventListener("click", () =>
+  navLinks.forEach((b) => b.classList.toggle("active", b === a))));
+</script>
+</body>
+</html>

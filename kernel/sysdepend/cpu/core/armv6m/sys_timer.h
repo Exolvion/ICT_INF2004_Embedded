@@ -36,6 +36,11 @@ Inline void knl_start_hw_timer( void )
 	n = (UINT)(TIMER_PERIOD * TMCLK_KHz - 1);
 	out_w(SYST_RVR, n);
 
+	/* INF2004: SYST_CVR is UNKNOWN after reset and the first period counts
+	   down from it: up to 2^24 core clocks (134 ms at 125 MHz) with no tick,
+	   which froze every task's delay at start-up. Any write clears it. */
+	out_w(SYST_CVR, 0);
+
 	/* Start timer count */
 	out_w(SYST_CSR, 0x00000007);
 

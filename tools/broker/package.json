@@ -1,0 +1,13 @@
+{
+  "name": "is29-broker",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Self-contained MQTT broker for INF2004 IS29 bench/obstacle tests (Aedes). Lives in tools/broker, no system install.",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node broker.js"
+  },
+  "dependencies": {
+    "aedes": "^0.51.3"
+  }
+}

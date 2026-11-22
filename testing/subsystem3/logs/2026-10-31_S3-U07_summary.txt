@@ -1,0 +1,121 @@
+S3-U07 MISSION barcode retest, 31 Oct 2026, bench image 3414a534 (peak second opinion + Code 39 spec checks)
+Source: 2026-10-31_S3-U07_live.txt (live MQTT telemetry, inf2004/is29/telemetry). Runs started and stopped by hand (STOP = 'aborted').
+Cards changed during the session: normal *Z*, normal *A*, then big (double-size) *Z* and *A*.
+Columns: centre distance, time, % of time per line phase, % at full steer | codes, straight hold, frames refused by the
+spec checks (w = character widths, g = gaps, q = quiet zone) | barcode sensor white level measured on the run.
+
+run  1 | 376 mm 7.1 s track 33 gap 44 search 24 cross 0 steer 16 | codes 0; held 1x 138 mm; refused w0 g0 q0 | white -
+        GROUP 11b 68-161 mm (chars R / V)
+        GROUP 14b 229-357 mm (chars F7 / C0)
+run  2 | 389 mm 8.2 s track 46 gap 37 search 17 cross 0 steer 29 | codes 1; held 1x 151 mm; refused w0 g0 q0 | white -
+        CODE *Z* fwd (rest of the line cut off by the stop message)
+run  3 | 320 mm 5.7 s track 48 gap 41 search 11 cross 0 steer 21 | codes 1; held 2x 153 mm; refused w0 g0 q0 | white 171 sd 7
+        CODE *Z* fwd, peaks agree 89-233 mm sw 3.5
+run  4 | 287 mm 6.1 s track 68 gap 25 search 8 cross 0 steer 36 | codes 0; held 1x 150 mm; refused w4 g0 q0 | white 173 sd 9
+        GROUP 11b 58-201 mm (chars *G / 3P)
+run  5 | 348 mm 4.9 s track 12 gap 29 search 60 cross 0 steer 52 | codes 0; held 2x 212 mm; refused w4 g0 q0 | white -
+        GROUP 13b 55-199 mm (chars *T / ZP)
+run  6 | 329 mm 6.0 s track 15 gap 36 search 49 cross 0 steer 39 | codes 0; held 1x 185 mm; refused w0 g0 q0 | white -
+        GROUP 14b 68-212 mm (chars *A / 1P)
+run  7 | 358 mm 6.3 s track 46 gap 42 search 13 cross 0 steer 13 | codes 1; held 1x 174 mm; refused w4 g0 q0 | white 172 sd 9
+        CODE *A* fwd, peaks agree 86-229 mm sw 4.5
+run  8 | 363 mm 5.4 s track 85 gap 7 search 9 cross 0 steer 67 | codes 0; held 1x 291 mm; refused w6 g0 q0 | white -
+        GROUP 15b 96-240 mm (frame *M* refused by the spec (character widths), characters *M* / P-P)
+run  9 | 415 mm 6.7 s track 34 gap 48 search 18 cross 0 steer 14 | codes 0; held 2x 155 mm; refused w0 g0 q0 | white 178 sd 9
+        GROUP 9b 59-192 mm (chars S /  )
+        GROUP 10b 401-426 mm (no frame, chars none / none)
+run 10 | 371 mm 5.7 s track 53 gap 31 search 16 cross 0 steer 31 | codes 0; held 1x 145 mm; refused w0 g0 q0 | white -
+        GROUP 7b 37-93 mm (chars 7 / C)
+        GROUP 5b 126-173 mm (no frame, chars 1 / A)
+run 11 | 288 mm 3.8 s track 43 gap 35 search 22 cross 0 steer 13 | codes 0; held 1x 144 mm; refused w0 g0 q0 | white -
+run 12 | 370 mm 5.6 s track 56 gap 35 search 9 cross 0 steer 33 | codes 0; held 1x 191 mm; refused w0 g0 q0 | white 171 sd 7
+        GROUP 15b 74-236 mm (no frame, chars -S0 / F M)
+run 13 | 381 mm 6.3 s track 39 gap 36 search 24 cross 0 steer 35 | codes 0; held 2x 205 mm; refused w0 g0 q0 | white 174 sd 8
+        GROUP 14b 123-256 mm (chars *H / 2P)
+run 14 | 416 mm 6.0 s track 62 gap 31 search 7 cross 0 steer 39 | codes 0; held 1x 193 mm; refused w0 g0 q0 | white -
+        GROUP 12b 133-268 mm (chars Z5 / DT)
+run 15 | 454 mm 6.1 s track 38 gap 43 search 18 cross 0 steer 18 | codes 0; held 2x 160 mm; refused w0 g0 q0 | white 187 sd 10
+        GROUP 19b 144-285 mm (chars *A / 1P)
+        GROUP 6b 329-441 mm (chars - / M)
+run 16 | 427 mm 5.9 s track 38 gap 36 search 26 cross 0 steer 32 | codes 1; held 2x 172 mm; refused w0 g0 q0 | white 182 sd 10
+        CODE *A* fwd 128-271 mm sw 4.0
+        GROUP 6b 336-410 mm (chars none / none)
+run 17 | 423 mm 6.1 s track 51 gap 42 search 7 cross 0 steer 27 | codes 0; held 2x 153 mm; refused w4 g0 q0 | white 177 sd 11
+        GROUP 13b 142-285 mm (chars *Y / NP)
+        GROUP 5b 368-411 mm (no frame, chars . / L)
+run 18 | 409 mm 5.6 s track 22 gap 49 search 28 cross 0 steer 22 | codes 0; held 2x 173 mm; refused w0 g0 q0 | white -
+        GROUP 20b 83-253 mm (no frame, chars XS3 / G O)
+        GROUP 5b 343-393 mm (no frame, chars none / none)
+run 19 | 388 mm 6.4 s track 39 gap 42 search 19 cross 0 steer 22 | codes 1; held 2x 171 mm; refused w0 g0 q4 | white 194 sd 10
+        CODE *A* fwd 112-254 mm sw 5.0
+run 20 | 465 mm 6.8 s track 40 gap 42 search 18 cross 0 steer 21 | codes 0; held 2x 176 mm; refused w0 g0 q0 | white 187 sd 8
+        GROUP 19b 93-273 mm (chars X5F / 0DO)
+        GROUP 7b 322-447 mm (chars M / -)
+run 21 | 351 mm 4.5 s track 59 gap 26 search 15 cross 0 steer 48 | codes 0; held 1x 0 mm; refused w0 g0 q0 | white -
+        GROUP 17b 82-254 mm (chars -L1 / A.M)
+run 22 | 399 mm 7.3 s track 51 gap 35 search 14 cross 0 steer 33 | codes 0; held 2x 174 mm; refused w0 g0 q0 | white 187 sd 8
+        GROUP 20b 82-255 mm (no frame, chars 7M* / P-C)
+        GROUP 5b 351-395 mm (no frame, chars none / none)
+run 23 | 325 mm 4.5 s track 34 gap 29 search 33 cross 5 steer 26 | codes 0; held 1x 247 mm; refused w0 g0 q0 | white -
+        GROUP 8b 48-187 mm (chars * / P)
+run 24 | 327 mm 6.1 s track 19 gap 41 search 40 cross 0 steer 33 | codes 0; held 1x 157 mm; refused w0 g0 q0 | white 233 sd 10
+        GROUP 7b 32-168 mm (chars - / M)
+run 25 | 322 mm 7.1 s track 20 gap 38 search 42 cross 0 steer 33 | codes 0; held 1x 144 mm; refused w2 g0 q0 | white 175 sd 9
+        GROUP 10b 40-161 mm (no frame, chars NG / 3Y)
+run 26 | 331 mm 4.7 s track 60 gap 32 search 8 cross 0 steer 32 | codes 0; held 1x 151 mm; refused w6 g0 q0 | white 168 sd 7
+        GROUP 15b 58-203 mm (frame *L* refused by the spec (character widths), characters *L* / P.P)
+run 27 | 372 mm 5.5 s track 51 gap 16 search 32 cross 0 steer 58 | codes 0; held 2x 213 mm; refused w0 g0 q0 | white 170 sd 9
+        GROUP 11b 51-184 mm (chars *5 / DP)
+run 28 | 312 mm 5.0 s track 12 gap 33 search 55 cross 0 steer 44 | codes 0; held 1x 198 mm; refused w10 g0 q0 | white -
+        GROUP 15b 36-180 mm (frame *A* refused by the spec (character widths), characters *A* / P1P)
+run 29 | 278 mm 3.7 s track 60 gap 27 search 3 cross 11 steer 4 | codes 0; held 1x 67 mm; refused w0 g0 q0 | white -
+run 30 | 389 mm 5.3 s track 41 gap 29 search 29 cross 0 steer 23 | codes 0; held 2x 261 mm; refused w0 g0 q0 | white -
+        GROUP 5b 60-234 mm (no frame, chars T / Z)
+run 31 | 287 mm 4.4 s track 71 gap 21 search 8 cross 0 steer 51 | codes 0; held 1x 195 mm; refused w0 g0 q0 | white -
+        GROUP 6b 59-175 mm (chars T / Z)
+run 32 | 337 mm 4.8 s track 18 gap 39 search 44 cross 0 steer 37 | codes 0; held 2x 271 mm; refused w0 g0 q0 | white 1408 sd 32
+        GROUP 5b 79-252 mm (no frame, chars T / Z)
+run 33 | 392 mm 5.5 s track 47 gap 12 search 41 cross 0 steer 54 | codes 0; held 2x 286 mm; refused w0 g0 q0 | white -
+        GROUP 5b 55-228 mm (no frame, chars T / Z)
+run 34 | 332 mm 4.3 s track 78 gap 5 search 16 cross 0 steer 73 | codes 0; held 1x 312 mm; refused w0 g0 q0 | white -
+run 35 | 347 mm 4.5 s track 55 gap 27 search 13 cross 6 steer 12 | codes 0; held 1x 164 mm; refused w0 g0 q0 | white -
+run 36 | 314 mm 4.3 s track 35 gap 7 search 59 cross 0 steer 75 | codes 0; held 1x 194 mm; refused w0 g0 q0 | white -
+run 37 | 344 mm 4.9 s track 33 gap 14 search 54 cross 0 steer 54 | codes 0; held 2x 288 mm; refused w0 g0 q0 | white -
+run 38 | 356 mm 5.0 s track 13 gap 47 search 41 cross 0 steer 29 | codes 0; held 1x 152 mm; refused w0 g0 q0 | white 182 sd 8
+        GROUP 9b 87-220 mm (chars * / P)
+run 39 | 343 mm 6.1 s track 65 gap 20 search 15 cross 0 steer 54 | codes 0; held 2x 207 mm; refused w0 g0 q0 | white 181 sd 9
+        GROUP 8b 83-195 mm (chars N / Y)
+run 40 | 318 mm 4.7 s track 42 gap 19 search 39 cross 0 steer 50 | codes 0; held 2x 167 mm; refused w0 g0 q0 | white -
+run 41 | 319 mm 4.3 s track 66 gap 26 search 8 cross 0 steer 38 | codes 0; held 1x 153 mm; refused w0 g0 q0 | white -
+run 42 | 425 mm 5.5 s track 39 gap 30 search 31 cross 0 steer 35 | codes 0; held 2x 271 mm; refused w0 g0 q0 | white -
+run 43 | 482 mm 10.0 s track 51 gap 38 search 11 cross 0 steer 26 | codes 0; held 2x 151 mm; refused w0 g0 q0 | white 175 sd 10
+        GROUP 10b 90-213 mm (no frame, chars D* / P5)
+        GROUP 23b 411-478 mm (chars none / none)
+run 44 | 448 mm 9.7 s track 15 gap 45 search 40 cross 0 steer 33 | codes 0; held 1x 196 mm; refused w0 g0 q0 | white -
+        GROUP 16b 41-184 mm (chars .L7 / C.L)
+run 45 | 328 mm 4.9 s track 39 gap 20 search 41 cross 0 steer 52 | codes 1; held 2x 181 mm; refused w0 g0 q0 | white 178 sd 12
+        CODE *A* fwd, peaks agree 63-205 mm sw 3.0
+run 46 | 428 mm 6.5 s track 45 gap 14 search 41 cross 0 steer 64 | codes 0; held 3x 193 mm; refused w0 g0 q0 | white 172 sd 12
+        GROUP 6b 64-119 mm (chars * / P)
+        GROUP 11b 438-522 mm (chars T / Z)
+run 47 | 351 mm 5.2 s track 60 gap 31 search 10 cross 0 steer 29 | codes 0; held 1x 152 mm; refused w16 g0 q0 | white 165 sd 7
+        GROUP 17b 54-208 mm (frame *A* refused by the spec (character widths), characters -L7 / C.M)
+run 48 | 325 mm 4.4 s track 11 gap 46 search 42 cross 0 steer 25 | codes 0; held 1x 134 mm; refused w0 g0 q0 | white -
+        GROUP 7b 49-181 mm (chars * / P)
+run 49 | 377 mm 5.6 s track 47 gap 49 search 5 cross 0 steer 3 | codes 0; held 1x 50 mm; refused w0 g0 q0 | white 179 sd 15
+        GROUP 16b 69-294 mm (chars K.7 / CLU)
+run 50 | 418 mm 6.1 s track 35 gap 16 search 49 cross 0 steer 59 | codes 0; held 2x 234 mm; refused w0 g0 q0 | white 174 sd 11
+        GROUP 12b 59-277 mm (chars *Z / TP)
+        GROUP 10b 320-411 mm (no frame, chars 3 / G)
+run 51 | 399 mm 5.2 s track 32 gap 27 search 41 cross 0 steer 43 | codes 1; held 1x 0 mm; refused w0 g0 q0 | white -
+        CODE *Z* fwd 44-325 mm sw 4.5
+run 52 | 434 mm 5.9 s track 33 gap 22 search 45 cross 0 steer 56 | codes 1; held 2x 276 mm; refused w0 g0 q0 | white 177 sd 12
+        CODE *A* fwd 29-310 mm sw 4.0
+        GROUP 17b 397-443 mm (chars none / none)
+run 53 | 295 mm 4.5 s track 19 gap 38 search 43 cross 0 steer 33 | codes 0; held 1x 152 mm; refused w0 g0 q0 | white 171 sd 9
+        GROUP 12b 69-203 mm (chars *5 / DP)
+
+53 runs, 8 with a confirmed code (all the right card). No wrong code was confirmed.
+The width check refused frames reading *A* (probably right) in 2 runs and *M* / *L* (probably wrong) in 2.
+Barcode white above 1000 (sensor reading the mat dark) in run(s) 32; it read ~170-180 again afterwards.
+Raw samples never arrived: the link carries ~50-100 bytes/s and every run was stopped before they were sent.

@@ -16,7 +16,9 @@
 #include "core.h"
 
 #define SCANNER_MAX_SAMPLES (80U)
-#define SCANNER_TABLE_SIZE (61U)   /* -60..+60 degrees in 2-degree steps */
+/* The widest sector, -60..+60 degrees in 2-degree steps. */
+#define SCANNER_TABLE_SIZE (61U)
+#define SCANNER_MAX_HALF_ANGLE_DEG (60)
 /* scanner_entry_t pulse codes (bits 0-14) and the fine-pass flag (bit 15). */
 #define SCANNER_ENTRY_NO_ECHO (0U)
 #define SCANNER_ENTRY_PULSE_MAX_US (32766U)
@@ -53,6 +55,10 @@ typedef struct
     uint32_t settle_ms;
     uint32_t trigger_interval_ms;
     uint32_t echo_timeout_ms;
+    /* Beam sector -half..+half degrees: a multiple of 5 (whole coarse
+     * steps), above the 20-degree side angle, at most 60 (the default).
+     */
+    int32_t half_angle_deg;
     bool b_calibrated;
 } scanner_config_t;
 
@@ -124,7 +130,8 @@ typedef struct
 } scanner_output_t;
 
 /** sample_count is the number of acquisitions this scan (at most 74, bounded
- * by SCANNER_MAX_SAMPLES). Beam angles are even and within -60..60.
+ * by SCANNER_MAX_SAMPLES). Beam angles lie on the 2-degree grid from
+ * -half_angle_deg to +half_angle_deg.
  */
 typedef struct
 {
@@ -142,7 +149,9 @@ typedef struct
     uint32_t         last_trigger_ms;
 } scanner_state_t;
 
-/** Set proposed 150 ms settle, 65 ms interval and 30 ms timeout defaults. */
+/** Set proposed 150 ms settle, 65 ms interval, 30 ms timeout and +/-60
+ * degree sector defaults.
+ */
 void scanner_default_config (scanner_config_t * p_config);
 
 /**
@@ -154,7 +163,8 @@ void scanner_default_config (scanner_config_t * p_config);
 bool scanner_init (scanner_state_t * p_state,
                    const scanner_config_t * p_config);
 
-/** Begin a -60..+60 degree coarse scan; calibrated and stationary required.
+/** Begin a -half..+half degree coarse scan; calibrated and stationary
+ * required.
  * Every table entry restarts as never sampled.
  */
 bool scanner_start (scanner_state_t * p_state, uint32_t now_ms,
@@ -179,8 +189,9 @@ bool scanner_step (scanner_state_t * p_state, uint32_t now_ms,
 /**
  * Newest observation at angle_deg this scan, with state and distance
  * recomputed by core_ultrasonic_range. False, leaving *p_sample unchanged,
- * for NULL arguments, a state scanner_init never accepted, an odd angle, an
- * angle outside -60..60 or an angle not sampled since scanner_start.
+ * for NULL arguments, a state scanner_init never accepted, an angle off the
+ * 2-degree grid or outside -half..half, or an angle not sampled since
+ * scanner_start.
  */
 bool scanner_sample (const scanner_state_t * p_state, int32_t angle_deg,
                      scanner_sample_t * p_sample);

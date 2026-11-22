@@ -13,10 +13,10 @@ Define a test here before running it. Test IDs never change.
 |---|---|---|---|---|---|
 | S1-U01 | Telemetry encoder: binary frames, every buffer size, saturation; Python decoder golden frames | FR9 | auto | `bash scripts/dev.sh host-tests test_telemetry_main` | "Passed 1 executable(s) in both host configurations", then Python tests `OK` |
 | S1-U02 | Command codec: 1-byte commands, rejected payloads | FR10 | auto | `bash scripts/dev.sh host-tests test_mqtt_main` | "Passed 1 executable(s) in both host configurations" |
-| S1-U03 | MQTT adapter with mocked transport; radio start-up | FR9 | auto | `bash scripts/dev.sh integration` | "mqttnet mocked adapter: 90 checks, 0 failures" (release and sanitize); "PASS: 26 radio/kernel scenario executions" |
+| S1-U03 | MQTT adapter with mocked transport; radio start-up | FR9 | auto | `bash scripts/dev.sh integration` | "mqttnet mocked adapter: 100 checks, 0 failures" (release and sanitize); "PASS: 26 radio/kernel scenario executions" |
 | S1-U04 | Car joins the hotspot and broker | FR9 | manual | P2: 1. Flash the MQTT image. 2. `docker exec mqtt mosquitto_sub -t inf2004/is29/status`. 3. `docker logs mqtt`. | Presence `1`; broker log shows client `inf2004-is29` connected |
 | S1-U05 | Frame sizes on the broker | FR9 | manual | P2: `docker exec mqtt mosquitto_sub -t inf2004/is29/telemetry -F %l` for 30 s | Only 17, 16 and 17 bytes |
-| S1-U06 | Frame rates and sequence numbers | FR9 | manual | P2: save 5 min of decoded telemetry to `.jsonl` | Status about 5 Hz; perception and diagnostic 1 Hz; no gaps in `seq` |
+| S1-U06 | Frame rates and sequence numbers | FR9 | manual | P2: save 5 min of decoded telemetry to `.jsonl`; car and laptop within 1 m of the phone, phone not in use | Status ≥ 98 % of the expected frames (about 4.9 Hz); perception and diagnostic about 1 Hz; no status gap over 2 s; the rise in `drop` accounts for every lost frame (no silent loss) |
 | S1-U07 | Text command rejected and counted | FR10 | manual | P2: `docker exec mqtt mosquitto_pub -t inf2004/is29/command -m STOP` | No stop; `ign` increases by 1 |
 | S1-U08 | Wi-Fi loss and reconnect | FR9 | manual | P2: hotspot off for 30 s, then on | `WIFI_LOSS` set without a stop; clears after reconnect; telemetry resumes |
 | S1-U09 | Broker restart | FR9 | manual | P2: `docker stop mqtt`, wait 60 s, `docker start mqtt` | Car reconnects; presence `1`; telemetry resumes |

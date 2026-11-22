@@ -1,0 +1,21 @@
+S2-U05 Encoder counts per wheel revolution; channel mode, 2026-10-27, run by Siang Hong
+Image: build-target/encoder-diag/encoder_diag_mqtt.uf2 (diagnostic only: counts and classifies every edge, no fault latch, motors off), broker <broker IP>, sha256 7c2b3253d236af4d...
+Car: on the stand, USB power from the laptop. Pen mark on each tyre, fixed reference on the chassis.
+Method: each wheel turned by hand exactly 10 turns in one direction, stopping on the mark; then both repeated. Counts are x4 quadrature edges (A and B, rise and fall) at the wheel shaft, accepted edges only.
+Files: 2026-10-27_S2-U05_raw.txt (laptop receive time + hex of each 20-byte MQTT chunk), _reports.txt (chunks joined), _table.txt (one row per report)
+Runs (sum since boot, raw sign):
+  Left  run 1: reports #11-#19, sum      0 -> +25359 = 25359 counts -> 2535.9 per turn
+  Right run 1: reports #30-#33, sum    -26 -> +25307 = 25333 counts -> 2533.3 per turn
+  Left  run 2: reports #37-#51, sum +25340 -> +50657 = 25317 counts -> 2531.7 per turn (0.17% from run 1)
+  Right run 2: reports #53-#56, sum +25350 -> +50648 = 25298 counts -> 2529.8 per turn (0.14% from run 1)
+  (The idle wheel moved a few tens of counts while the other was turned; each run starts from the idle wheel's sum at its start.)
+Mean of the four runs: 2532.7 counts per turn; left and right agree within 0.1%.
+Rejected edges: 0 on both wheels in every report (several at once, no phase change, both channels, wrong pin).
+Busiest 5 ms slot: 37 counts (left run 1, a short fast turn); the normal firmware latches ENCODER above 31 per 5 ms step.
+Channel mode: two channels (ROBOT_ENCODER_CHANNELS 2), both channels active and balanced.
+Entered: ROBOT_ENCODER_COUNTS_PER_REV 2533U in app_program/robot_config.h (was 360U, an unmeasured hypothesis).
+Result: PASS.
+Consequences:
+  - The ENCODER limit (31 counts per 5 ms) is now 6200 counts/s = 2.45 wheel turns/s = 0.50 m/s at R = 32.5 mm; ROBOT_MAX_SPEED_MPS 0.15 uses about 30% of it.
+  - Barcode (B3): run widths are stored as uint8_t half-counts (BARCODE_MAX_WIDTH_HC 255). With 2533 counts per turn a half-count is about 0.040 mm,
+    so the widest run is about 10.3 mm (was 72.3 mm at 360). TESTING.md: re-check B3's barcode decoding when counts per revolution change.

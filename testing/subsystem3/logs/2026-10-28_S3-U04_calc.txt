@@ -1,0 +1,39 @@
+S3-U04 Narrowest bar is resolvable (calculation, no car run)
+Date: 2026-10-28. Owner: Buddy 3. Worked out on the laptop from measured values.
+
+Inputs (app_program/robot_config.h, app_program/robot_app.c)
+- ROBOT_ENCODER_COUNTS_PER_REV 2533 x4 edges per wheel turn (S2-U05, 2026-10-27)
+- ROBOT_WHEEL_RADIUS_M 0.0325 (65 mm diameter, S2-U06 tape, 2026-10-27)
+- ROBOT_LINE_SPEED_MPS 0.08; line task period 2 ms (robot_app_line_task)
+- Barcode path: left + right counts = half-counts of centre path;
+  decoder unit ROBOT_APP_BARCODE_UNIT_HC = 8 half-counts
+- Narrow bar 3.0 mm (S3-U04 test definition)
+
+Working
+- Wheel circumference 2 x pi x 32.5 mm = 204.20 mm
+- 2533 / 204.20 = 12.404 counts per mm per wheel (0.0806 mm per count)
+- Decoder unit = 8 x pi x 32.5 / 2533 = 0.3225 mm of centre path
+- 3.0 mm bar = 37.2 counts per wheel = 9.30 decoder units
+- At 0.08 m/s the line task samples every 0.160 mm: 18.75 samples per bar
+
+Result against the pass condition "at least 5 counts per narrow bar"
+- 37 counts per wheel, 9.3 decoder units, 18.75 samples: PASS on resolution.
+
+Finding: the start-up codebook gate (robot_app_codebook_ready) cannot pass
+for a 3.0 mm narrow bar with the default limits (BARCODE_DEFAULT_LIMITS,
+maximum_gap_ms 50). It requires
+  maximum_step_m >= unit + ROBOT_LINE_SPEED_MPS x maximum_gap_ms
+  minimum_run_m  >= 5 x maximum_step_m, and the codebook's narrowest run
+  must be >= minimum_run_m.
+  maximum_gap_ms  maximum_step >=  minimum_run >=  3.0 mm bar
+  50 ms           4.322 mm        21.61 mm        too narrow
+  10 ms           1.122 mm         5.61 mm        too narrow
+   4 ms           0.642 mm         3.21 mm        too narrow
+   3 ms           0.562 mm         2.81 mm        OK
+   2 ms           0.482 mm         2.41 mm        OK
+Largest gap that still admits a 3.0 mm bar: 3.47 ms. So with a 3.0 mm
+narrow bar the codebook needs maximum_gap_ms 3 (one missed 2 ms line period
+then aborts the frame), maximum_step_m about 0.00057 and minimum_run_m about
+0.0029. Whether the line task holds its 2 ms period that tightly is a
+SYS-12 measurement on the car. Enter these with the lecturer-confirmed
+codebook (S3-U05); not changed in course_cfg.c yet.

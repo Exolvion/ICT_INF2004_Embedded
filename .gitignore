@@ -66,3 +66,12 @@ venv/
 Thumbs.db
 desktop.ini
 ~$*.docx
+
+# Offline barcode simulator build products (firmware/bench/offline/sim/make.sh).
+firmware/bench/offline/sim/proj/
+firmware/bench/offline/sim/sim
+
+
+# Contained MQTT broker dependencies (tools/broker, see README.md).
+tools/broker/node_modules/
+tools/broker/package-lock.json
