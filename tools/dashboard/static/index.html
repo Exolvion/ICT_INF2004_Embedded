@@ -429,10 +429,11 @@ table.dec tr.vote td { border-top: 1px solid var(--line); }
       <button class="stop" id="b-stop"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>STOP</button>
     </div>
     <div class="row3">
-      <button id="b-reset" title="RESET 0xAB: zero the wheel distance">Reset<small>distance</small></button>
+      <button id="b-reset" title="RESET 0xAB: clear the fault (robot app, car standing still); the bench image zeroes the wheel distance">Reset<small>clear fault</small></button>
     </div>
     <div class="hint">START (0xAA) runs the mission (line at 100 mm/s, barcodes and junction moves live), STOP (0xA9)
-      aborts it and brakes, Reset (0xAB) zeroes the wheel distance. The robot firmware image acts on STOP only.</div>
+      aborts it and brakes. After STOP or a lift the car goes back to IDLE by itself; a fault (IMU, collision, ...) stays
+      until Reset (0xAB) clears it with the car standing still. The bench image's Reset zeroes the wheel distance.</div>
     <form class="navmap" id="navmap" autocomplete="off">
       <div class="navmap-h">Junction map</div>
       <div class="navmap-row">
@@ -471,7 +472,7 @@ table.dec tr.vote td { border-top: 1px solid var(--line); }
   </section>
 
   <section class="card c12" id="live">
-    <div class="card-h"><div><h2>Live sensors</h2><p>The car's once-a-second report while it is idle</p></div>
+    <div class="card-h"><div><h2>Live sensors</h2><p>The car's once-a-second report: idle, and its status line while it drives</p></div>
       <div class="meta"><span class="pill" id="live-age">waiting for the car</span></div></div>
     <div class="stats">
       <div class="stat"><div class="k"><i style="background:var(--s-l)"></i>IR left</div><div class="v" id="ir-L">–</div>
@@ -1712,7 +1713,7 @@ function onMsg(x) {
       S.live[x.type] = x.data;
       if (x.type === "ir") { onIr(x.data); S.irHist.push([x.data.t, x.data.L[0], x.data.R[0], x.data.B[0]]); }
       else if (x.type === "acc") onAcc(x.data); else onEnc(x.data);
-      if ($("f-per").checked) addLog(x.data.t, "per", periodicText(x.type, x.data), false);
+      if ($("f-per").checked && !x.data.run) addLog(x.data.t, "per", periodicText(x.type, x.data), false);
       break;
     case "frame":
       S.live.robot = S.live.robot || {}; S.live.robot[x.name] = x.data; onFrame(x.name, x.data); break;

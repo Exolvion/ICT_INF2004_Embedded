@@ -42,8 +42,8 @@ _Static_assert(NAVMAP_LENGTH != MQTTCMD_LENGTH,
 #define NET_MQTT_PUBLISH_MS 100U
 #define NET_MQTT_KEEPALIVE_S 15U
 #define NET_MQTT_RETAIN_MASK 0x01U
-#define NET_MQTT_TX_DRAIN_LIMIT 8U  /* the IPC queue depth */
-#define NET_MQTT_TX_BURST 16U       /* frames sent per 100 ms, at most */
+#define NET_MQTT_TX_DRAIN_LIMIT NET_MQTT_IPC_TX_DEPTH  /* the IPC queue depth */
+#define NET_MQTT_TX_BURST NET_MQTT_IPC_TX_BURST  /* frames per 100 ms, most */
 /* cyw43_wifi_get_pm() packs 0x00adbrrm: the low nibble is the mode. */
 #define NET_MQTT_PM_MODE_MASK 0x0FU
 /* Presence on the status topic: one byte, '1' online and '0' offline. */
@@ -288,7 +288,8 @@ static void net_mqtt_transmit (uint32_t now)
                                0U, NULL, NULL);
         gb_online_pending = ERR_OK != result;
     }
-    /* Every frame waiting, in order, up to NET_MQTT_TX_BURST (19 Nov: one
+    /* Every frame waiting, in order, up to NET_MQTT_TX_BURST (16 since
+     * 22 Nov, the mission's bursts; the robot app alone sent 1. 19 Nov: one
      * frame per 100 ms held the bench's text to ~150 characters/s). A full
      * lwIP output buffer (ERR_MEM) keeps the frame for the next 100 ms.
      */
@@ -303,7 +304,7 @@ static void net_mqtt_transmit (uint32_t now)
         {
             return;
         }
-        /* IPC lengths are <= 64, exactly representable in lwIP's u16_t. */
+        /* IPC lengths are <= NET_MQTT_IPC_TX_MAX, exact in lwIP's u16_t. */
         result = mqtt_publish(gp_client, NET_MQTT_TELEMETRY_TOPIC,
                                g_pending_tx, (u16_t)g_pending_length, 0U, 0U,
                                NULL, NULL);
@@ -341,7 +342,7 @@ static void net_mqtt_take_tx (void)
         }
         return;
     }
-    /* Drain at most the eight-message queue depth and retain the newest
+    /* Drain at most the queue depth and retain the newest
      * sample. A full outage must not replay an unbounded telemetry history. */
     for (index = 0U; index < NET_MQTT_TX_DRAIN_LIMIT; index++)
     {

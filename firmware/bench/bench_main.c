@@ -1,5 +1,14 @@
-/** @file bench_main.c
- * @brief BENCH IMAGE, NOT THE ROBOT FIRMWARE: the measurements the mission
+/** @file mission.c
+ * @brief The MISSION (line, barcode cards, junctions, hump, obstacle) and
+ * the bench tests it grew from. Two builds of this one file:
+ * - The robot app (default, 22 Nov 2026): the Vehicle task's controller
+ *   (robot_app.c, every 5 ms). MISSION only; the sensors and outputs stay
+ *   with their owner tasks (the "robot app's owners" section below), the
+ *   fault mask, STOP and the watchdog with the Safety task.
+ * - The bench image (BENCH_IMAGE, firmware/bench/build.sh): bench_loop, as
+ *   described below (the file was firmware/bench/bench_main.c until 22 Nov).
+ *
+ * BENCH IMAGE, NOT THE ROBOT FIRMWARE: the measurements the mission
  * firmware cannot make (TESTING.md section 5). No robot task starts.
  *
  * - S2-U07 duty sweep: both wheels together, forward then backward, up
@@ -116,9 +125,12 @@
  *   0xAD RIGHT     servo pulse up one step
  *   0xAE STRAIGHT  servo to 1500 us
  *   0xAF UTURN     servo step 10 us <-> 100 us
- * Output: plain text. MQTT build: the telemetry topic, read it with
- * mosquitto_sub -N. Offline build: UART0 on GP0, 115200 8N1 (the sonar is
- * not used). Console prints mask interrupts and can lose encoder edges, so
+ * Output: lines. MQTT build: one minimum-bit frame per line on the telemetry
+ * topic (BENCH_FRAMES, Change Requirement 1; FRAMES.md), decoded back to the
+ * line by tools/dashboard/bench_codec.py and the dashboard. Offline build:
+ * UART0 on GP0, 115200 8N1 (the sonar is not used), each frame in hex ("#F")
+ * and then its line. Console prints mask interrupts and can lose encoder
+ * edges, so
  * the sweep table is printed only after the motors stop; read wheel
  * distance on the MQTT build.
  */
@@ -127,20 +139,54 @@
  */
 #define PROHIBIT_DEF_SIZE_T
 #include "app_cfg.h"
+#include "app_main.h"
 #include "barcode.h"
-#include "bench.h"
+#include "bitpack.h"
 #include "board.h"
 #include "line_ctrl.h"
+#include "mission.h"
 #include "motion.h"
 #include "navmap.h"
 #include "net_mqtt_ipc.h"
+#include "robot_app.h"
 #include "robot_config.h"
 #include "scanner.h"
 #include "terrain.h"
+#include "vehicle.h"
 #include <math.h>
 #include <string.h>
 #include <tk/tkernel.h>
 #include <tm/tmonitor.h>
+
+/* Which build (see the file comment). The bench copy of robot_config.h
+ * (build.sh) defines BENCH_IMAGE and the BENCH_* settings below; the robot
+ * app takes the robot's own limits and runs MISSION only.
+ */
+#ifdef BENCH_IMAGE
+#define MISSION_ROBOT (0)
+#else
+#define MISSION_ROBOT (1)
+#define BENCH_MOTION (1)
+#define BENCH_ROBOT_MAX_DUTY ROBOT_MAX_DUTY
+#define BENCH_ROBOT_SERVO_MIN_US ROBOT_SERVO_MIN_US
+#define BENCH_ROBOT_SERVO_MAX_US ROBOT_SERVO_MAX_US
+#endif
+/* The console (UART0, GP0/GP1): the bench image's offline build and the host
+ * sim print each line; the robot app never does, as the HC-SR04 has those
+ * pins after start-up.
+ */
+#if MISSION_ROBOT && !defined(MISSION_SIM)
+#define MISSION_CONSOLE (0)
+/** @brief No console in the robot app: a print goes nowhere. */
+static INT mission_no_console (const UB * p_format, ...)
+{
+    (void)p_format;
+    return 0;
+}
+#define tm_printf mission_no_console
+#else
+#define MISSION_CONSOLE (1)
+#endif
 
 /* build.sh writes these into the bench copy of robot_config.h. */
 #ifndef BENCH_MOTION
@@ -194,10 +240,333 @@
 #error "BENCH_ROBOT_SERVO_MIN_US/MAX_US (robot endpoints) come from build.sh"
 #endif
 
+/* ==== The robot app's owners (22 Nov 2026) ===============================
+ * In the robot app this file is the Vehicle task's controller (priority 4,
+ * every 5 ms). The board belongs to the other tasks, so the board calls the
+ * mission makes are redirected here:
+ *   IR          Line task (2 ms) pushes each sample with the wheels' 16-bit
+ *               totals (mission_ir_push); a step feeds all but the newest to
+ *               the barcode store as the bench's 1 ms polls did, and the
+ *               newest is the step's own reading (board_read_ir).
+ *   accel       IMU task (10 ms) pushes each fresh sample (mission_accel_push);
+ *               board_read_accel takes the oldest, FRESH, else PENDING.
+ *   sonar/servo Scan task (2 ms) sets the pulse and triggers when asked
+ *               (mission_output_t servo_seq/trigger_seq) and hands back the
+ *               echo of that trigger (mission_input_t sonar_seq).
+ *   wheels      Motion task (5 ms) runs the controller on the request the
+ *               mission publishes each step; the mission reads its snapshot.
+ *               Braking also asks for a HALT.
+ *   watchdog    Safety task. A long decode feeds it through
+ *               mission_hook_alive, which keeps the request renewed and lets
+ *               the lower tasks run.
+ * The encoder totals and the clock are read directly (no state is consumed).
+ * Every record shared with another task is bit-packed (Change Requirement 1)
+ * and passed under app_main_lock().
+ */
+#if MISSION_ROBOT
+/* One IR sample: three 12-bit readings, the 16-bit totals, valid. */
+typedef struct
+{
+    uint32_t left_raw    : 12;
+    uint32_t right_raw   : 12;
+    bool     b_valid     : 1;
+    uint32_t side_raw    : 12;
+    uint32_t left_total  : 16;
+    uint32_t right_total : 16;
+} mission_ir_t;
+
+/* One accelerometer sample, sensor axes, mg (16-bit chip words), and when
+ * the IMU task read it (board_time_us, low 32 bits).
+ */
+typedef struct
+{
+    uint32_t x       : 16;
+    uint32_t y       : 16;
+    uint32_t z       : 16;
+    uint32_t read_us : 32;
+} mission_accel_t;
+
+static mission_ir_t     g_ir_ring[MISSION_IR_RING];
+static uint8_t          g_ir_head;          /* Line task writes */
+static uint8_t          g_ir_tail;          /* Vehicle task reads */
+static uint8_t          g_ir_dropped;       /* full ring, saturating */
+static mission_accel_t  g_acc_ring[MISSION_ACCEL_RING];
+static uint8_t          g_acc_head;         /* IMU task writes */
+static uint8_t          g_acc_tail;         /* Vehicle task reads */
+static uint32_t         g_acc_read_us;      /* read time of the last taken */
+static uint16_t         g_ir_now[3];        /* the step's own reading */
+static bool             gb_ir_now;
+static bool             gb_ir_fresh;        /* g_ir_now is the newest read */
+static uint8_t          g_ir_failed;        /* failed reads in a row */
+/* Noise control: failed IR reads in a row the last good sample covers. */
+#define MISSION_IR_HOLD (5U)
+static uint16_t         g_ir_now_total[2];
+static mission_input_t  g_in;               /* this step's input */
+static mission_output_t g_out;              /* the requests, published */
+static bool             gb_sonar_waiting;   /* a trigger not yet echoed */
+static uint8_t          g_motion_id = 1U;   /* last velocity ID submitted */
+
+/** @brief The step's own IR reading: the newest sample the Line task took
+ * (mission_ir_drain). False if that read failed or none came yet.
+ */
+static bool mission_read_ir (uint16_t samples[3])
+{
+    samples[0] = g_ir_now[0];
+    samples[1] = g_ir_now[1];
+    samples[2] = g_ir_now[2];
+    return gb_ir_now;
+}
+
+/** @brief The oldest accelerometer sample the IMU task pushed. */
+static board_accel_status_t mission_read_accel (int16_t milligravity[3])
+{
+    mission_accel_t sample;
+    uint32_t        saved = app_main_lock();
+    bool            b_fresh = g_acc_tail != g_acc_head;
+
+    if (b_fresh)
+    {
+        sample = g_acc_ring[g_acc_tail];
+        g_acc_tail = (uint8_t)((g_acc_tail + 1U) % MISSION_ACCEL_RING);
+    }
+    app_main_unlock(saved);
+    if (!b_fresh)
+    {
+        return BOARD_ACCEL_PENDING;
+    }
+    /* The fields hold the chip's 16-bit two's complement words. */
+    milligravity[0] = (int16_t)(uint16_t)sample.x;
+    milligravity[1] = (int16_t)(uint16_t)sample.y;
+    milligravity[2] = (int16_t)(uint16_t)sample.z;
+    g_acc_read_us = (uint32_t)sample.read_us;
+    return BOARD_ACCEL_FRESH;
+}
+
+/** @brief True while the IMU task has samples queued for the mission. */
+static bool mission_accel_waiting (void)
+{
+    uint32_t saved = app_main_lock();
+    bool     b_waiting = g_acc_tail != g_acc_head;
+
+    app_main_unlock(saved);
+    return b_waiting;
+}
+
+/** @brief When the IMU task read the sample mission_read_accel last gave,
+ * on now_us's 64-bit clock (it is less than 2^32 us old).
+ */
+static uint64_t mission_accel_sample_us (uint64_t now_us)
+{
+    return now_us - (uint64_t)(uint32_t)((uint32_t)now_us - g_acc_read_us);
+}
+
+/** @brief Ask the Scan task for one trigger; false while one is out (an
+ * echo that never came is given up after MISSION_SONAR_LOST_US).
+ */
+#define MISSION_SONAR_LOST_US (200000U)
+static uint64_t g_sonar_asked_us;
+
+static bool mission_sonar_trigger (void)
+{
+    uint64_t now_us = board_time_us();
+
+    if (gb_sonar_waiting &&
+        ((now_us - g_sonar_asked_us) < MISSION_SONAR_LOST_US))
+    {
+        return false;
+    }
+    g_out.trigger_seq = (g_out.trigger_seq + 1U) & MISSION_SEQ_MASK;
+    gb_sonar_waiting = true;
+    g_sonar_asked_us = now_us;
+    return true;
+}
+
+/** @brief The Scan task services the sonar. */
+static void mission_sonar_service (void)
+{
+}
+
+/** @brief The echo of the last trigger, once, when the Scan task has it. */
+static bool mission_sonar_result (uint32_t * p_pulse_us, bool * p_valid)
+{
+    if ((!gb_sonar_waiting) || (g_in.sonar_seq != g_out.trigger_seq))
+    {
+        return false;
+    }
+    gb_sonar_waiting = false;
+    *p_pulse_us = g_in.sonar_pulse_us;
+    *p_valid = g_in.b_sonar_valid;
+    return true;
+}
+
+/** @brief Ask the Scan task for this servo pulse. */
+static bool mission_servo_us (uint16_t pulse_us)
+{
+    g_out.servo_us = (uint32_t)pulse_us & 0xFFFU;
+    g_out.servo_seq = (g_out.servo_seq + 1U) & MISSION_SEQ_MASK;
+    return true;
+}
+
+/** @brief Pack the request for the Motion task (published after the step,
+ * or at once in a wait).
+ */
+static void mission_publish (const motion_request_t * p_request)
+{
+    motion_request_pack(p_request, &g_out.request);
+    if (MOTION_HALT != p_request->kind)
+    {
+        g_motion_id = p_request->command_id;
+    }
+}
+
+/** @brief A HALT for the Motion task. */
+static void mission_publish_halt (void)
+{
+    motion_request_t halt;
+
+    (void)memset(&halt, 0, sizeof(halt));
+    halt.kind = MOTION_HALT;
+    halt.command_id = g_motion_id;
+    mission_publish(&halt);
+}
+
+/** @brief Brake now (the Motion task's next step applies the HALT). */
+static void mission_motor_brake (void)
+{
+    board_motor_brake();
+    mission_publish_halt();
+}
+
+/** @brief Only the bench's duty sweep sets duties directly: not here. */
+static void mission_motor_duty (core_real_t left_duty, core_real_t right_duty)
+{
+    (void)left_duty;
+    (void)right_duty;
+}
+
+/** @brief The Motion task reads the encoder deltas and their error bits. */
+static void mission_read_encoders (int32_t * p_left, int32_t * p_right,
+                                   uint32_t * p_errors)
+{
+    *p_left = 0;
+    *p_right = 0;
+    *p_errors = 0U;
+}
+
+/** @brief The Motion task owns the deltas. */
+static void mission_encoders_discard (void)
+{
+}
+
+/** @brief The Safety task runs the watchdog. */
+static bool mission_watchdog_start (uint32_t timeout_ms)
+{
+    (void)timeout_ms;
+    return true;
+}
+
+/** @brief A long computation: stay alive (mission_hook_alive). */
+static void mission_watchdog_feed (void)
+{
+    mission_hook_alive(false);
+}
+
+/* The Motion task's pose when the run started: the bench's motion_init
+ * started every run at x = y = 0, heading 0, and the mission relies on it.
+ */
+static core_pose_t g_origin;
+
+/** @brief Wrap metres into the packed pose's +/-32.768 m. */
+static double mission_wrap_m (double metres)
+{
+    while (metres > 32.768)
+    {
+        metres -= 65.536;
+    }
+    while (metres < -32.768)
+    {
+        metres += 65.536;
+    }
+    return metres;
+}
+
+/** @brief Radians into +/-pi. */
+static double mission_wrap_rad (double angle)
+{
+    while (angle > CORE_PI)
+    {
+        angle -= 2.0 * CORE_PI;
+    }
+    while (angle < -CORE_PI)
+    {
+        angle += 2.0 * CORE_PI;
+    }
+    return angle;
+}
+
+/** @brief Note the Motion task's pose as this run's origin. */
+static void mission_origin (void)
+{
+    motion_output_t output;
+
+    motion_snapshot_unpack(&g_in.motion, &output);
+    g_origin = output.pose;
+}
+
+/** @brief The Motion task's latest output as motion_step gave it to the
+ * bench: the snapshot (pose from this run's origin) and the duties.
+ */
+static void mission_motion_output (motion_output_t * p_output)
+{
+    double dx;
+    double dy;
+    double c = cos(g_origin.yaw_rad);
+    double s = sin(g_origin.yaw_rad);
+
+    motion_snapshot_unpack(&g_in.motion, p_output);
+    dx = mission_wrap_m(p_output->pose.x_m - g_origin.x_m);
+    dy = mission_wrap_m(p_output->pose.y_m - g_origin.y_m);
+    p_output->pose.x_m = (c * dx) + (s * dy);
+    p_output->pose.y_m = (c * dy) - (s * dx);
+    p_output->pose.yaw_rad = mission_wrap_rad(p_output->pose.yaw_rad -
+                                              g_origin.yaw_rad);
+    p_output->left_duty = (double)g_in.left_duty_pm / 1000.0;
+    p_output->right_duty = (double)g_in.right_duty_pm / 1000.0;
+}
+
+static void mission_ir_drain (void);
+static void bench_tasks_text (void);
+
+#define board_read_ir             mission_read_ir
+#define board_read_accel          mission_read_accel
+#define board_ultrasonic_trigger  mission_sonar_trigger
+#define board_ultrasonic_service  mission_sonar_service
+#define board_ultrasonic_result   mission_sonar_result
+#define board_servo_us            mission_servo_us
+#define board_motor_brake         mission_motor_brake
+#define board_motor_duty          mission_motor_duty
+#define board_read_encoders       mission_read_encoders
+#define board_encoders_discard    mission_encoders_discard
+#define board_watchdog_start      mission_watchdog_start
+#define board_watchdog_feed       mission_watchdog_feed
+#endif
+
 /* A 5 ms delay plus the sensor reads takes about 6.75 ms, so every window
  * is timed with board_time_us(), not counted in ticks.
  */
 #define BENCH_TICK_MS (5U)
+/* The motion controller's longest step (wheel_pid.max_dt_s). The robot's
+ * 25 ms (app_cfg.c) is for its 5 ms Motion task; this loop runs every ~7 ms
+ * and a barcode decode step can take longer: 22 Nov the dark hump at the
+ * start read as a "card" under the side sensor, its decode made one step
+ * 25-26 ms, and the controller stopped the car (SENSOR_FAULT) 0.6 s after
+ * the hump, twice. 50 ms, as line_ctrl's own gap limit (maximum_gap_ms),
+ * still stops a loop that hangs. The "ENCODER ERRORS" beside it were the
+ * ISR's 6-bit counts per read saturating over the long step (31 counts,
+ * ~22 ms at 115 mm/s); the bench's distance comes from the 16-bit totals,
+ * so no count was lost.
+ */
+#define BENCH_MOTION_MAX_DT_S (0.050)
 #define BENCH_REPORT_US (1000000U)  /* sensor report period */
 #define BENCH_SETTLE_US (500000U)   /* at each duty before counting */
 #define BENCH_MEASURE_US (500000U)  /* then counted */
@@ -210,6 +579,154 @@
 #define BENCH_RATE_MAX (32767)
 #define BENCH_WATCHDOG_MS (1000U)
 #define BENCH_TEXT_BYTES (160U)
+/* Change Requirement 1 (Tribunal 1, minimum-bit data), 22 Nov: with
+ * BENCH_FRAMES 1 nothing goes over MQTT as text. Each line still builds its
+ * text in g_text (task-private: the offline console and the sim's check),
+ * and alongside it one binary frame, which is all the radio sends:
+ *   byte 0  BENCH_FRAME_HEAD 0xBD: telemetry.h's 2-bit version 1, the
+ *           frame type 3 the robot reserves, then the pattern 1011b, so a
+ *           frame is never printable text and never a robot frame;
+ *   byte 1  seq, 8 bits, counted at sending (a gap is a lost frame);
+ *   then    the line's kind (BENCH_FRAME_KIND_BITS) and its fields in order,
+ *           each in the bits its range needs (bitpack.h stream: LSB first,
+ *           little-endian, zero padding). Unsigned fields saturate; signed
+ *           ones are two's complement and saturate at +/-(2^(n-1)-1), the
+ *           most negative code unused (bitpack.h); both count g_frame_sat.
+ * The constant text is not sent: tools/dashboard/bench_codec.py holds each
+ * kind's template and rebuilds the same line. A line with no kind, or that
+ * prints a number with no width (bench_dec and the like), is never sent:
+ * it is counted (g_frame_unsent) and only the console shows it ("#T").
+ * BENCH_FRAMES 0 is the old text build (debugging).
+ */
+#ifndef BENCH_FRAMES
+#define BENCH_FRAMES (1)
+#endif
+/* one MQTT message, NET_MQTT_IPC_TX_MAX */
+#define BENCH_FRAME_BYTES (64U)
+#if BENCH_FRAMES && ROBOT_MQTT
+_Static_assert(BENCH_FRAME_BYTES <= NET_MQTT_IPC_TX_MAX,
+               "a frame must fit one telemetry slot (build.sh sets "
+               "NET_MQTT_IPC_BENCH)");
+#endif
+#define BENCH_FRAME_HEAD (0xBDU)
+#define BENCH_FRAME_KIND_BITS (7U)
+/* The kinds, in order: bench_codec.py's KINDS must list the same names in
+ * the same order (its self-test reads this enum). Append only.
+ */
+typedef enum
+{
+    BK_NONE = 0,     /* no frame: the line is never sent */
+    BK_LIVE,         /* MISSION status line, every second */
+    BK_POSE,         /* " P x y heading [C x y z]" */
+    BK_REC_HEAD,     /* "REC: last n samples ..." */
+    BK_REC_ROW,      /* "REC k:" and 1-3 samples */
+    BK_REC_END,      /* "REC end" */
+    BK_CODE,         /* " CODE ..." or " GROUP ..." (Decoder 1) */
+    BK_FIT,          /* " Decoder 2 ..." per card */
+    BK_D0,           /* " D0 ..." per group */
+    BK_D0_WIDTHS,    /* " D0 widths u: ..." */
+    BK_FIT_TOTALS,   /* " Decoder 2: n read, ..." */
+    BK_CAR,          /* " CAR ..." the vote per card */
+    BK_CAR_TOTALS,   /* " CAR: n codes ..." */
+    BK_RAW_HEAD,     /* " RAW n: ..." a cut's samples follow */
+    BK_RAW_ROW,      /* " R n: ..." the samples, 7 bits each */
+    BK_MAP,          /* "MAP set: ..." while idle */
+    BK_NAV_MAP,      /* the same, queued in MISSION (leading space) */
+    BK_NAV_RESTORED, /* " NAV: map restored ..." */
+    BK_NAV_CARD,     /* " NAV: card ..." */
+    BK_NAV_JUNCTION, /* " NAV: junction n at ..." */
+    BK_NAV_TURNED,   /* " NAV: turned ..." */
+    BK_NAV_WAIT,     /* " NAV: junction at ..., still decoding" */
+    BK_NAV_WAITED,   /* " NAV: waited ..." */
+    BK_RAMP_OFF,     /* "RAMP off: ..." at START */
+    BK_RAMP_FLAT,    /* "RAMP flat reference: ..." at START */
+    BK_RAMP,         /* " RAMP n: peak ..." a rise */
+    BK_SIDE,         /* " SIDE n: ..." a one-wheel hump, or left out */
+    BK_TERRAIN,      /* " TERRAIN hump ..." the robot module */
+    BK_CAL,          /* " CAL L ..." the START calibration */
+    BK_RAMP_HIGHEST, /* end report: " ramp: highest ..." */
+    BK_RAMP_OPEN,    /* " ramp: open at the stop ..." */
+    BK_RAMP_RISES,   /* " ramp: rises ..." */
+    BK_RAMP_LEANS,   /* " ramp: most side lean ..." */
+    BK_RAMP_HELD,    /* " ramp: held straight over humps ..." */
+    BK_RAMP_OUT,     /* " ramp: left out at a turn ..." */
+    BK_RAMP_WILD,    /* " ramp: left out as lifted ..." */
+    BK_LIFT,         /* " lift: ..." */
+    BK_RAMP_ROLL,    /* " ramp: most roll ..." */
+    BK_DRIVE_START,  /* "DRIVE start: ..." */
+    BK_STRAIGHT,     /* "STRAIGHT barcode: ..." (that image only) */
+    BK_AUTO_FIRST,   /* "AUTO-CENTRE first: ..." */
+    BK_END,          /* "MISSION stopped: ... dt max ..." */
+    BK_CENTRE,       /* end report: " centre: ..." */
+    BK_CENTRE_GAPS,  /* " gaps ..., crossings ..." */
+    BK_AVOID_DROPPED, /* " obstacle go-around: n lines dropped" */
+    BK_D0_TOTALS,    /* " D0: n changes ..." */
+    BK_BARCODES,     /* " barcodes: n readings ..." */
+    /* The go-around (queued: a leading space when sent), its map, sweeps. */
+    BK_AV_OBSTACLE,
+    BK_AV_OBSTACLE_AVOID,
+    BK_AV_MEASURE,
+    BK_AV_LEFT_EDGE,
+    BK_AV_BACKED,
+    BK_AV_CREEP,
+    BK_AV_FAR_BACK,
+    BK_AV_STEP_OUT,
+    BK_AV_CLEAR,
+    BK_AV_ALONG,
+    BK_AV_AHEAD,
+    BK_AV_PAST,
+    BK_AV_WAY_CLEAR,
+    BK_AV_RETURN,
+    BK_AV_ON_LINE,
+    BK_AV_ALONG_LINE,
+    BK_AV_ON_COURSE,
+    BK_AV_STILL_WAY,
+    BK_AV_BLOCKED,
+    BK_AV_WAY_IN,
+    BK_AV_WAY_IN_BOTH,
+    BK_AV_CROSSED,
+    BK_AV_TURN_LINE,
+    BK_AV_TURN_NONE,
+    BK_AV_TURN_BACK,
+    BK_AV_HOME_NONE,
+    BK_AV_HOME,
+    BK_AV_IR,
+    BK_AV_NO_ECHO,
+    BK_AV_ON_FACE,
+    BK_AV_PAST_REACH,
+    BK_AV_FAR_EDGE,
+    BK_AV_EDGE,
+    BK_AV_WIDTH,
+    BK_AV_OTHER,
+    BK_AV_FACE,
+    BK_AV_PAST_SWEEP,
+    BK_AV_PATH,
+    BK_AV_NO_WAY,
+    BK_AV_GOING,
+    BK_AV_OBST,
+    BK_AVOID_MAP_NONE,
+    BK_AVOID_MAP_HEAD,
+    BK_AVOID_MAP_ROW,
+    BK_BEAMS,
+    /* Idle, boot, commands, the lift stop and AUTO-CENTRE. */
+    BK_BOOT,
+    BK_ENC_ZERO,
+    BK_IR,
+    BK_ACC,
+    BK_MAG,
+    BK_ENC,
+    BK_LIFT_STOP,
+    BK_AUTO,
+    BK_AUTO_WHY,
+    BK_AUTO_FOUND,
+    BK_AUTO_END,
+    BK_NAV_TURN,     /* " NAV: no line ... a turn, not a junction" */
+    BK_SLOW,         /* " slowest step at ..." (end report) */
+    BK_TASKS,        /* " tasks, longest step ..." (robot app, end report) */
+    BK_IMU,          /* " IMU since START: ..." (robot app, end report) */
+    BK_OWNERS,       /* " owner health ..." (robot app, end report) */
+    BK_KINDS
+} bench_kind_t;
 #define BENCH_SEND_TRIES (25U)        /* about 0.17 s per frame while idle */
 #define BENCH_TABLE_SEND_TRIES (450U) /* about 3 s: the motors are stopped */
 #define BENCH_SERVO_CENTRE_US (1500U)
@@ -231,7 +748,8 @@
 #define BENCH_DRIVE_M (1.0)             /* S2-U09 */
 #define BENCH_AFTER_US (1000000U)       /* drive tests report again 1 s on */
 #define BENCH_STATUS_NAMES (7U)
-#define BENCH_LINE_MAX_M (5.0)          /* line test: track runs cross junctions */
+/* line test: track runs cross junctions */
+#define BENCH_LINE_MAX_M (5.0)
 /* Straight on past a junction: at least BENCH_LINE_CROSS_MM from where it was
  * seen (the 18 mm track line, then clear of it), and on while both sensors
  * stay black, up to BENCH_LINE_CROSS_MAX_MM.
@@ -327,7 +845,7 @@
  * not checked. All distances tune on the car.
  */
 #define BENCH_AVOID_TURN_MM (130U)     /* stop and scan this far from the
-                                        * obstacle (13 cm, as asked: 20 cm
+                                        * obstacle (13 cm: 20 cm
                                         * made the way round too wide) */
 #define BENCH_AVOID_PAUSE_MS (500U)    /* standstill before measuring */
 #define BENCH_AVOID_SONAR_MM (70.0)    /* sonar ahead of the pivot (wheel axle
@@ -339,7 +857,8 @@
                                         * 15 cm); hits this far behind the
                                         * face count */
 #define BENCH_AVOID_MEASURE_DEG (80)   /* furthest each way the car turns */
-#define BENCH_AVOID_MISSES (2U)        /* readings past the edge to end a side */
+/* readings past the edge to end a side */
+#define BENCH_AVOID_MISSES (2U)
 /* Width sweeps (6 Nov): each decision is the median of the last
  * BENCH_AVOID_MEDIAN readings, placed at the middle one's angle (about 2.4
  * deg a reading at ROBOT_TURN_RATE_RPS), so one stray or lost echo no longer
@@ -380,7 +899,8 @@
  * 45 mm out (last echo none)"): 45 mm is only where the 40 deg creep pivot
  * puts the sonar (70 x sin 40), already past the edge of a 105 mm box near
  * the line, so the edge was never measured (the dashboard then read it as
- * 87 mm). A creep with no echo off the face now turns BENCH_AVOID_CREEP_STEP_DEG
+ * 87 mm). A creep with no echo off the face now turns
+ * BENCH_AVOID_CREEP_STEP_DEG
  * less and creeps again (30, 20, 10 deg: the sonar 35, 24, 12 mm out), so it
  * starts inside the edge and finds it square on. With none even at
  * BENCH_AVOID_CREEP_MIN_DEG it goes on as before, from the first start's
@@ -604,7 +1124,8 @@
  * see whether the small card's narrow bars, blurred together at 180, read
  * apart slower (about 2.4 readings per decoder unit instead of 1.6).
  */
-#define BENCH_MISSION_MPS (0.10)  /* 6 Nov: 80 -> 100 mm/s, raised for more speed */
+/* 6 Nov: 80 -> 100 mm/s, raised for more speed */
+#define BENCH_MISSION_MPS (0.10)
 #define BENCH_SMOOTH_YAW_RPS (0.95)     /* yaw at full steering, and its cap */
 /* Both sensors dark while steering at least this much: the line crossing
  * under both in a bend (29 Oct, twice), not a crossing line: keep turning.
@@ -829,7 +1350,7 @@
  * dropped: nothing long goes out after the stop.
  */
 #define BENCH_RAW_CHARS (4096U)
-#define BENCH_RAW_LINE (120U)
+#define BENCH_RAW_LINE (64U)   /* 7 bits a character: 64 fill a 64 B frame */
 #define BENCH_RAW_ZERO ('#')
 #define BENCH_RAW_TOP ('~')
 #define BENCH_RAW_GAP ('!')
@@ -953,8 +1474,22 @@
  * pivots and its tilt reference, taken standing (pitch +3, roll -1.4 to
  * -2 deg on 19 Nov), is still settling to the driving one (about 0): the
  * 20:27 and 20:34 runs counted humps of 9, 6, 15 and 9 mm at 49-506 mm.
+ * 22 Nov: the hump is at the start of the run (one challenge at a
+ * time, the hump where card 1 would be), and it was never seen: the car
+ * rolled a steady -3 to -5 deg, right wheel up, for 70-85 mm 116-187 mm and
+ * 389-473 mm after START, inside the 0.6 m, and no lean opened (the sim
+ * missed the 10 mm hump at 0.1-0.4 m too). So only the pull-away is left
+ * out now; the 19 Nov readings at 49-506 mm may well have been this hump.
  */
-#define BENCH_RAMP_SETTLE_M (0.6)
+#define BENCH_RAMP_SETTLE_M (0.05)
+/* The car's own tilt (bench_ramp_offset) is the mean over the path so far,
+ * up to BENCH_RAMP_OFFSET_M. 22 Nov: just after START that mean was mostly
+ * the hump itself, so the hump took itself off (about a third, at 190 mm).
+ * The mean now spans at least BENCH_RAMP_OFFSET_MIN_M from the start (the
+ * still-second reference counts for the rest), and it learns nothing while
+ * a side lean is open.
+ */
+#define BENCH_RAMP_OFFSET_MIN_M (0.2)
 /* A lean or rise whose single peak puts one wheel more than this up (roll
  * over ~18 deg) is not the 1 cm hump: the car was lifted, knocked or the
  * accelerometer misread. The real hump's peaks: 12-20 mm (9 and 14 Nov);
@@ -990,7 +1525,18 @@
 #define BENCH_LIFT_LEAK_S (1.0)
 #define BENCH_LIFT_HEIGHT_LEAK_S (2.0)
 #define BENCH_LIFT_CLAMP_MPS2 (3.0)
+/* Robot app (22 Nov: raised, as turns can trip it): 150 mm, about
+ * twice the most height a run that was not lifted reached (77 mm, bench 19
+ * Nov; 68 mm robot app 22 Nov). That night six 80 mm stops came with the car
+ * on the floor (REC rows: line following, roll and pitch within 5 deg). A
+ * hand lift's height grows fast, so it costs a lift only a fraction of a
+ * second more. The end report's "lift:" line keeps the run's most height.
+ */
+#if MISSION_ROBOT
+#define BENCH_LIFT_HEIGHT_M (0.15)
+#else
 #define BENCH_LIFT_HEIGHT_M (0.08)
+#endif
 #define BENCH_LIFT_SETTLE_MS (300U)
 /* Gravity's SIZE is its own slow mean of each sample's size (not the
  * low-passed vector's length: vectors of mixed direction, a jolt or bad
@@ -1288,6 +1834,12 @@ typedef struct
     uint64_t         step_us;         /* start of the step, rest or 1 s on */
     uint64_t         last_us;         /* previous tick */
     uint32_t         dt_max_us;
+    /* MISSION: centre path at the slowest step */
+    int32_t          dt_max_mm;
+    /* and each part's slowest: Decoder 1 tries */
+    uint32_t         slow_tries_us;
+    uint32_t         slow_fit_us;   /* Decoder 2's fit slice */
+    uint32_t         slow_live_us;  /* the live lines (frames) */
     uint32_t         errors;          /* g_encoder_errors at the start */
     double           done_s;
     double           yaw;             /* latest odometry heading */
@@ -1410,7 +1962,8 @@ typedef enum
 typedef struct
 {
     uint8_t  phase;       /* bench_avoid_phase_t */
-    double   yaw_home;    /* original heading, held straight/parallel (+ left) */
+    /* original heading, held straight/parallel (+ left) */
+    double   yaw_home;
     double   right_mm;    /* sideways offset from the line, + right */
     int32_t  last_centre; /* centre count last tick, for the offset integrals */
     int32_t  side;        /* chosen side: +1 right, -1 left */
@@ -1443,7 +1996,7 @@ typedef struct
     uint32_t readings;    /* g_front.readings last seen, for new beams */
     uint32_t misses;      /* readings in a row past the edge */
     uint16_t med_mm[BENCH_AVOID_MEDIAN]; /* sweeps: last readings, oldest */
-    double   med_rad[BENCH_AVOID_MEDIAN]; /* first, and their car angles */
+    double   med_rad[BENCH_AVOID_MEDIAN]; /* first, and the car angle of each */
     uint32_t med_n;       /* how many of them are held */
     uint32_t med_skips;   /* sweeps: medians skipped as too spread */
     uint32_t close;       /* MISSION: readings in a row within reach */
@@ -1456,7 +2009,8 @@ typedef struct
     bool     b_dark_on;   /* STEPIN: both front sensors dark now */
     bool     b_dark_known; /* and that stretch's start was seen */
     bool     ir_dark[2];  /* STEPIN: front sensors' class, with hysteresis */
-    double   dark_from;   /* STEPIN: offset toward the line when both went dark */
+    /* STEPIN: offset toward the line when both went dark */
+    double   dark_from;
     uint32_t guard_hits;  /* ALONG/STEPIN: echoes in a row within the guard */
     uint32_t extends;     /* STEPIN: times the path past it was blocked */
     double   extra_mm;    /* ALONG runs this much further (the extends) */
@@ -1529,6 +2083,8 @@ typedef struct
     double   all_dark_m;     /* LINE smooth: travel with all three dark */
     double   turn;           /* LINE smooth: cmd averaged over travel */
     bool     b_both_dark;    /* LINE smooth: both see a line: a crossing */
+    double   raw[2];         /* LINE smooth: front darkness 0-1, this step */
+    double   side_dark;      /* and the side sensor's (the REC rows) */
     uint64_t last_us;        /* the previous sample */
     /* Junctions (BENCH_STRAIGHT_*): travel so far and the heading history
      * by travel.
@@ -1552,8 +2108,11 @@ typedef struct
 /** BARCODE read: the side sensor over one unit of its own path. */
 typedef struct
 {
-    uint16_t unit;   /* decoder units of side sensor path since the start */
-    uint16_t centre; /* decoder units of centre path where it began */
+    /* 32 bits (22 Nov): uint16 units (0.32 mm) ran out at 21 m, and the
+     * store then took nothing more ("STORE FULL"); the run has no limit now.
+     */
+    uint32_t unit;   /* decoder units of side sensor path since the start */
+    uint32_t centre; /* decoder units of centre path where it began */
     uint16_t raw;    /* mean of the readings in the unit */
 } bench_code_sample_t;
 
@@ -1616,7 +2175,7 @@ typedef struct
     uint64_t               first_us;      /* first and latest read */
     uint64_t               last_us;
     int32_t                pending_unit;  /* the unit being read */
-    uint16_t               pending_centre;
+    uint32_t               pending_centre;
     uint32_t               pending_sum;
     uint32_t               pending_count;
     bool                   b_dark_rule;   /* bench_code39: darkness pass */
@@ -1638,6 +2197,8 @@ typedef struct
     uint32_t               since_floor;   /* samples since it was set */
     uint32_t               groups_seen;   /* of a character or more */
     uint32_t               founds;
+    uint32_t               founds_done;   /* sent groups dropped, this run */
+    uint32_t               codes_done;    /* of them, framed codes */
     bench_code_found_t     found[BENCH_CODE_FOUND];
     bool                   b_trying;      /* a cut being decoded */
     uint32_t               cut_count;     /* its samples */
@@ -1677,7 +2238,8 @@ typedef struct
 /** MISSION: one D0 group (bench_d0_sample), its changes as path units. */
 typedef struct
 {
-    uint16_t edge[BENCH_D0_EDGES];  /* the first is dark, then alternating */
+    uint32_t edge[BENCH_D0_EDGES];  /* the first is dark, then alternating
+                                     * (32 bits: 16 ran out at 21 m) */
     uint32_t edges;                 /* changes counted, past the store too */
 } bench_d0_group_t;
 
@@ -1694,8 +2256,8 @@ typedef struct
     uint32_t         reads;      /* framed codes */
     uint32_t         dropped;    /* closed while the queue was full */
     uint32_t         shorts;     /* closed under BENCH_D0_BARS_MIN bars */
-    uint16_t         unit;       /* the last reading's unit */
-    uint16_t         light_from; /* unit the light now began */
+    uint32_t         unit;       /* the last reading's unit */
+    uint32_t         light_from; /* unit the light now began */
     uint16_t         quiet;      /* BENCH_CODE_QUIET_MM in units */
     bool             b_started;
     bool             b_level;    /* the last reading */
@@ -1770,7 +2332,8 @@ static const char * const g_mode_names[BENCH_MODES] =
     "AUTO-CENTRE only (track, pivots on the spot, no driving)",
     "MISSION: smooth A, barcodes and ramp read while driving (track, runs"
     " until STOP)",
-    "AVOID an obstacle and return to course, 80 mm/s (floor, no line, until STOP)"
+    "AVOID an obstacle and return to course, 80 mm/s (floor, no line,"
+    " until STOP)"
 };
 
 /* Code 39: nine elements bar, space, ... bar, first element in bit 8, 1 for
@@ -1821,6 +2384,48 @@ static const char * const g_centre_names[BENCH_CENTRE_PHASES] =
     "TRACK", "GAP", "SEARCH", "CROSS"
 };
 
+/* Why a drive ended (bench_move_results: the reasons bench_line_end and
+ * bench_drive_finish are given, then g_status_names), sent as the index.
+ */
+#define BENCH_END_NAMES (24U)
+static const char * const g_end_names[BENCH_END_NAMES] =
+{
+    "aborted", "done", "centred", "stopped: IR sensor fault",
+    "stopped: obstacle ahead",
+    "stopped: all three sensors dark (lifted, or off the mat)",
+    "stopped: both sensors black past a junction", "stopped: line lost",
+    "stopped: line sensor fault", "stopped at the distance limit",
+    "stopped at the time limit", "stopped: AUTO-CENTRE failed",
+    "stopped: the way along was blocked",
+    "stopped: the way back to the line was blocked",
+    "stopped: the obstacle's edge was out of reach",
+    "stopped: no clear way round the obstacle", "stopped: lifted (IMU)",
+    "OK", "INVALID", "REJECTED", "EXPIRED", "TIMED_OUT", "SENSOR_FAULT",
+    "STOPPED"
+};
+
+/* Why AUTO-CENTRE failed (bench_auto_fail's reasons), sent as the index. */
+#define BENCH_AUTO_FAILS (6U)
+static const char * const g_auto_fail_names[BENCH_AUTO_FAILS] =
+{
+    "line sensor fault",
+    "both front sensors see a line at START (a crossing?): start on a plain"
+    " stretch",
+    "not centred within 30 s",
+    "pivot stalled: under 1 deg in 1.5 s (wheels stuck or slipping)",
+    "no line within 70 deg either side of the START heading",
+    "the sensors found the line over 50 deg apart: not one straight line"
+    " (bend, crossing, bars?)"
+};
+
+/* Why a SIDE lean was left out (g_ramp.lean_out points into this). */
+#define BENCH_LEAN_OUTS (5U)
+static const char * const g_lean_out_names[BENCH_LEAN_OUTS] =
+{
+    "at a turn", "not on a straight", "pitched", "lifted or knocked",
+    "no wheel 3 mm up"
+};
+
 /* Indexed by line_ctrl_status_t. */
 static const char * const g_line_names[BENCH_LINE_STATES] =
 {
@@ -1852,8 +2457,23 @@ static uint32_t      g_length;
 static char          g_live[BENCH_TEXT_BYTES];  /* MISSION's live line */
 static uint32_t      g_live_length;
 static uint32_t      g_live_sent;
+#if BENCH_FRAMES
+/* The frame being built beside g_text, and the live line's frame. */
+static uint8_t          g_frame[BENCH_FRAME_BYTES];
+static bitpack_writer_t g_frame_w;
+static uint32_t         g_frame_kind;    /* BK_NONE: no frame for the line */
+static bool             gb_frame_text;   /* a number printed with no width */
+static uint8_t          g_frame_seq;     /* the next frame's seq */
+static uint8_t          g_live_frame[BENCH_FRAME_BYTES];
+static uint32_t         g_live_frame_size; /* bytes, 0: no frame */
+#endif
+static uint32_t         g_frame_sent;    /* frames this boot */
+static uint32_t         g_frame_unsent;  /* lines with no frame, dropped */
+static uint32_t         g_frame_bad;     /* frames over BENCH_FRAME_BYTES */
+static uint32_t         g_frame_sat;     /* fields saturated */
 static uint64_t      g_live_due_us;
 static uint16_t      g_live_side_max;
+static uint16_t      g_live_front[2];   /* MISSION status: front IR raw now */
 static uint16_t      g_live_front_min;  /* MISSION status F: nearest sonar
                                          * range since the last, 0: none */
 static uint32_t      g_live_front_none; /* and x: readings with no range */
@@ -1882,7 +2502,9 @@ static uint32_t      g_send_tries = BENCH_SEND_TRIES;
 static int32_t       g_stall_pct;   /* largest steady duty of the sweep */
 static int32_t       g_delta[BENCH_WHEELS];  /* this tick, + forward */
 static bench_drive_t g_drive;
-static motion_t      g_motion;
+#if !MISSION_ROBOT
+static motion_t      g_motion;  /* the robot app's is the Motion task's */
+#endif
 static bench_mode_t  g_mode = BENCH_MODE_MISSION;  /* what START runs */
 static uint32_t      g_pivot_starts;  /* BENCH_PIVOT_TEST: STARTs so far */
 /** BENCH_PIVOT_TEST: one spin's line marks (bench_pivot_tick). */
@@ -1928,13 +2550,37 @@ static bench_avoid_t       g_avoid;
 #define BENCH_NAV_TURN_DEG (90.0)
 #define BENCH_NAV_UTURN_DEG (180.0)
 /* A junction met while the card's decode is not finished (14 Nov:
- * the fit, Decoder 2, was "?" at every junction that day; it takes ~1.1 s a card):
+ * the fit, Decoder 2, was "?" at every junction that day; it takes ~1.1 s a
+ * card):
  * the car stops on it, has what is stored decoded at once (bench_nav_force:
  * no more white will come while it stands), and decides once nothing is
  * left to decode, or after BENCH_NAV_WAIT_MS with what is in. Not when two
  * decoders already agree: the third cannot change a majority of three.
  */
 #define BENCH_NAV_WAIT_MS (3000U)
+/* A turn is not a junction (22 Nov: the sharp right turn ~0.5 m after
+ * card 1 was taken for a junction, and card Y's U-turn was made there; the
+ * 19 Nov runs show the same "junction" ~0.5 m after the card). At that turn
+ * both front sensors were dark for ~20 mm, as at a crossing (25 mm), so the
+ * dark itself cannot tell them apart; what follows can. Past a crossing the
+ * line goes on (the car's own trace: dark again 35-45 mm on); past the turn
+ * there is no line ahead (both white from 37 mm on for 125 mm, then the
+ * search found it to the right). So both dark starts a PROBE: straight on
+ * the heading of the moment, and the junction counts (its letter's move
+ * made, its advance from the dark's start) only when a front sensor sees the
+ * line again between BENCH_NAV_PROBE_FROM_MM and BENCH_NAV_PROBE_TO_MM past
+ * where it went dark (darker than BENCH_NAV_LINE_DARK, or the two together
+ * past BENCH_NAV_LINE_SUM: the line between them). Not seen by then: a
+ * turn, said so, the letter kept for the next junction, and the line
+ * follower takes over (its search finds the turn's branch). A dark band
+ * BENCH_NAV_GUARD_MM after a junction is the same crossing (22 Nov 18:18:
+ * one junction counted twice, 58 mm apart).
+ */
+#define BENCH_NAV_PROBE_FROM_MM (45.0)
+#define BENCH_NAV_PROBE_TO_MM (90.0)
+#define BENCH_NAV_LINE_DARK (0.5)
+#define BENCH_NAV_LINE_SUM (0.4)
+#define BENCH_NAV_GUARD_MM (100)
 typedef enum
 {
     BENCH_NAV_IDLE = 0,  /* line following; a junction may start a move */
@@ -1950,8 +2596,10 @@ typedef struct
     bool     b_card;       /* a card has reads waiting for a junction */
     int32_t  card_from;    /* its side sensor path (mm), as the vote's */
     int32_t  card_to;
-    char     read[3];      /* per decoder (Decoder 1, Decoder 2, D0): its letter,
-                            * '\0' no read or not in yet */
+    /* per decoder (Decoder 1, Decoder 2, D0): its letter, '\0' no read
+     * or not in yet
+     */
+    char     read[3];
     uint32_t reported;     /* a bit per decoder that reported this card */
     int32_t  junction_mm;  /* encoder centre at the last junction: reports
                             * for cards before it are late, ignored */
@@ -1968,11 +2616,16 @@ typedef struct
     uint64_t wait_us;      /* since when */
     int32_t  wait_centre;  /* encoder centre where that junction was seen */
     uint32_t waits;        /* junctions waited at this run */
+    bool     b_probe;      /* both dark: straight on, looking for the line */
+    int32_t  probe_from;   /* encoder centre (counts) where it went dark */
+    double   probe_heading; /* heading held meanwhile (rad, + left) */
+    uint32_t turns;        /* dark bands that were turns this run */
+    int32_t  guard_to_mm;  /* no new junction before this centre (mm) */
 } bench_nav_t;
 static bench_nav_t         g_nav;
 static void bench_nav_start (void);
 static void bench_nav_poll_map (void);
-static void bench_nav_say_map (void);
+static void bench_nav_say_map (bench_kind_t kind);
 static void bench_nav_code (const bench_code_found_t * p_found);
 static void bench_nav_report (uint32_t who, int32_t from_mm, int32_t to_mm,
                               const char * p_code);
@@ -1989,9 +2642,24 @@ static bool bench_nav_pending (bool b_open_too);
 static void bench_nav_force (void);
 static bool bench_nav_wait (uint64_t now_us, int32_t centre,
                             motion_request_t * p_request);
+static bool bench_nav_probe (uint64_t now_us, int32_t centre,
+                             motion_request_t * p_request);
+/* The queued lines' text: only where it is shown (offline and the sim);
+ * the MQTT frames build sends the frames alone (22 Nov: 4.6 kB back for
+ * the 10 s recorder within the 64 KiB heap reserve).
+ */
+#define BENCH_AVOID_TEXT (!(BENCH_FRAMES && ROBOT_MQTT))
+#if BENCH_AVOID_TEXT
 static char g_avoid_lines[BENCH_AVOID_LINES][BENCH_AVOID_LINE_BYTES];
+#endif
+#if BENCH_FRAMES
+/* Each queued line's frame (bench_avoid_say) and its size, 0: none. */
+static uint8_t  g_avoid_frames[BENCH_AVOID_LINES][BENCH_FRAME_BYTES];
+static uint32_t g_avoid_frame_size[BENCH_AVOID_LINES];
+#endif
 static uint32_t            g_avoid_queued;   /* lines in g_avoid_lines */
-static uint32_t            g_avoid_dropped;  /* lines the queue had no room for */
+/* lines the queue had no room for */
+static uint32_t            g_avoid_dropped;
 static uint64_t            g_pose_due_us;    /* MISSION: next P line */
 static int16_t             g_beam_deg[BENCH_BEAMS];  /* sweep beams: angle */
 static uint16_t            g_beam_mm[BENCH_BEAMS];   /* range, 0 no echo */
@@ -2004,7 +2672,9 @@ static bench_code_t        g_code;
 static uint16_t            g_code_levels[BENCH_CODE_ADC_LEVELS];
 static ID                  g_code_cyc;    /* 1 ms wake-up, once created */
 static ID                  g_bench_tid;   /* the task bench_loop runs in */
+#if !MISSION_ROBOT
 static bool                gb_code_poll;  /* g_code_cyc started */
+#endif
 static bench_auto_t        g_auto;
 
 static void bench_tick (void);
@@ -2138,8 +2808,12 @@ static void bench_scan_mm (double metres);
 static bool bench_code_start (void);
 static void bench_code_cyc (void * p_exinf);
 static bool bench_code_polling (void);
+#if !MISSION_ROBOT
 static void bench_code_wait (void);
 static void bench_code_poll (void);
+#endif
+static void bench_code_poll_at (const uint16_t raw[LINE_CTRL_CHANNELS],
+                                const uint16_t total[BENCH_WHEELS]);
 static void bench_code_sample (int32_t left, int32_t right, uint16_t raw);
 static void bench_code_store (void);
 static void bench_code_stream (void);
@@ -2237,18 +2911,42 @@ static int32_t bench_signed_delta (uint16_t newer, uint16_t older,
                                    uint32_t wheel);
 static int32_t bench_mm (int32_t counts);
 static int32_t bench_round (double value);
+static void bench_slowest (uint32_t * p_most, uint64_t start_us);
 static void bench_text (const char * p_text);
 static void bench_dec (int32_t value);
 static void bench_signed (int32_t value);
 static void bench_fixed (int32_t value, uint32_t places);
 static void bench_flush (void);
+/* Minimum-bit frames (BENCH_FRAMES): the line's kind, then each field in
+ * the bits its range needs. Each prints as the call it replaces would.
+ */
+static void bench_line (bench_kind_t kind);
+static void bench_u (uint32_t value, uint32_t bits);   /* as bench_dec */
+static void bench_i (int32_t value, uint32_t bits);    /* as bench_dec */
+static void bench_s (int32_t value, uint32_t bits);    /* as bench_signed */
+static void bench_x (int32_t value, uint32_t places, uint32_t bits);
+static void bench_ux (uint32_t value, uint32_t places, uint32_t bits);
+                                                       /* as bench_fixed */
+static bool bench_flag (bool b_value);                 /* 1 bit, no text */
+static void bench_code (uint32_t value, uint32_t bits); /* no text */
+static void bench_name (const char * const * p_names, uint32_t index,
+                        uint32_t bits);                /* p_names[index] */
+static void bench_str (const char * p_text, uint32_t length_bits);
+                                         /* Code 39 text, 6 bits a char */
+static void bench_name_of (const char * const * p_names, uint32_t count,
+                           const char * p_text, uint32_t bits);
+static void bench_char (char ch, char base, uint32_t bits);
+static void bench_marks (const char * p_text, const char * p_alphabet,
+                         uint32_t bits);   /* fixed-length text, an alphabet */
+                                         /* one character, ch - base */
 /* TRIAL (barcode_lab): the model-fit decoder, at the end of the file. */
 static void bench_fit_reset (void);
 static void bench_fit_begin (void);
 static void bench_fit_run (void);
 static bool bench_fit_complete (bool b_bin);
 static bool bench_fit_text (void);
-/* The car's barcode answer: the three decoders' vote, at the end of the file. */
+/* The car's barcode answer: the three decoders' vote, at the end of the
+ * file. */
 #define BENCH_VOTE_DECODER1 (0U)
 #define BENCH_VOTE_DECODER2 (1U)
 #define BENCH_VOTE_D0      (2U)
@@ -2312,7 +3010,9 @@ static void bench_control_task (INT stacd, void * exinf);
 static void bench_safety_task (INT stacd, void * exinf);
 static void bench_safety_cyc (void * exinf);
 static uint8_t bench_poll_command (void);
+#if !MISSION_ROBOT
 static bool bench_stop_pending (void);
+#endif
 static void bench_run_loop (void);
 
 void bench_loop (void)
@@ -2345,7 +3045,8 @@ void bench_loop (void)
     board_encoder_totals(&g_last_total[BENCH_LEFT],
                          &g_last_total[BENCH_RIGHT]);
     board_encoders_discard();
-    if (0 != BENCH_MOTION)
+    bench_line(BK_BOOT);
+    if (bench_flag(0 != BENCH_MOTION))
     {
         bench_text("BENCH MOTION ready: START runs MISSION (line-follow +"
                    " barcode + obstacle go-around), STOP stops. Accel ");
@@ -2354,7 +3055,7 @@ void bench_loop (void)
     {
         bench_text("BENCH ready: START = duty sweep, STOP = abort. Accel ");
     }
-    bench_text(gb_accel ? "ok" : "FAILED");
+    bench_text(bench_flag(gb_accel) ? "ok" : "FAILED");
     bench_flush();
     if (0 != BENCH_MOTION)
     {
@@ -2478,7 +3179,12 @@ static bool bench_rtos_start (const char ** p_what, int32_t * p_err)
     if (E_OK == result) { result = tk_sta_tsk(g_safety_tid, 0); }
     if (E_OK == result) { result = tk_sta_cyc(g_safety_cyc); }
     *p_what = "task start";
-    if (E_OK != result) { gb_rtos = false; *p_err = (int32_t)result; return false; }
+    if (E_OK != result)
+    {
+        gb_rtos = false;
+        *p_err = (int32_t)result;
+        return false;
+    }
     return true;
 }
 
@@ -2531,6 +3237,7 @@ static void bench_safety_cyc (void * exinf)
  * tick keeps the motors braked so a step cannot re-power them in the gap.
  * Always false before the tasks run and in the host sim.
  */
+#if !MISSION_ROBOT
 static bool bench_stop_pending (void)
 {
     T_RFLG state;
@@ -2543,6 +3250,7 @@ static bool bench_stop_pending (void)
     return (E_OK == tk_ref_flg(g_stop_flg, &state)) &&
            (0U != (state.flgptn & BENCH_FLG_STOP));
 }
+#endif
 
 /** @brief One 5 ms period, read by the side sensor every 1 ms while a
  * BARCODE run follows the line. The watchdog runs from the first sweep on;
@@ -2550,6 +3258,14 @@ static bool bench_stop_pending (void)
  */
 static void bench_tick (void)
 {
+#if MISSION_ROBOT
+    /* A send waiting for room: the robot app renews the request, marks the
+     * task alive and sleeps one period; the IR the Line task took meanwhile
+     * goes to the barcode store as the 1 ms polls did.
+     */
+    mission_hook_alive(true);
+    mission_ir_drain();
+#else
     if (bench_code_polling())
     {
         bench_code_wait();
@@ -2564,6 +3280,7 @@ static void bench_tick (void)
         (void)tk_dly_tsk((RELTIM)BENCH_TICK_MS);
     }
     board_watchdog_feed();
+#endif
 }
 
 /** @brief Poll the command sources: STOP first, then MQTT, then START.
@@ -2687,6 +3404,7 @@ static void bench_idle (uint8_t command)
             g_distance[BENCH_LEFT] = 0;
             g_distance[BENCH_RIGHT] = 0;
             g_encoder_errors = 0U;
+            bench_line(BK_ENC_ZERO);
             bench_text("ENC distance zeroed");
             bench_flush();
         break;
@@ -3043,6 +3761,25 @@ static void bench_wheel_summary (int32_t direction, uint32_t wheel)
 /** @brief Begin the selected test from rest with a fresh controller and the
  * selected gains; refuses while STOP is held.
  */
+/** @brief The wheel controller for the selected test: the robot's settings
+ * (app_cfg_motion) with g_gains[g_gain], BENCH_MOTION_MAX_DT_S, the robot's
+ * duty limit and, for the smooth steering, BENCH_SMOOTH_WHEEL_MPS.
+ */
+static void bench_motion_config (motion_config_t * p_config)
+{
+    app_cfg_motion(p_config);
+    p_config->wheel_pid.max_dt_s = BENCH_MOTION_MAX_DT_S;
+    p_config->wheel_pid.proportional_gain = g_gains[g_gain].proportional;
+    p_config->wheel_pid.integral_gain = g_gains[g_gain].integral;
+    /* The bench copy raises ROBOT_MAX_DUTY for the sweep: use the robot's. */
+    p_config->wheel_pid.output_min = -BENCH_ROBOT_MAX_DUTY;
+    p_config->wheel_pid.output_max = BENCH_ROBOT_MAX_DUTY;
+    if (NULL != bench_smooth_set(g_mode))
+    {
+        p_config->max_wheel_mps = BENCH_SMOOTH_WHEEL_MPS;
+    }
+}
+
 static void bench_drive_start (void)
 {
     motion_config_t config;
@@ -3064,16 +3801,15 @@ static void bench_drive_start (void)
     {
         return;
     }
-    app_cfg_motion(&config);
-    config.wheel_pid.proportional_gain = g_gains[g_gain].proportional;
-    config.wheel_pid.integral_gain = g_gains[g_gain].integral;
-    /* The bench copy raises ROBOT_MAX_DUTY for the sweep: use the robot's. */
-    config.wheel_pid.output_min = -BENCH_ROBOT_MAX_DUTY;
-    config.wheel_pid.output_max = BENCH_ROBOT_MAX_DUTY;
-    if (NULL != bench_smooth_set(g_mode))
-    {
-        config.max_wheel_mps = BENCH_SMOOTH_WHEEL_MPS;
-    }
+#if MISSION_ROBOT
+    /* The Motion task's controller has these settings from boot
+     * (mission_motion_config); the robot app starts a run only once a stop is
+     * reset. Nothing to set up here.
+     */
+    (void)config;
+    (void)status;
+#else
+    bench_motion_config(&config);
     status = motion_init(&g_motion, &config);
     if (MOTION_OK != status)
     {
@@ -3082,6 +3818,7 @@ static void bench_drive_start (void)
         bench_flush();
         return;
     }
+#endif
     if ((!gb_watchdog) && board_watchdog_start(BENCH_WATCHDOG_MS))
     {
         gb_watchdog = true;
@@ -3115,26 +3852,29 @@ static void bench_drive_start (void)
     {
         bench_ramp_start();
     }
-    bench_text((BENCH_MODE_PID == g_mode) ?
+    bench_line(BK_DRIVE_START);
+    bench_text(bench_flag(BENCH_MODE_PID == g_mode) ?
                "PID start: about 15 s, wheels must be off the ground;"
                " STOP aborts" :
                "DRIVE start: car on the floor, path clear; STOP aborts");
     if (BENCH_MODE_PID != g_mode)
     {
         /* Which steering this image has, so a run's log names it. */
-        bench_text((0 != BENCH_EDGE_FOLLOW) ? "; steering EDGE (left edge)" :
-                                              "; steering SMOOTH");
+        bench_text(bench_flag(0 != BENCH_EDGE_FOLLOW) ?
+                   "; steering EDGE (left edge)" : "; steering SMOOTH");
     }
     bench_flush();
     if ((0 != BENCH_STRAIGHT_CODE) && (BENCH_MODE_MISSION == g_mode))
     {
+        bench_line(BK_STRAIGHT);   /* speed 0-511 mm/s */
         bench_text("STRAIGHT barcode: no line following, straight on at ");
-        bench_dec(bench_round(BENCH_MISSION_MPS * 1000.0));
+        bench_u((uint32_t)bench_round(BENCH_MISSION_MPS * 1000.0), 9U);
         bench_text(" mm/s until STOP");
         bench_flush();
     }
     if (bench_has_auto(g_mode))
     {
+        bench_line(BK_AUTO_FIRST);
         bench_text("AUTO-CENTRE first: pivots on the spot, up to 70 deg"
                    " each way, until both front sensors find the line");
         bench_flush();
@@ -3142,6 +3882,15 @@ static void bench_drive_start (void)
     /* The text above can outlast line_ctrl's 50 ms sample gap. */
     line_ctrl_init(&g_line_state);
     bench_drive_request(0U);
+#if MISSION_ROBOT
+    /* The Motion task's controller lives on between runs: the first move
+     * (bench_line_moving) numbers its primitive after the last one used, so a
+     * new run never reuses a finished ID (motion_submit would refuse it).
+     */
+    g_drive.request.command_id = g_motion_id;
+    mission_origin();
+    robot_app_timing_restart();     /* the run's task timing, end report */
+#endif
     g_drive.b_running = true;
     g_drive.step_us = board_time_us();
     g_drive.last_us = g_drive.step_us;
@@ -3241,12 +3990,46 @@ static void bench_drive_tick (uint8_t command)
     uint64_t         now_us = board_time_us();
     uint32_t         dt_us = (uint32_t)(now_us - g_drive.last_us);
     uint32_t         now_ms = (uint32_t)(now_us / 1000U);
+#if MISSION_ROBOT
+    uint32_t         ramp;
+#endif
 
     g_drive.last_us = now_us;
     if (dt_us > g_drive.dt_max_us)
     {
         g_drive.dt_max_us = dt_us;
+        g_drive.dt_max_mm = bench_round(g_centre.path_m * 1000.0);
     }
+#if MISSION_ROBOT
+    /* The Motion task runs the controller: publish this step's request and
+     * read its latest snapshot. A STOP is already latched by the Safety or
+     * Comm task (the fault mask); the run ends and reports.
+     */
+    (void)halt;
+    (void)status;
+    (void)now_ms;
+    if (BENCH_CMD_STOP == command)
+    {
+        bench_drive_finish("aborted");
+        return;
+    }
+    if (bench_is_line(g_drive.mode))
+    {
+        bench_line_step(now_us, &line);
+        mission_publish(&line);
+    }
+    else
+    {
+        /* Only MISSION (a line mode) runs in the robot app. */
+        mission_publish_halt();
+    }
+    mission_motion_output(&output);
+    if (!g_drive.b_running)
+    {
+        /* The step ended the run (bench_line_end via a lift or the like). */
+        return;
+    }
+#else
     if (BENCH_CMD_STOP == command)
     {
         motion_stop(&g_motion, MOTION_STOPPED);
@@ -3292,6 +4075,7 @@ static void bench_drive_tick (uint8_t command)
     {
         board_motor_duty(output.left_duty, output.right_duty);
     }
+#endif
     g_drive.yaw = output.pose.yaw_rad;
     g_drive.heading = bench_avoid_wrap(g_drive.heading +
                                        (BENCH_YAW_SCALE *
@@ -3302,7 +4086,19 @@ static void bench_drive_tick (uint8_t command)
     g_drive.y_m = output.pose.y_m;
     if (BENCH_MODE_MISSION == g_drive.mode)
     {
+#if MISSION_ROBOT
+        /* Every sample queued since the last step (a long step brings
+         * several), each at its own time; at most a ring's worth, and none
+         * once the run has ended (a lift).
+         */
+        for (ramp = 0U; (ramp < MISSION_ACCEL_RING) && g_drive.b_running &&
+                        (!g_drive.b_done) && mission_accel_waiting(); ++ramp)
+        {
+            bench_ramp_step(now_us, &output);
+        }
+#else
         bench_ramp_step(now_us, &output);
+#endif
     }
     if (bench_is_line(g_drive.mode))
     {
@@ -3484,6 +4280,15 @@ static void bench_drive_finish (const char * p_reason)
     board_motor_brake();
     board_encoders_discard();
     g_drive.b_running = false;
+#if MISSION_ROBOT
+    /* The robot's tasks see the run over at once: the report below (with
+     * the REC rows) takes many seconds of mission_hook_alive calls, which
+     * publish g_out. Left as it was, Safety kept the run's owner gates and
+     * IMU rule on a stopped car (22 Nov 22:33: 24 s of FOLLOW).
+     */
+    g_out.state = (uint32_t)VEHICLE_IDLE;
+    g_out.b_running = false;
+#endif
     g_send_tries = BENCH_TABLE_SEND_TRIES;
     if (BENCH_MODE_PID == g_drive.mode)
     {
@@ -3629,15 +4434,26 @@ static void bench_move_results (const char * p_reason)
     {
         now[wheel] = g_distance[wheel] - g_drive.start[wheel];
     }
-    bench_text((BENCH_MODE_MISSION == g_drive.mode) ? "MISSION" :
-                                                      g_mode_names[g_drive.mode]);
-    bench_text(" ");
-    bench_text(p_reason);
-    if (g_drive.b_done)
+    /* Frame: the mode (5 bits unless MISSION), why (g_end_names, 5 bits),
+     * the time 0-6553.5 s, dt max 0-6553.5 ms. The test modes' gains are
+     * text only (those lines are not sent; START runs MISSION).
+     */
+    bench_line(BK_END);
+    if (bench_flag(BENCH_MODE_MISSION == g_drive.mode))
     {
-        bench_text((bench_is_line(g_drive.mode)) ? " after " :
+        bench_text("MISSION");
+    }
+    else
+    {
+        bench_name(g_mode_names, (uint32_t)g_drive.mode, 5U);
+    }
+    bench_text(" ");
+    bench_name_of(g_end_names, BENCH_END_NAMES, p_reason, 5U);
+    if (bench_flag(g_drive.b_done))
+    {
+        bench_text(bench_flag(bench_is_line(g_drive.mode)) ? " after " :
                                                        ", complete after ");
-        bench_fixed(bench_round(g_drive.done_s * 10.0), 1U);
+        bench_ux((uint32_t)bench_round(g_drive.done_s * 10.0), 1U, 16U);
         bench_text(" s");
     }
     bench_text(": ");
@@ -3647,13 +4463,34 @@ static void bench_move_results (const char * p_reason)
         bench_text(", ");
     }
     bench_text("dt max ");
-    bench_fixed(bench_round((double)g_drive.dt_max_us / 100.0), 1U);
+    bench_ux((uint32_t)bench_round((double)g_drive.dt_max_us / 100.0), 1U,
+             16U);
     bench_text(" ms");
-    if (g_encoder_errors != g_drive.errors)
+    if (bench_flag(g_encoder_errors != g_drive.errors))
     {
         bench_text(", ENCODER ERRORS");
     }
     bench_flush();
+    if (BENCH_MODE_MISSION == g_drive.mode)
+    {
+        /* Where the slowest step was, and each part's slowest (0.1 ms,
+         * 0-6553.5; the path as the live line).
+         */
+        bench_line(BK_SLOW);
+        bench_text(" slowest step at ");
+        bench_i(g_drive.dt_max_mm, 21U);
+        bench_text(" mm; most in one step: Decoder 1 tries ");
+        bench_ux(g_drive.slow_tries_us / 100U, 1U, 16U);
+        bench_text(" ms (the Decoder 2 fit ");
+        bench_ux(g_drive.slow_fit_us / 100U, 1U, 16U);
+        bench_text(" ms of it), live lines ");
+        bench_ux(g_drive.slow_live_us / 100U, 1U, 16U);
+        bench_text(" ms");
+        bench_flush();
+#if MISSION_ROBOT
+        bench_tasks_text();
+#endif
+    }
     if (BENCH_MODE_MISSION == g_drive.mode)
     {
         /* The rest went out live: only totals, the link is slow. */
@@ -4029,9 +4866,16 @@ static void bench_line_step (uint64_t now_us, motion_request_t * p_request)
     }
     if (BENCH_MODE_MISSION == g_drive.mode)
     {
+        uint64_t part_us = board_time_us();
+
         bench_code_tries_step();
+        bench_slowest(&g_drive.slow_tries_us, part_us);
+        g_live_front[0] = raw[0];
+        g_live_front[1] = raw[1];
+        part_us = board_time_us();
         bench_live_step(now_us, (uint32_t)output.status, bench_mm(centre),
                         raw[LINE_CTRL_BARCODE_CHANNEL]);
+        bench_slowest(&g_drive.slow_live_us, part_us);
         bench_nav_say();   /* a stored code or a new map, queued to go out */
     }
     (void)memset(&sample, 0, sizeof(sample));
@@ -4090,8 +4934,9 @@ static void bench_line_step (uint64_t now_us, motion_request_t * p_request)
     {
         g_avoid.yaw_home = g_drive.heading; /* the line heading at detection */
         bench_avoid_begin(now_us, centre);
+        bench_line(BK_AV_OBSTACLE);   /* sonar 0-4095 mm */
         bench_text("MISSION: obstacle at ");
-        bench_dec((int32_t)g_front.last_mm);
+        bench_u((uint32_t)g_front.last_mm, 12U);
         bench_text(" mm, stopped to measure it");
         bench_avoid_say();
         bench_avoid_ir_say();
@@ -4119,7 +4964,8 @@ static void bench_line_step (uint64_t now_us, motion_request_t * p_request)
     if (b_centre && (g_centre.all_dark_m >= BENCH_SMOOTH_ALL_DARK_M))
     {
         bench_line_end(now_us,
-                       "stopped: all three sensors dark (lifted, or off the mat)");
+                       "stopped: all three sensors dark (lifted, or off"
+                       " the mat)");
         return;
     }
     /* MISSION: a new junction makes the stored letter's move; FORWARD (or
@@ -4132,8 +4978,17 @@ static void bench_line_step (uint64_t now_us, motion_request_t * p_request)
      * at 1631 mm for the junction at 1307 mm). The move is chosen at the
      * junction's own position, so a turn's advance runs from the crossing.
      */
-    if ((BENCH_MODE_MISSION == g_drive.mode) && (!g_line.b_crossing) &&
-        (bench_line_black(&output) || g_nav.b_waiting))
+    if ((BENCH_MODE_MISSION == g_drive.mode) && g_nav.b_probe)
+    {
+        /* Straight on past the dark until it is a junction or a turn. */
+        if (bench_nav_probe(now_us, centre, p_request))
+        {
+            return;
+        }
+    }
+    else if ((BENCH_MODE_MISSION == g_drive.mode) && (!g_line.b_crossing) &&
+             (bench_line_black(&output) || g_nav.b_waiting) &&
+             (g_nav.b_waiting || (bench_mm(centre) >= g_nav.guard_to_mm)))
     {
         int32_t at = g_nav.b_waiting ? g_nav.wait_centre : centre;
 
@@ -4141,7 +4996,10 @@ static void bench_line_step (uint64_t now_us, motion_request_t * p_request)
         {
             return;
         }
-        if (bench_nav_junction(now_us, at, p_request))
+        g_nav.b_probe = true;
+        g_nav.probe_from = at;
+        g_nav.probe_heading = g_drive.heading;
+        if (bench_nav_probe(now_us, centre, p_request))
         {
             return;
         }
@@ -4550,6 +5408,10 @@ static double bench_centre_steer (const line_ctrl_output_t * p_output,
     if (NULL != p_smooth)
     {
         g_centre.path_m += travel;
+        g_centre.raw[0] = raw_left;
+        g_centre.raw[1] = raw_right;
+        g_centre.side_dark = (double)p_output->darkness_q12[2] /
+                             (double)LINE_CTRL_DARKNESS_ONE;
         for (channel = 0U; channel < 2U; ++channel)
         {
             if (((0U == channel) ? raw_left : raw_right) >= BENCH_EDGE_CROSS)
@@ -4851,38 +5713,45 @@ static void bench_centre_results (void)
     uint32_t samples = (0U == g_centre.samples) ? 1U : g_centre.samples;
     uint32_t phase;
 
+    /* Frames: path +-1048575 mm (21 bits), time 0-6553.5 s, mean speed
+     * +-511 mm/s, shares 0-100 % (7 bits), run counts 0-1023, the longest
+     * search 0-65535 ms, ADC 0-4095.
+     */
+    bench_line(BK_CENTRE);
     bench_text(" centre: ");
-    bench_dec(bench_mm(centre));
+    bench_i(bench_mm(centre), 21U);
     bench_text(" mm in ");
-    bench_fixed(bench_round(seconds * 10.0), 1U);
+    bench_ux((uint32_t)bench_round(seconds * 10.0), 1U, 16U);
     bench_text(" s, mean ");
-    bench_dec((seconds > 0.0) ?
-              bench_round((double)bench_mm(centre) / seconds) : 0);
+    bench_i((seconds > 0.0) ?
+            bench_round((double)bench_mm(centre) / seconds) : 0, 10U);
     bench_text(" mm/s; time % per phase");
     for (phase = 0U; phase < BENCH_CENTRE_PHASES; ++phase)
     {
         bench_text(" ");
         bench_text(g_centre_names[phase]);
         bench_text(" ");
-        bench_dec(bench_round((100.0 * (double)g_centre.in_phase[phase]) /
-                              (double)samples));
+        bench_u((uint32_t)bench_round((100.0 *
+                                       (double)g_centre.in_phase[phase]) /
+                                      (double)samples), 7U);
     }
     bench_text(", full steer ");
-    bench_dec(bench_round((100.0 * (double)g_centre.full_steer) /
-                          (double)samples));
+    bench_u((uint32_t)bench_round((100.0 * (double)g_centre.full_steer) /
+                                  (double)samples), 7U);
     bench_flush();
+    bench_line(BK_CENTRE_GAPS);
     bench_text(" gaps ");
-    bench_dec((int32_t)g_centre.gaps);
+    bench_u(g_centre.gaps, 16U);   /* ~10/s in the sim: 36000 in 1 h */
     bench_text(", crossings ");
-    bench_dec((int32_t)g_centre.crossings);
+    bench_u(g_centre.crossings, 10U);
     bench_text(", searches ");
-    bench_dec((int32_t)g_centre.searches);
+    bench_u(g_centre.searches, 12U);   /* 43 in 2 min on the car */
     bench_text(" (longest ");
-    bench_dec((int32_t)g_centre.search_max_ms);
+    bench_u(g_centre.search_max_ms, 16U);
     bench_text(" ms), darkest raw L ");
-    bench_dec((int32_t)g_centre.raw_max[0]);
+    bench_u((uint32_t)g_centre.raw_max[0], 12U);
     bench_text(" R ");
-    bench_dec((int32_t)g_centre.raw_max[1]);
+    bench_u((uint32_t)g_centre.raw_max[1], 12U);
     bench_flush();
 }
 
@@ -5221,26 +6090,33 @@ static void bench_auto_results (void)
         g_auto.done_ms = (0U == g_auto.start_us) ? 0U :
             (uint32_t)((board_time_us() - g_auto.start_us) / 1000U);
     }
+    /* Frames: the outcome 2 bits, time 0-102.3 s, counts 0-255, angles as
+     * bench_deg, why g_auto_fail_names (3 bits), ADC 0-4095.
+     */
+    bench_line(BK_AUTO);
+    bench_code(g_auto.b_failed ? 0U : g_auto.b_active ? 1U : 2U, 2U);
     bench_text(g_auto.b_failed ? " AUTO-CENTRE FAILED after " :
                g_auto.b_active ? " AUTO-CENTRE stopped after " :
                                  " AUTO-CENTRE done in ");
-    bench_fixed(bench_round((double)g_auto.done_ms / 100.0), 1U);
+    bench_ux((uint32_t)bench_round((double)g_auto.done_ms / 100.0), 1U, 10U);
     bench_text(" s, sweeps ");
-    bench_dec((int32_t)g_auto.sweeps);
+    bench_u(g_auto.sweeps, 8U);
     bench_text(", corrections ");
-    bench_dec((int32_t)g_auto.corrections);
+    bench_u(g_auto.corrections, 8U);
     bench_text(", run-on after a halt ");
     bench_deg(g_auto.coast_rad);
     bench_text(" deg");
     bench_flush();
     if (g_auto.b_failed)
     {
+        bench_line(BK_AUTO_WHY);
         bench_text("  why: ");
-        bench_text(g_auto.p_fail);
+        bench_name_of(g_auto_fail_names, BENCH_AUTO_FAILS, g_auto.p_fail, 3U);
         bench_flush();
     }
+    bench_line(BK_AUTO_FOUND);
     bench_text("  right sensor found the line turning left at ");
-    if (g_auto.b_found[1])
+    if (bench_flag(g_auto.b_found[1]))
     {
         bench_deg(g_auto.found_rad[1] - g_auto.start_rad);
         bench_text(" deg");
@@ -5250,7 +6126,7 @@ static void bench_auto_results (void)
         bench_text("none");
     }
     bench_text(", left turning right at ");
-    if (g_auto.b_found[0])
+    if (bench_flag(g_auto.b_found[0]))
     {
         bench_deg(g_auto.found_rad[0] - g_auto.start_rad);
         bench_text(" deg");
@@ -5260,7 +6136,8 @@ static void bench_auto_results (void)
         bench_text("none");
     }
     bench_flush();
-    if (g_auto.b_found[0] && g_auto.b_found[1])
+    bench_line(BK_AUTO_END);
+    if (bench_flag(g_auto.b_found[0] && g_auto.b_found[1]))
     {
         bench_text("  middle ");
         bench_deg(g_auto.middle_rad - g_auto.start_rad);
@@ -5277,9 +6154,9 @@ static void bench_auto_results (void)
         bench_text(" deg");
     }
     bench_text(", front IR L ");
-    bench_dec((int32_t)g_auto.raw[0]);
+    bench_u((uint32_t)g_auto.raw[0], 12U);
     bench_text(" R ");
-    bench_dec((int32_t)g_auto.raw[1]);
+    bench_u((uint32_t)g_auto.raw[1], 12U);
     bench_flush();
 }
 
@@ -5290,7 +6167,7 @@ static void bench_deg (double radians)
     {
         bench_text("+");
     }
-    bench_fixed(bench_round(radians * 1800.0 / CORE_PI), 1U);
+    bench_x(bench_round(radians * 1800.0 / CORE_PI), 1U, 12U); /* +-204.7 */
 }
 
 /** @brief LINE + stop: the robot's sonar settings (app_cfg_scanner), servo
@@ -5400,7 +6277,7 @@ static void bench_front_results (void)
     }
     else
     {
-        bench_dec((int32_t)g_front.last_mm);
+        bench_u((uint32_t)g_front.last_mm, 12U);
         bench_text(" mm");
     }
     if (g_front.b_detected)
@@ -5519,7 +6396,8 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
         (BENCH_AVOID_CREEP == g_avoid.phase) ||
         (BENCH_AVOID_CREEPBACK == g_avoid.phase))
     {
-        servo_deg = bench_round(-turned * 180.0 / CORE_PI); /* opposite the turn */
+        /* opposite the turn */
+        servo_deg = bench_round(-turned * 180.0 / CORE_PI);
         if (servo_deg > ROBOT_SCAN_HALF_ANGLE_DEG)
         {
             servo_deg = ROBOT_SCAN_HALF_ANGLE_DEG;
@@ -5543,8 +6421,9 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             bench_avoid_begin(now_us, centre);
             p_request->forward_mps = 0.0;
             p_request->yaw_rps = 0.0;
+            bench_line(BK_AV_OBSTACLE_AVOID);
             bench_text("AVOID: obstacle at ");
-            bench_dec((int32_t)g_front.last_mm);
+            bench_u((uint32_t)g_front.last_mm, 12U);
             bench_text(" mm, stopped to measure it");
             bench_avoid_say();
         }
@@ -5560,6 +6439,7 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             g_avoid.med_n = 0U;
             g_avoid.med_skips = 0U;
             g_avoid.b_hit = false;
+            bench_line(BK_AV_MEASURE);
             bench_text("AVOID: measuring, turning left to its edge");
             bench_avoid_say();
         }
@@ -5578,11 +6458,12 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             g_avoid.med_n = 0U;
             g_avoid.b_hit = false;
             p_request->yaw_rps = 0.0;
+            bench_line(BK_AV_LEFT_EDGE);   /* +-4095 mm, +-255 deg */
             bench_text("AVOID: left edge ");
-            bench_dec(bench_round(g_avoid.left_mm));
+            bench_i(bench_round(g_avoid.left_mm), 13U);
             bench_text(" mm at ");
-            bench_dec(bench_round(turned * 180.0 / CORE_PI));
-            bench_text(g_avoid.b_left_open ?
+            bench_i(bench_round(turned * 180.0 / CORE_PI), 9U);
+            bench_text(bench_flag(g_avoid.b_left_open) ?
                        " deg (still on it at the turn limit: unseen),"
                        " turning right" :
                        " deg, turning right to the other edge");
@@ -5638,9 +6519,10 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
         {
             p_request->forward_mps = 0.0;
             p_request->yaw_rps = 0.0;
+            bench_line(BK_AV_BACKED);   /* +-4095 mm */
             bench_text("AVOID: backed up to ");
-            bench_dec(bench_round(g_avoid.back_mm));
-            if (g_avoid.b_creeping)
+            bench_i(bench_round(g_avoid.back_mm), 13U);
+            if (bench_flag(g_avoid.b_creeping))
             {
                 /* The side is chosen; only its edge was out of reach. */
                 g_avoid.phase = BENCH_AVOID_CREEPTURN;
@@ -5665,7 +6547,8 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             g_avoid.b_creeping = true;
             g_avoid.readings = g_front.readings;
             g_avoid.misses = 0U;
-            bench_text((g_avoid.creep_side > 0) ?
+            bench_line(BK_AV_CREEP);
+            bench_text(bench_flag(g_avoid.creep_side > 0) ?
                        "AVOID: creeping out to find its right edge, the sonar"
                        " square to its face" :
                        "AVOID: creeping out to find its left edge, the sonar"
@@ -5697,11 +6580,12 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             g_avoid.creep_none_mm = 0.0;
             g_avoid.misses = 0U;
             g_avoid.phase = BENCH_AVOID_CREEPTURN;
+            bench_line(BK_AV_FAR_BACK);   /* 0-4095 mm, 0-127 deg */
             bench_text("AVOID: back from the far edge (");
-            bench_dec(bench_round(fabs(g_avoid.right_mm -
-                                       g_avoid.far_start_mm)));
+            bench_u((uint32_t)bench_round(fabs(g_avoid.right_mm -
+                                       g_avoid.far_start_mm)), 12U);
             bench_text(" mm off the start), turning ");
-            bench_dec((int32_t)BENCH_AVOID_CREEP_START_DEG);
+            bench_u((uint32_t)BENCH_AVOID_CREEP_START_DEG, 7U);
             bench_text(" deg to creep out to the way round's edge");
             bench_avoid_say();
         }
@@ -5715,7 +6599,9 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
         if (bench_avoid_pivot(g_avoid.yaw_home - side_rad, p_request))
         {
             g_avoid.phase = BENCH_AVOID_STEPOUT;
-            bench_text((g_avoid.side > 0) ? "AVOID: stepping out to the right" :
+            bench_line(BK_AV_STEP_OUT);
+            bench_text(bench_flag(g_avoid.side > 0) ?
+                       "AVOID: stepping out to the right" :
                                             "AVOID: stepping out to the left");
             bench_avoid_say();
         }
@@ -5729,6 +6615,7 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             p_request->forward_mps = 0.0;
             p_request->yaw_rps = 0.0;
             (void)bench_scan_servo(0);
+            bench_line(BK_AV_CLEAR);
             bench_text("AVOID: clear of its edge, turning back to the line"
                        " heading");
             bench_avoid_say();
@@ -5740,24 +6627,27 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
         {
             g_avoid.phase = BENCH_AVOID_ALONG;
             g_avoid.guard_hits = 0U;
+            bench_line(BK_AV_ALONG);   /* +-4095 mm */
             bench_text("AVOID: alongside the object for ");
-            bench_dec(bench_round(g_avoid.face_mm + BENCH_AVOID_DEPTH_MM +
+            bench_i(bench_round(g_avoid.face_mm + BENCH_AVOID_DEPTH_MM +
                                   half + BENCH_AVOID_CLEAR_MM +
-                                  g_avoid.extra_mm + g_avoid.back_mm));
+                                  g_avoid.extra_mm + g_avoid.back_mm), 13U);
             bench_text(" mm");
             bench_avoid_say();
         }
     }
     else if (BENCH_AVOID_ALONG == g_avoid.phase)
     {
-        bench_avoid_hold(g_avoid.yaw_home, p_request); /* parallel to the line */
+        /* parallel to the line */
+        bench_avoid_hold(g_avoid.yaw_home, p_request);
         /* By position, not distance from here: the pivot ends half the car +
          * the clearance past the obstacle's back, wherever the creep left it.
          */
         if (bench_avoid_guard(b_range, p_request))
         {
+            bench_line(BK_AV_AHEAD);   /* sonar 0-4095 mm */
             bench_text("AVOID: something ahead at ");
-            bench_dec((int32_t)g_front.last_mm);
+            bench_u((uint32_t)g_front.last_mm, 12U);
             bench_text(" mm alongside the object, stopped");
             bench_avoid_say();
             bench_line_end(now_us, "stopped: the way along was blocked");
@@ -5772,6 +6662,7 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             g_avoid.guard_hits = 0U;
             p_request->forward_mps = 0.0;
             p_request->yaw_rps = 0.0;
+            bench_line(BK_AV_PAST);
             bench_text("AVOID: past the object, stepping back to the line");
             bench_avoid_say();
         }
@@ -5795,8 +6686,9 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             g_avoid.extra_mm += half + BENCH_AVOID_CLEAR_MM;
             g_avoid.phase = BENCH_AVOID_ALIGN;
             p_request->yaw_rps = 0.0;
+            bench_line(BK_AV_WAY_CLEAR);   /* +-4095 mm */
             bench_text("AVOID: the way back looks clear, going on ");
-            bench_dec(bench_round(half + BENCH_AVOID_CLEAR_MM));
+            bench_i(bench_round(half + BENCH_AVOID_CLEAR_MM), 13U);
             bench_text(" mm more to clear the object's unseen end");
             bench_avoid_say();
         }
@@ -5815,6 +6707,7 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             g_avoid.sx_done[0] = false;
             g_avoid.sx_done[1] = false;
             g_avoid.cross_logs = 0U;
+            bench_line(BK_AV_RETURN);
             bench_text("AVOID: returning to the line");
             bench_avoid_say();
         }
@@ -5847,9 +6740,10 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
                                        g_avoid.yaw_home);
                 g_avoid.yaw_home = bench_avoid_wrap(g_avoid.yaw_home + aim);
             }
+            bench_line(BK_AV_ON_LINE);
             bench_text("AVOID: on the line, straightening");
             bench_avoid_peak_say();
-            if (g_avoid.b_line_err)
+            if (bench_flag(g_avoid.b_line_err))
             {
                 bench_text(", line heading moved ");
                 bench_deg(aim);
@@ -5864,9 +6758,10 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
                 g_avoid.b_turn_seen = true;
                 g_avoid.b_turn_along = true;
                 g_avoid.turn_seen_rad = bench_avoid_wrap(g_drive.heading);
+                bench_line(BK_AV_ALONG_LINE);
                 bench_text("AVOID: came in along a line (");
-                bench_text(g_avoid.ir_dark[0] ? "L" : "");
-                bench_text(g_avoid.ir_dark[1] ? "R" : "");
+                bench_text(bench_flag(g_avoid.ir_dark[0]) ? "L" : "");
+                bench_text(bench_flag(g_avoid.ir_dark[1]) ? "R" : "");
                 bench_text(" dark): kept as a candidate");
                 bench_avoid_say();
             }
@@ -5885,6 +6780,7 @@ static void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             g_avoid.phase = BENCH_AVOID_STRAIGHT;
             (void)bench_scan_servo(0);
             bench_avoid_hold(g_avoid.yaw_home, p_request);
+            bench_line(BK_AV_ON_COURSE);
             bench_text("AVOID: back on course, driving straight");
             bench_avoid_say();
         }
@@ -5996,17 +6892,19 @@ static void bench_avoid_blocked (uint64_t now_us, double half,
         ++g_avoid.extends;
         g_avoid.extra_mm += step_mm;
         g_avoid.phase = BENCH_AVOID_ALIGN;
+        bench_line(BK_AV_STILL_WAY);   /* 0-4095 mm, +-4095 mm */
         bench_text("AVOID: the object is still in the way at ");
-        bench_dec((int32_t)g_front.last_mm);
+        bench_u((uint32_t)g_front.last_mm, 12U);
         bench_text(" mm, going on along it by ");
-        bench_dec(bench_round(step_mm));
+        bench_i(bench_round(step_mm), 13U);
         bench_text(" mm");
         bench_avoid_say();
     }
     else
     {
+        bench_line(BK_AV_BLOCKED);
         bench_text("AVOID: the way back to the line is still blocked at ");
-        bench_dec((int32_t)g_front.last_mm);
+        bench_u((uint32_t)g_front.last_mm, 12U);
         bench_text(" mm, stopped");
         bench_avoid_say();
         bench_line_end(now_us, "stopped: the way back to the line was blocked");
@@ -6080,13 +6978,15 @@ static bool bench_avoid_line_fix (void)
                      (g_avoid.cross_logs < BENCH_AVOID_CROSS_LOGS))
             {
                 ++g_avoid.cross_logs;
+                bench_line(BK_AV_WAY_IN);   /* +-4095 mm each */
                 bench_text("AVOID: way in, ");
-                bench_text(names[channel]);
+                bench_name(names, channel, 1U);
                 bench_text(" dark ");
-                bench_dec(bench_round(width));
+                bench_code(0U, 1U);   /* 0: not tape-wide */
+                bench_i(bench_round(width), 13U);
                 bench_text(" mm at ");
-                bench_dec(bench_round(((g_avoid.sx_from[channel] + expect) /
-                                       2.0) - BENCH_AVOID_FRONT_MM));
+                bench_i(bench_round(((g_avoid.sx_from[channel] + expect) /
+                                       2.0) - BENCH_AVOID_FRONT_MM), 13U);
                 bench_text(" mm off the wheels' line: not tape-wide");
                 bench_avoid_say();
             }
@@ -6109,13 +7009,15 @@ static bool bench_avoid_line_fix (void)
             if (g_avoid.cross_logs < BENCH_AVOID_CROSS_LOGS)
             {
                 ++g_avoid.cross_logs;
+                bench_line(BK_AV_WAY_IN);   /* +-4095 mm each */
                 bench_text("AVOID: way in, ");
-                bench_text(names[channel]);
+                bench_name(names, channel, 1U);
                 bench_text(" dark ");
-                bench_dec(bench_round(g_avoid.sx_width[channel]));
+                bench_code(1U, 1U);   /* 1: that sensor only */
+                bench_i(bench_round(g_avoid.sx_width[channel]), 13U);
                 bench_text(" mm at ");
-                bench_dec(bench_round(g_avoid.sx_mid[channel] -
-                                      BENCH_AVOID_FRONT_MM));
+                bench_i(bench_round(g_avoid.sx_mid[channel] -
+                                      BENCH_AVOID_FRONT_MM), 13U);
                 bench_text(" mm off the wheels' line: that sensor only");
                 bench_avoid_say();
             }
@@ -6134,10 +7036,11 @@ static bool bench_avoid_line_fix (void)
         if (g_avoid.cross_logs < BENCH_AVOID_CROSS_LOGS)
         {
             ++g_avoid.cross_logs;
+            bench_line(BK_AV_WAY_IN_BOTH);   /* +-4095 mm each */
             bench_text("AVOID: way in, L and R dark ");
-            bench_dec(bench_round(fabs(apart)));
+            bench_i(bench_round(fabs(apart)), 13U);
             bench_text(" mm apart at ");
-            bench_dec(bench_round(mid_mm - BENCH_AVOID_FRONT_MM));
+            bench_i(bench_round(mid_mm - BENCH_AVOID_FRONT_MM), 13U);
             bench_text(" mm off the wheels' line: over 30 deg");
             bench_avoid_say();
         }
@@ -6148,14 +7051,15 @@ static bool bench_avoid_line_fix (void)
     g_avoid.line_err_rad = atan2(apart, spacing);
     g_avoid.right_mm = (double)g_avoid.side *
                        (expect - (mid_mm - BENCH_AVOID_FRONT_MM));
+    bench_line(BK_AV_CROSSED);   /* +-4095 mm, a bench_deg angle */
     bench_text("AVOID: line crossed ");
-    bench_dec(bench_round(mid_mm - BENCH_AVOID_FRONT_MM));
+    bench_i(bench_round(mid_mm - BENCH_AVOID_FRONT_MM), 13U);
     bench_text(" mm off the wheels' guess, car at ");
     bench_deg(g_avoid.line_err_rad);
     bench_text(" deg to it (dark L ");
-    bench_dec(bench_round(g_avoid.sx_width[0]));
+    bench_i(bench_round(g_avoid.sx_width[0]), 13U);
     bench_text(" R ");
-    bench_dec(bench_round(g_avoid.sx_width[1]));
+    bench_i(bench_round(g_avoid.sx_width[1]), 13U);
     bench_text(" mm)");
     bench_avoid_say();
     return true;
@@ -6400,7 +7304,8 @@ static void bench_avoid_turn_begin (double target)
         g_avoid.turn_known[channel] = false;
         g_avoid.turn_from[channel] = g_drive.heading;
     }
-    g_avoid.turn_dir = (bench_avoid_wrap(target - g_drive.heading) >= 0.0) ? 1 : -1;
+    g_avoid.turn_dir =
+        (bench_avoid_wrap(target - g_drive.heading) >= 0.0) ? 1 : -1;
     g_avoid.b_turn_found = false;
     g_avoid.b_turn_given_up = false;
     g_avoid.turn_line_rad = target;
@@ -6415,7 +7320,8 @@ static void bench_avoid_turn_begin (double target)
 
 /** @brief AVOID turn check, each tick of a pivot: each front sensor's class
  * follows the go-around's hysteresis (bench_avoid_ir_setup; a reading in
- * the band keeps the last class). When a sensor clears after a dark stretch whose start was
+ * the band keeps the last class). When a sensor clears after a dark stretch
+ * whose start was
  * seen, of half to twice BENCH_TURN_LINE_RAD of turn, the heading that puts
  * the line midway between the sensors is its middle plus the sensor's
  * bearing; within window of target that is the line: true, the heading in
@@ -6453,7 +7359,8 @@ static bool bench_avoid_turn_line (double target, double window,
         else if ((LINE_CTRL_LIGHT == cls) && g_avoid.turn_dark[channel])
         {
             g_avoid.turn_dark[channel] = false;
-            swept = bench_avoid_wrap(g_drive.heading - g_avoid.turn_from[channel]);
+            swept = bench_avoid_wrap(g_drive.heading -
+                                     g_avoid.turn_from[channel]);
             /* Channel 0 is the left sensor: its bearing is + (left). */
             line_rad = g_avoid.turn_from[channel] + (swept / 2.0) +
                        ((0U == channel) ? bearing : -bearing);
@@ -6529,6 +7436,7 @@ static bool bench_avoid_turn_check (double target,
     {
         g_avoid.b_turn_found = true;
         g_avoid.turn_line_rad = line_rad;
+        bench_line(BK_AV_TURN_LINE);   /* bench_deg angles */
         bench_text("AVOID: turn check: line ");
         bench_deg(bench_avoid_wrap(line_rad - target));
         bench_text(" deg off the wheels' turn (dark ");
@@ -6539,12 +7447,15 @@ static bool bench_avoid_turn_check (double target,
         return bench_avoid_pivot_from(target, line_rad, p_request);
     }
     /* - while short of target, + once past it, in the turn's direction. */
-    past = -(double)g_avoid.turn_dir * bench_avoid_wrap(target - g_drive.heading);
+    past = -(double)g_avoid.turn_dir *
+           bench_avoid_wrap(target - g_drive.heading);
     if ((!g_avoid.b_turn_search) && (past >= window))
     {
         g_avoid.b_turn_search = true;
+        bench_line(BK_AV_TURN_NONE);   /* 0-255 deg */
         bench_text("AVOID: turn check: no line within ");
-        bench_dec((int32_t)BENCH_TURN_CHECK_DEG);
+        bench_code(0U, 1U);   /* 0: looking on */
+        bench_u((uint32_t)BENCH_TURN_CHECK_DEG, 8U);
         bench_text(" deg, looking on");
         bench_avoid_peak_say();
         bench_avoid_say();
@@ -6561,8 +7472,10 @@ static bool bench_avoid_turn_check (double target,
         {
             g_avoid.b_turn_found = true;
             g_avoid.turn_line_rad = g_avoid.turn_seen_rad;
-            bench_text(g_avoid.b_turn_along ?
-                       "AVOID: turn check: back to the line it came in along, " :
+            bench_line(BK_AV_TURN_BACK);   /* a bench_deg angle */
+            bench_text(bench_flag(g_avoid.b_turn_along) ?
+                       "AVOID: turn check: back to the line it came in"
+                       " along, " :
                        "AVOID: turn check: back to the line crossed at ");
             bench_deg(bench_avoid_wrap(g_avoid.turn_seen_rad - target));
             bench_text(" deg off the wheels' turn");
@@ -6572,8 +7485,10 @@ static bool bench_avoid_turn_check (double target,
                                           p_request);
         }
         g_avoid.b_turn_given_up = true;
+        bench_line(BK_AV_TURN_NONE);   /* 0-255 deg */
         bench_text("AVOID: turn check: no line within ");
-        bench_dec((int32_t)(BENCH_AVOID_SEARCH_DEG + BENCH_TURN_CHECK_DEG));
+        bench_code(1U, 1U);   /* 1: given up, by the wheels */
+        bench_u((uint32_t)(BENCH_AVOID_SEARCH_DEG + BENCH_TURN_CHECK_DEG), 8U);
         bench_text(" deg, by the wheels");
         bench_avoid_peak_say();
         bench_mag_say();
@@ -6600,6 +7515,7 @@ static void bench_avoid_home_fix (void)
     }
     if (0U == g_avoid.turn_finds)
     {
+        bench_line(BK_AV_HOME_NONE);
         bench_text("AVOID: measuring turns checked: line not seen, heading"
                    " by the wheels");
         bench_mag_say();
@@ -6608,10 +7524,11 @@ static void bench_avoid_home_fix (void)
     }
     change = g_avoid.turn_sum_rad / (double)g_avoid.turn_finds;
     g_avoid.yaw_home = bench_avoid_wrap(g_avoid.yaw_home + change);
+    bench_line(BK_AV_HOME);   /* a bench_deg angle, 0-255 finds */
     bench_text("AVOID: measuring turns checked: line ");
     bench_deg(change);
     bench_text(" deg off the wheels' heading (");
-    bench_dec((int32_t)g_avoid.turn_finds);
+    bench_u(g_avoid.turn_finds, 8U);
     bench_text(" seen), reset");
     bench_mag_say();
     bench_avoid_say();
@@ -6672,15 +7589,17 @@ static void bench_avoid_ir_say (void)
     {
         return;
     }
+    bench_line(BK_AV_IR);   /* ADC 0-4095 */
     bench_text("AVOID: line checks: dark from ");
     for (channel = 0U; channel < 2U; ++channel)
     {
         bench_text(names[channel]);
-        bench_dec((int32_t)g_avoid.ir_hyst[channel].on_adc);
-        bench_text(g_avoid.ir_own[channel] ? " (run " : " (configured, run ");
-        bench_dec((int32_t)g_cal.low[channel]);
+        bench_u((uint32_t)g_avoid.ir_hyst[channel].on_adc, 12U);
+        bench_text(bench_flag(g_avoid.ir_own[channel]) ? " (run " :
+                                                         " (configured, run ");
+        bench_u((uint32_t)g_cal.low[channel], 12U);
         bench_text("-");
-        bench_dec((int32_t)g_cal.high[channel]);
+        bench_u((uint32_t)g_cal.high[channel], 12U);
         bench_text(")");
     }
     bench_avoid_say();
@@ -6704,9 +7623,9 @@ static void bench_avoid_ir_peak (const uint16_t * p_raw)
 static void bench_avoid_peak_say (void)
 {
     bench_text(" (IR peak L ");
-    bench_dec((int32_t)g_avoid.ir_peak[0]);
+    bench_u((uint32_t)g_avoid.ir_peak[0], 12U);
     bench_text(" R ");
-    bench_dec((int32_t)g_avoid.ir_peak[1]);
+    bench_u((uint32_t)g_avoid.ir_peak[1], 12U);
     bench_text(")");
 }
 
@@ -6718,7 +7637,7 @@ static void bench_mag_say (void)
     int16_t  xyz[3] = {0, 0, 0};
     uint32_t axis;
 
-    if (!bench_mag_read(xyz))
+    if (!bench_flag(bench_mag_read(xyz)))
     {
         return;
     }
@@ -6726,7 +7645,7 @@ static void bench_mag_say (void)
     for (axis = 0U; axis < 3U; ++axis)
     {
         bench_text(" ");
-        bench_signed((int32_t)xyz[axis]);
+        bench_s((int32_t)xyz[axis], 13U);
     }
 }
 
@@ -6945,13 +7864,14 @@ static void bench_avoid_creep (uint64_t now_us, double turned,
         p_request->forward_mps = 0.0;
         p_request->yaw_rps = 0.0;
         g_avoid.creep_none_mm = fmax(g_avoid.creep_none_mm, g_avoid.miss_mm);
+        bench_line(BK_AV_NO_ECHO);   /* +-255 deg, +-4095 mm */
         bench_text("AVOID: no echo off its face creeping at ");
-        bench_dec(g_avoid.creep_deg);
+        bench_i(g_avoid.creep_deg, 9U);
         bench_text(" deg (the sonar ");
-        bench_dec(bench_round(g_avoid.miss_mm));
+        bench_i(bench_round(g_avoid.miss_mm), 13U);
         bench_text(" mm out is past its edge), creeping at ");
         g_avoid.creep_deg -= BENCH_AVOID_CREEP_STEP_DEG;
-        bench_dec(g_avoid.creep_deg);
+        bench_i(g_avoid.creep_deg, 9U);
         bench_text(" deg");
         bench_avoid_say();
         g_avoid.misses = 0U;
@@ -6981,14 +7901,15 @@ static void bench_avoid_creep (uint64_t now_us, double turned,
     {
         ++g_avoid.backups;
         g_avoid.phase = BENCH_AVOID_RECENTRE;
+        bench_line(BK_AV_ON_FACE);   /* +-4095 mm, counts 0-15 */
         bench_text("AVOID: still on its face ");
-        bench_dec(bench_round(sonar_out));
+        bench_i(bench_round(sonar_out), 13U);
         bench_text(" mm out, no room to creep on: backing up ");
-        bench_dec(bench_round(BENCH_AVOID_BACKUP_MM));
+        bench_i(bench_round(BENCH_AVOID_BACKUP_MM), 13U);
         bench_text(" mm (");
-        bench_dec((int32_t)g_avoid.backups);
+        bench_u(g_avoid.backups, 4U);
         bench_text(" of ");
-        bench_dec((int32_t)BENCH_AVOID_BACKUPS);
+        bench_u((uint32_t)BENCH_AVOID_BACKUPS, 4U);
         bench_text(")");
         bench_avoid_say();
         return;
@@ -7011,8 +7932,9 @@ static void bench_avoid_creep (uint64_t now_us, double turned,
         g_avoid.left_mm = fmax(g_avoid.left_mm, sonar_out);
         g_avoid.b_left_open = true;
     }
+    bench_line(BK_AV_PAST_REACH);   /* +-4095 mm */
     bench_text("AVOID: its edge is past ");
-    bench_dec(bench_round(sonar_out));
+    bench_i(bench_round(sonar_out), 13U);
     bench_text(" mm out and the reverses are spent, stopped");
     bench_avoid_say();
     g_avoid.side = 0;
@@ -7053,19 +7975,21 @@ static void bench_avoid_far_found (motion_request_t * p_request, bool b_past,
         g_avoid.b_left_open = b_unseen;
         g_avoid.b_left_creep = !b_unseen;
     }
-    bench_text((g_avoid.creep_side > 0) ? "AVOID: far (right) edge " :
+    bench_line(BK_AV_FAR_EDGE);   /* +-4095 mm, sonar 0-4095 mm */
+    bench_text(bench_flag(g_avoid.creep_side > 0) ? "AVOID: far (right) edge " :
                                           "AVOID: far (left) edge ");
-    bench_dec(bench_round(edge));
-    bench_text(b_unseen ? " mm out or more (last echo " : " mm out (last echo ");
-    if (0U == g_avoid.creep_hits)
+    bench_i(bench_round(edge), 13U);
+    bench_text(bench_flag(b_unseen) ? " mm out or more (last echo " :
+                                      " mm out (last echo ");
+    if (bench_flag(0U == g_avoid.creep_hits))
     {
         bench_text("none");
     }
     else
     {
-        bench_dec(bench_round(g_avoid.hit_mm));
+        bench_i(bench_round(g_avoid.hit_mm), 13U);
         bench_text(" mm out, ");
-        bench_dec((int32_t)g_avoid.hit_range);
+        bench_u((uint32_t)g_avoid.hit_range, 12U);
         bench_text(" mm");
     }
     bench_text("), backing to the creep's start");
@@ -7110,41 +8034,44 @@ static void bench_avoid_creep_found (uint64_t now_us,
     g_avoid.side_mm = edge + half + BENCH_AVOID_CLEAR_MM;
     g_avoid.along_mm = (g_avoid.face_mm + g_avoid.back_mm) +
                        BENCH_AVOID_DEPTH_MM + half + BENCH_AVOID_CLEAR_MM;
+    bench_line(BK_AV_EDGE);   /* +-4095 mm, sonar 0-4095 mm */
     bench_text("AVOID: edge ");
-    bench_dec(bench_round(edge));
+    bench_i(bench_round(edge), 13U);
     bench_text(" mm out (last echo ");
-    if (0U == g_avoid.creep_hits)
+    if (bench_flag(0U == g_avoid.creep_hits))
     {
         bench_text("none");
     }
     else
     {
-        bench_dec(bench_round(g_avoid.hit_mm));
+        bench_i(bench_round(g_avoid.hit_mm), 13U);
         bench_text(" mm out, ");
-        bench_dec((int32_t)g_avoid.hit_range);
+        bench_u((uint32_t)g_avoid.hit_range, 12U);
         bench_text(" mm");
     }
     bench_text("): out ");
-    bench_dec(bench_round(g_avoid.side_mm));
+    bench_i(bench_round(g_avoid.side_mm), 13U);
     bench_text(" mm, along ");
-    bench_dec(bench_round(g_avoid.along_mm));
+    bench_i(bench_round(g_avoid.along_mm), 13U);
     bench_text(" mm");
     bench_avoid_say();
+    bench_line(BK_AV_WIDTH);   /* +-4095 mm each */
     bench_text("AVOID: WIDTH ");
-    bench_dec(bench_round(bench_avoid_shown(-1) + bench_avoid_shown(1)));
-    bench_text((g_avoid.b_left_open || g_avoid.b_right_open) ?
+    bench_i(bench_round(bench_avoid_shown(-1) + bench_avoid_shown(1)), 13U);
+    bench_text(bench_flag(g_avoid.b_left_open || g_avoid.b_right_open) ?
                " mm or more by the creeps (left " : " mm by the creeps (left ");
-    bench_dec(bench_round(bench_avoid_shown(-1)));
+    bench_i(bench_round(bench_avoid_shown(-1)), 13U);
     bench_text(", right ");
-    bench_dec(bench_round(bench_avoid_shown(1)));
+    bench_i(bench_round(bench_avoid_shown(1)), 13U);
     bench_text("; raw ");
-    bench_dec(bench_round(g_avoid.left_mm + g_avoid.right_edge_mm));
+    bench_i(bench_round(g_avoid.left_mm + g_avoid.right_edge_mm), 13U);
     bench_text(", less ");
-    bench_dec(bench_round(BENCH_AVOID_CREEP_OVER_MM));
+    bench_i(bench_round(BENCH_AVOID_CREEP_OVER_MM), 13U);
     bench_text(" an edge)");
     bench_avoid_say();
     if (!bench_avoid_side_clear(g_avoid.side, g_avoid.side_mm))
     {
+        bench_line(BK_AV_OTHER);
         bench_text("AVOID: something else in the way that far out, stopped");
         bench_avoid_say();
         g_avoid.side = 0;
@@ -7367,20 +8294,21 @@ static void bench_avoid_plan (uint64_t now_us, motion_request_t * p_request)
     bool   b_right = false;
     bool   b_left = false;
 
+    bench_line(BK_AV_FACE);   /* +-4095 mm each, skips 0-255 */
     bench_text("AVOID: face ");
-    bench_dec(bench_round(g_avoid.face_mm + g_avoid.back_mm));
+    bench_i(bench_round(g_avoid.face_mm + g_avoid.back_mm), 13U);
     bench_text(" mm ahead of the pivot; obstacle left ");
-    bench_dec(bench_round(g_avoid.left_mm));
-    bench_text(g_avoid.b_left_open ? " mm (edge unseen), right " :
+    bench_i(bench_round(g_avoid.left_mm), 13U);
+    bench_text(bench_flag(g_avoid.b_left_open) ? " mm (edge unseen), right " :
                                      " mm, right ");
-    bench_dec(bench_round(g_avoid.right_edge_mm));
-    bench_text(g_avoid.b_right_open ? " mm (edge unseen); WIDTH ~" :
+    bench_i(bench_round(g_avoid.right_edge_mm), 13U);
+    bench_text(bench_flag(g_avoid.b_right_open) ? " mm (edge unseen); WIDTH ~" :
                                       " mm; WIDTH ~");
-    bench_dec(bench_round(g_avoid.left_mm + g_avoid.right_edge_mm));
-    bench_text((g_avoid.b_left_open || g_avoid.b_right_open) ?
+    bench_i(bench_round(g_avoid.left_mm + g_avoid.right_edge_mm), 13U);
+    bench_text(bench_flag(g_avoid.b_left_open || g_avoid.b_right_open) ?
                " mm or more" : " mm");
     bench_text(" (median of 3, ");
-    bench_dec((int32_t)g_avoid.med_skips);
+    bench_u(g_avoid.med_skips, 8U);
     bench_text(" spread skipped)");
     bench_avoid_say();
     if ((g_avoid.b_left_open || g_avoid.b_right_open) &&
@@ -7388,12 +8316,13 @@ static void bench_avoid_plan (uint64_t now_us, motion_request_t * p_request)
     {
         ++g_avoid.backups;
         g_avoid.phase = BENCH_AVOID_RECENTRE;
+        bench_line(BK_AV_PAST_SWEEP);   /* +-4095 mm, counts 0-15 */
         bench_text("AVOID: an edge is past the sweep, backing up ");
-        bench_dec(bench_round(BENCH_AVOID_BACKUP_MM));
+        bench_i(bench_round(BENCH_AVOID_BACKUP_MM), 13U);
         bench_text(" mm to see more (");
-        bench_dec((int32_t)g_avoid.backups);
+        bench_u(g_avoid.backups, 4U);
         bench_text(" of ");
-        bench_dec((int32_t)BENCH_AVOID_BACKUPS);
+        bench_u((uint32_t)BENCH_AVOID_BACKUPS, 4U);
         bench_text(")");
         bench_avoid_say();
         return;
@@ -7404,21 +8333,25 @@ static void bench_avoid_plan (uint64_t now_us, motion_request_t * p_request)
               bench_avoid_side_clear(1, out_right);
     b_left = (!g_avoid.b_left_open) &&
              bench_avoid_side_clear(-1, out_left);
+    bench_line(BK_AV_PATH);   /* +-4095 mm each, 2 bits a side's state */
     bench_text("AVOID: path right: out ");
-    bench_dec(bench_round(out_right));
+    bench_i(bench_round(out_right), 13U);
     bench_text(" mm, total ");
-    bench_dec(bench_round((2.0 * out_right) + g_avoid.along_mm));
+    bench_i(bench_round((2.0 * out_right) + g_avoid.along_mm), 13U);
+    bench_code(b_right ? 0U : (g_avoid.b_right_open ? 1U : 2U), 2U);
     bench_text(b_right ? " mm, clear" :
                (g_avoid.b_right_open ? " mm, edge unseen" : " mm, blocked"));
     bench_text("; left: out ");
-    bench_dec(bench_round(out_left));
+    bench_i(bench_round(out_left), 13U);
     bench_text(" mm, total ");
-    bench_dec(bench_round((2.0 * out_left) + g_avoid.along_mm));
+    bench_i(bench_round((2.0 * out_left) + g_avoid.along_mm), 13U);
+    bench_code(b_left ? 0U : (g_avoid.b_left_open ? 1U : 2U), 2U);
     bench_text(b_left ? " mm, clear" :
                (g_avoid.b_left_open ? " mm, edge unseen" : " mm, blocked"));
     bench_avoid_say();
     if ((!b_right) && (!b_left))
     {
+        bench_line(BK_AV_NO_WAY);
         bench_text("AVOID: no clear way round, stopped");
         bench_avoid_say();
         g_avoid.side = 0;
@@ -7456,14 +8389,16 @@ static void bench_avoid_plan (uint64_t now_us, motion_request_t * p_request)
     g_avoid.creep_hits = 0U;
     g_avoid.creep_none_mm = 0.0;
     g_avoid.misses = 0U;
-    bench_text((g_avoid.side > 0) ? "AVOID: going round the right" :
+    bench_line(BK_AV_GOING);   /* +-4095 mm, 0-127 deg */
+    bench_text(bench_flag(g_avoid.side > 0) ? "AVOID: going round the right" :
                                     "AVOID: going round the left");
     bench_text(" (sweep out ");
-    bench_dec(bench_round(g_avoid.side_mm));
+    bench_i(bench_round(g_avoid.side_mm), 13U);
     bench_text(" mm); first turning ");
-    bench_dec((int32_t)BENCH_AVOID_CREEP_START_DEG);
-    bench_text((g_avoid.side > 0) ? " deg to creep out to its left edge" :
-                                    " deg to creep out to its right edge");
+    bench_u((uint32_t)BENCH_AVOID_CREEP_START_DEG, 7U);
+    bench_text(bench_flag(g_avoid.side > 0) ?
+               " deg to creep out to its left edge" :
+               " deg to creep out to its right edge");
     bench_avoid_say();
 }
 
@@ -7489,28 +8424,33 @@ static double bench_avoid_shown (int32_t side)
 
 static void bench_avoid_obst_text (void)
 {
+    /* Frame: x, y +-65535 mm (17 bits, as P lines), h +-204.7 deg, the
+     * rest +-4095 mm, the side 2 bits (0 none, 1 R, 2 L).
+     */
+    bench_line(BK_AV_OBST);
     bench_text("OBST at ");
-    bench_dec(bench_round(g_avoid.x0_mm));
+    bench_i(bench_round(g_avoid.x0_mm), 17U);
     bench_text(" ");
-    bench_dec(bench_round(g_avoid.y0_mm));
+    bench_i(bench_round(g_avoid.y0_mm), 17U);
     bench_text(" h ");
-    bench_fixed(bench_round(g_avoid.yaw_home * 1800.0 / CORE_PI), 1U);
+    bench_x(bench_round(g_avoid.yaw_home * 1800.0 / CORE_PI), 1U, 12U);
     bench_text(" face ");
-    bench_dec(bench_round(g_avoid.face_mm));
+    bench_i(bench_round(g_avoid.face_mm), 13U);
     bench_text(" left ");
-    bench_dec(bench_round(bench_avoid_shown(-1)));
-    bench_text(g_avoid.b_left_open ? "? right " : " right ");
-    bench_dec(bench_round(bench_avoid_shown(1)));
-    bench_text(g_avoid.b_right_open ? "? depth " : " depth ");
-    bench_dec(bench_round(BENCH_AVOID_DEPTH_MM));
+    bench_i(bench_round(bench_avoid_shown(-1)), 13U);
+    bench_text(bench_flag(g_avoid.b_left_open) ? "? right " : " right ");
+    bench_i(bench_round(bench_avoid_shown(1)), 13U);
+    bench_text(bench_flag(g_avoid.b_right_open) ? "? depth " : " depth ");
+    bench_i(bench_round(BENCH_AVOID_DEPTH_MM), 13U);
+    bench_code((g_avoid.side > 0) ? 1U : ((g_avoid.side < 0) ? 2U : 0U), 2U);
     bench_text((g_avoid.side > 0) ? " go R" :
                ((g_avoid.side < 0) ? " go L" : " go none"));
     bench_text(" out ");
-    bench_dec(bench_round(g_avoid.side_mm));
+    bench_i(bench_round(g_avoid.side_mm), 13U);
     bench_text(" along ");
-    bench_dec(bench_round(g_avoid.along_mm));
+    bench_i(bench_round(g_avoid.along_mm), 13U);
     bench_text(" back ");
-    bench_dec(bench_round(g_avoid.back_mm));
+    bench_i(bench_round(g_avoid.back_mm), 13U);
     bench_avoid_say();
 }
 
@@ -7546,16 +8486,21 @@ static void bench_avoid_map_print (void)
             }
         }
     }
+    /* Frames (MISSION): the cell 0-31 mm, row x +-1023 mm (11 bits), the
+     * BENCH_MAP_COLS marks 3 bits each ("-#+.|C").
+     */
     if (first > last)
     {
+        bench_line(BK_AVOID_MAP_NONE);
         bench_text("AVOID MAP: no beams");
         bench_avoid_say();
         return;
     }
     if (BENCH_MODE_MISSION == g_drive.mode)
     {
+        bench_line(BK_AVOID_MAP_HEAD);
         bench_text("AVOID MAP ");
-        bench_dec(bench_round(BENCH_MAP_CELL_MM));
+        bench_u((uint32_t)bench_round(BENCH_MAP_CELL_MM), 5U);
         bench_text(" mm cells, rows with a hit as M x cells, left at left:"
                    " # obstacle, + other, . free, - unknown, | line");
         bench_avoid_say();
@@ -7563,12 +8508,13 @@ static void bench_avoid_map_print (void)
         {
             if (bench_avoid_map_row(row, car_row, car_col, line))
             {
+                bench_line(BK_AVOID_MAP_ROW);
                 bench_text("M ");
-                bench_dec(bench_round(BENCH_MAP_X_MIN_MM +
-                                      (((double)row + 0.5) *
-                                       BENCH_MAP_CELL_MM)));
+                bench_i(bench_round(BENCH_MAP_X_MIN_MM +
+                                    (((double)row + 0.5) *
+                                     BENCH_MAP_CELL_MM)), 11U);
                 bench_text(" ");
-                bench_text(line);
+                bench_marks(line, "-#+.|C", 3U);
                 bench_avoid_say();
             }
         }
@@ -7648,12 +8594,23 @@ static bool bench_avoid_map_row (uint32_t row, int32_t car_row,
 static void bench_avoid_say (void)
 {
     uint32_t length = g_length;
+#if BENCH_FRAMES
+    uint32_t size = 0U;   /* the line's frame, queued with its text */
+#endif
 
     if (BENCH_MODE_MISSION != g_drive.mode)
     {
         bench_flush();
         return;
     }
+#if BENCH_FRAMES
+    if ((BK_NONE != g_frame_kind) && !gb_frame_text)
+    {
+        size = (uint32_t)bitpack_writer_size(&g_frame_w);
+    }
+    g_frame_kind = BK_NONE;
+    gb_frame_text = false;
+#endif
     if (g_avoid_queued >= BENCH_AVOID_LINES)
     {
         ++g_avoid_dropped;
@@ -7664,8 +8621,16 @@ static void bench_avoid_say (void)
         {
             length = BENCH_AVOID_LINE_BYTES - 1U;
         }
+#if BENCH_AVOID_TEXT
         (void)memcpy(g_avoid_lines[g_avoid_queued], g_text, length);
         g_avoid_lines[g_avoid_queued][length] = '\0';
+#else
+        (void)length;
+#endif
+#if BENCH_FRAMES
+        (void)memcpy(g_avoid_frames[g_avoid_queued], g_frame, size);
+        g_avoid_frame_size[g_avoid_queued] = size;
+#endif
         ++g_avoid_queued;
     }
     g_length = 0U;
@@ -7683,13 +8648,38 @@ static bool bench_avoid_text (void)
     {
         return false;
     }
+#if BENCH_AVOID_TEXT
     bench_text(" ");
     bench_text(g_avoid_lines[0]);
+#endif
+#if BENCH_FRAMES
+    /* Its frame becomes the line's, whole (the kind's template has the
+     * leading space); none: the line has no kind and is not sent.
+     */
+    if (0U != g_avoid_frame_size[0])
+    {
+        (void)memcpy(g_frame, g_avoid_frames[0], g_avoid_frame_size[0]);
+        g_frame_w.p_data = g_frame;
+        g_frame_w.capacity = sizeof(g_frame);
+        g_frame_w.bit = 8U * g_avoid_frame_size[0];
+        g_frame_w.b_valid = true;
+        g_frame_kind = (uint32_t)g_frame[2] &
+                       bitpack_mask(BENCH_FRAME_KIND_BITS);
+        gb_frame_text = false;
+    }
+#endif
     --g_avoid_queued;
     for (index = 0U; index < g_avoid_queued; ++index)
     {
+#if BENCH_AVOID_TEXT
         (void)memcpy(g_avoid_lines[index], g_avoid_lines[index + 1U],
                      BENCH_AVOID_LINE_BYTES);
+#endif
+#if BENCH_FRAMES
+        (void)memcpy(g_avoid_frames[index], g_avoid_frames[index + 1U],
+                     BENCH_FRAME_BYTES);
+        g_avoid_frame_size[index] = g_avoid_frame_size[index + 1U];
+#endif
     }
     return true;
 }
@@ -7726,26 +8716,35 @@ static bool bench_beams_text (void)
         return false;
     }
     back = (int32_t)g_beam_back[g_beams_sent];
-    bench_text(" BEAMS back ");
-    bench_dec(back);
-    bench_text(":");
-    while ((g_beams_sent < g_beams) && (count < BENCH_BEAMS_PER_LINE) &&
-           (((int32_t)g_beam_back[g_beams_sent] - back) <=
+    /* Frame: back +-2047 mm (12 bits), the beams' count 0-15 first, each
+     * +-255 deg (9 bits) and 0-4095 mm, dropped 0-1023.
+     */
+    while (((g_beams_sent + count) < g_beams) &&
+           (count < BENCH_BEAMS_PER_LINE) &&
+           (((int32_t)g_beam_back[g_beams_sent + count] - back) <=
             BENCH_BEAMS_SAME_MM) &&
-           ((back - (int32_t)g_beam_back[g_beams_sent]) <=
+           ((back - (int32_t)g_beam_back[g_beams_sent + count]) <=
             BENCH_BEAMS_SAME_MM))
     {
-        bench_text(" ");
-        bench_dec((int32_t)g_beam_deg[g_beams_sent]);
-        bench_text("/");
-        bench_dec((int32_t)g_beam_mm[g_beams_sent]);
-        ++g_beams_sent;
         ++count;
     }
-    if ((g_beams_sent >= g_beams) && (0U != g_beams_dropped))
+    bench_line(BK_BEAMS);
+    bench_text(" BEAMS back ");
+    bench_i(back, 12U);
+    bench_text(":");
+    bench_code(count, 4U);
+    for (; 0U != count; --count)
+    {
+        bench_text(" ");
+        bench_i((int32_t)g_beam_deg[g_beams_sent], 9U);
+        bench_text("/");
+        bench_u((uint32_t)g_beam_mm[g_beams_sent], 12U);
+        ++g_beams_sent;
+    }
+    if (bench_flag((g_beams_sent >= g_beams) && (0U != g_beams_dropped)))
     {
         bench_text(" (+");
-        bench_dec((int32_t)g_beams_dropped);
+        bench_u(g_beams_dropped, 10U);
         bench_text(" not kept)");
     }
     return true;
@@ -7766,19 +8765,25 @@ static bool bench_pose_text (uint64_t now_us)
         return false;
     }
     g_pose_due_us = now_us + BENCH_POSE_US;
+    /* x, y +-65535 mm from the start (17 bits: odometry drifts over a long
+     * run; 15 saturated at 16 m in the sim); heading +-180 deg (9 bits,
+     * the odometry wraps it); compass raw +-4095 (13 bits; LSM303DLHC
+     * counts are 12-bit).
+     */
+    bench_line(BK_POSE);
     bench_text(" P ");
-    bench_dec(bench_round(g_drive.x_m * 1000.0));
+    bench_i(bench_round(g_drive.x_m * 1000.0), 17U);
     bench_text(" ");
-    bench_dec(bench_round(g_drive.y_m * 1000.0));
+    bench_i(bench_round(g_drive.y_m * 1000.0), 17U);
     bench_text(" ");
-    bench_dec(bench_round(g_drive.yaw * 180.0 / CORE_PI));
-    if (bench_mag_read(xyz))
+    bench_i(bench_round(g_drive.yaw * 180.0 / CORE_PI), 9U);
+    if (bench_flag(bench_mag_read(xyz)))
     {
         bench_text(" C");
         for (axis = 0U; axis < 3U; ++axis)
         {
             bench_text(" ");
-            bench_signed((int32_t)xyz[axis]);
+            bench_s((int32_t)xyz[axis], 13U);
         }
     }
     return true;
@@ -8159,6 +9164,7 @@ static bool bench_code_polling (void)
  * wake-ups queued during the last step are dropped first, so the reads
  * keep 1 ms apart.
  */
+#if !MISSION_ROBOT
 static void bench_code_wait (void)
 {
     uint64_t start_us = board_time_us();
@@ -8183,14 +9189,26 @@ static void bench_code_poll (void)
 {
     uint16_t raw[LINE_CTRL_CHANNELS] = {0U, 0U, 0U};
     uint16_t total[BENCH_WHEELS] = {0U, 0U};
-    int32_t  now[BENCH_WHEELS] = {0, 0};
-    uint32_t wheel;
 
     if (!board_read_ir(raw))
     {
         return;
     }
     board_encoder_totals(&total[BENCH_LEFT], &total[BENCH_RIGHT]);
+    bench_code_poll_at(raw, total);
+}
+#endif
+
+/** @brief One between-steps reading into the barcode store: raw taken when
+ * the wheels' totals were total (the bench's 1 ms polls; the robot app's
+ * Line task samples, mission_ir_drain).
+ */
+static void bench_code_poll_at (const uint16_t raw[LINE_CTRL_CHANNELS],
+                                const uint16_t total[BENCH_WHEELS])
+{
+    int32_t  now[BENCH_WHEELS] = {0, 0};
+    uint32_t wheel;
+
     for (wheel = 0U; wheel < BENCH_WHEELS; ++wheel)
     {
         now[wheel] = (g_distance[wheel] - g_drive.start[wheel]) +
@@ -8244,7 +9262,7 @@ static void bench_code_sample (int32_t left, int32_t right, uint16_t raw)
     bench_code_store();
     g_code.pending_unit = unit;
     g_code.pending_centre =
-        (uint16_t)(((centre_hc > 0) ? centre_hc : 0) / BENCH_CODE_UNIT_HC);
+        (uint32_t)(((centre_hc > 0) ? centre_hc : 0) / BENCH_CODE_UNIT_HC);
     g_code.pending_sum = raw;
     g_code.pending_count = 1U;
 }
@@ -8262,15 +9280,14 @@ static void bench_code_store (void)
     {
         return;
     }
-    if ((g_code.count >= BENCH_CODE_SAMPLES) ||
-        (g_code.pending_unit > (int32_t)UINT16_MAX))
+    if (g_code.count >= BENCH_CODE_SAMPLES)
     {
         g_code.b_full = true;
     }
     else
     {
         p_sample = &g_code.sample[g_code.count];
-        p_sample->unit = (uint16_t)g_code.pending_unit;
+        p_sample->unit = (uint32_t)g_code.pending_unit;
         p_sample->centre = g_code.pending_centre;
         p_sample->raw = (uint16_t)((g_code.pending_sum +
                                     (g_code.pending_count / 2U)) /
@@ -8642,55 +9659,69 @@ static bool bench_code_found_text (void)
             continue;
         }
         p_found->b_sent = true;
-        if (p_found->b_framed)
+        /* Frame: texts BENCH_CODE_TEXT - 1 = 15 characters at most (4-bit
+         * length), bars 0-255, the swing 0-51.1 sd, the gap 0-255 mm.
+         */
+        bench_line(BK_CODE);
+        if (bench_flag(p_found->b_framed))
         {
             bench_text(" CODE ");
-            bench_text(p_found->b_reverse ? p_found->reverse :
-                                            p_found->text);
-            bench_text(p_found->b_reverse ? " read end to start" :
-                                            " read in order");
-            bench_text(p_found->b_partial ? ", PARTIAL: one * only" : "");
-            bench_text(p_found->b_peaks ? ", peaks agree" : "");
+            bench_str(p_found->b_reverse ? p_found->reverse :
+                                           p_found->text, 4U);
+            bench_text(bench_flag(p_found->b_reverse) ?
+                       " read end to start" : " read in order");
+            bench_text(bench_flag(p_found->b_partial) ?
+                       ", PARTIAL: one * only" : "");
+            bench_text(bench_flag(p_found->b_peaks) ? ", peaks agree" : "");
         }
         else
         {
             bench_text(" GROUP ");
-            bench_dec((int32_t)p_found->bars);
+            bench_u(p_found->bars, 8U);
             bench_text(" bars, ");
+            /* Which GROUP wording, 2 bits: 0 one swing, 1 refused, 2 no
+             * frame, 3 not a count.
+             */
             if (p_found->b_single)
             {
+                bench_code(0U, 2U);
                 bench_text("one swing only, not a code: ");
-                bench_text(p_found->b_reverse ? p_found->reverse :
-                                                p_found->text);
-                bench_text(p_found->b_reverse ? " end to start" : "");
+                bench_str(p_found->b_reverse ? p_found->reverse :
+                                               p_found->text, 4U);
+                bench_text(bench_flag(p_found->b_reverse) ? " end to start" :
+                                                            "");
             }
             else if (BENCH_SPEC_OK != p_found->spec)
             {
+                bench_code(1U, 2U);
                 bench_text("frame ");
-                bench_text(p_found->refused);
+                bench_str(p_found->refused, 4U);
                 bench_text(" refused by the spec (");
-                bench_text(g_spec_names[p_found->spec % BENCH_SPEC_RESULTS]);
+                bench_name(g_spec_names, p_found->spec % BENCH_SPEC_RESULTS,
+                           2U);
                 bench_text(")");
             }
             else if ('\0' != p_found->text[0])
             {
+                bench_code(2U, 2U);
                 bench_text("no frame: ");
-                bench_text(p_found->text);
+                bench_str(p_found->text, 4U);
                 bench_text(" / ");
-                bench_text(p_found->reverse);
+                bench_str(p_found->reverse, 4U);
             }
             else
             {
+                bench_code(3U, 2U);
                 bench_text("not a Code 39 count");
             }
             if (!p_found->b_single)
             {
                 bench_text(", characters ");
-                bench_text(('\0' != p_found->chars[0]) ? p_found->chars :
-                                                         "none");
+                bench_str(p_found->chars, 4U);
+                bench_text(('\0' != p_found->chars[0]) ? "" : "none");
                 bench_text(" / ");
-                bench_text(('\0' != p_found->chars_reverse[0]) ?
-                           p_found->chars_reverse : "none");
+                bench_str(p_found->chars_reverse, 4U);
+                bench_text(('\0' != p_found->chars_reverse[0]) ? "" : "none");
             }
         }
         bench_vote_add(BENCH_VOTE_DECODER1, bench_vote_mm(p_found->from_units),
@@ -8702,9 +9733,9 @@ static bool bench_code_found_text (void)
         bench_text("-");
         bench_code_unit_mm(p_found->to_units);
         bench_text(" mm (swing ");
-        bench_fixed((int32_t)(5U * p_found->half_sds), 1U);
+        bench_ux(5U * p_found->half_sds, 1U, 9U);
         bench_text(" sd, gap ");
-        bench_dec((int32_t)p_found->gap_mm);
+        bench_u(p_found->gap_mm, 8U);
         bench_text(" mm)");
         return true;
     }
@@ -8753,6 +9784,7 @@ static void bench_live_step (uint64_t now_us, uint32_t status,
     }
     g_live_due_us = now_us + ((0U != g_raw_length) ? BENCH_LIVE_RAW_US :
                                                      BENCH_LIVE_US);
+    codes = g_code.codes_done;   /* groups already dropped (sent) */
     for (index = 0U; index < g_code.founds; ++index)
     {
         if (g_code.found[index].b_framed)
@@ -8760,24 +9792,38 @@ static void bench_live_step (uint64_t now_us, uint32_t status,
             ++codes;
         }
     }
+    /* Minimum bits: time 0.1 s to 6553.5 s (no run limit now: 109 min);
+     * centre path +-1048575 mm (over 2 h at the robot's top speed); line
+     * state 6 names; ADC 0-4095; groups 0-1023 a run; codes up to
+     * 1023 a run; sonar 0-4095 mm; no-echo readings since the last
+     * status 0-65535 (none goes out during a go-around: 2903 in 40 s, sim).
+     */
+    bench_line(BK_LIVE);
     bench_text(" t ");
-    bench_fixed((int32_t)((now_us - g_drive.step_us) / 100000U), 1U);
+    bench_ux((uint32_t)((now_us - g_drive.step_us) / 100000U), 1U, 16U);
     bench_text(" s d ");
-    bench_dec(centre_mm);
+    bench_i(centre_mm, 21U);
     bench_text(" mm ");
-    bench_text(g_line_names[status % BENCH_LINE_STATES]);
+    bench_name(g_line_names, status % BENCH_LINE_STATES, 3U);
     bench_text(" B ");
-    bench_dec((int32_t)side);
+    bench_u((uint32_t)side, 12U);
     bench_text(" max ");
-    bench_dec((int32_t)g_live_side_max);
+    bench_u((uint32_t)g_live_side_max, 12U);
+    /* The front sensors now (22 Nov: the dashboard's live sensor chart had
+     * only the idle report, never anything while the car drove).
+     */
+    bench_text(" L ");
+    bench_u((uint32_t)g_live_front[0], 12U);
+    bench_text(" R ");
+    bench_u((uint32_t)g_live_front[1], 12U);
     bench_text(" groups ");
-    bench_dec((int32_t)g_code.groups_seen);
+    bench_u(g_code.groups_seen, 10U);
     bench_text(" codes ");
-    bench_dec((int32_t)codes);
+    bench_u(codes, 10U);
     bench_text(" F ");
-    bench_dec((int32_t)g_live_front_min);
+    bench_u((uint32_t)g_live_front_min, 12U);
     bench_text(" x");
-    bench_dec((int32_t)g_live_front_none);
+    bench_u(g_live_front_none, 16U);
     bench_ramp_status();
     g_live_side_max = 0U;
     g_live_front_min = 0U;
@@ -8827,8 +9873,9 @@ static void bench_code_mission_results (void)
     }
     if (0U != g_avoid_dropped)
     {
+        bench_line(BK_AVOID_DROPPED);   /* 0-1023 lines */
         bench_text(" obstacle go-around: ");
-        bench_dec((int32_t)g_avoid_dropped);
+        bench_u(g_avoid_dropped, 10U);
         bench_text(" lines dropped (queue full)");
         bench_flush();
     }
@@ -8843,25 +9890,30 @@ static void bench_code_mission_results (void)
         bench_flush();
     }
     bench_vote_totals();
+    /* Frame: changes and readings 0-4194303 (22 bits: over 1 h of 1 ms
+     * readings), groups 0-4095, counts 0-1023, the bar minimum 0-15.
+     */
+    bench_line(BK_D0_TOTALS);
     bench_text(" D0: ");
-    bench_dec((int32_t)g_d0.changes);
+    bench_u(g_d0.changes, 22U);
     bench_text(" changes, ");
-    bench_dec((int32_t)g_d0.groups);
+    bench_u(g_d0.groups, 12U);
     bench_text(" groups (");
-    bench_dec((int32_t)g_d0.shorts);
+    bench_u(g_d0.shorts, 12U);
     bench_text(" under ");
-    bench_dec((int32_t)BENCH_D0_BARS_MIN);
+    bench_u(BENCH_D0_BARS_MIN, 4U);
     bench_text(" bars), ");
-    bench_dec((int32_t)g_d0.reads);
+    bench_u(g_d0.reads, 10U);
     bench_text(" read, ");
-    bench_dec((int32_t)g_d0.dropped);
+    bench_u(g_d0.dropped, 10U);
     bench_text(" dropped; high ");
-    bench_dec((int32_t)g_d0.high);
+    bench_u(g_d0.high, 22U);
     bench_text(", low ");
-    bench_dec((int32_t)g_d0.low);
+    bench_u(g_d0.low, 22U);
     bench_text(" readings, dark is ");
-    bench_text((g_d0.high <= g_d0.low) ? "high" : "low");
+    bench_text(bench_flag(g_d0.high <= g_d0.low) ? "high" : "low");
     bench_flush();
+    codes = g_code.codes_done;   /* groups already dropped (sent) */
     for (index = 0U; index < g_code.founds; ++index)
     {
         if (g_code.found[index].b_framed)
@@ -8874,43 +9926,47 @@ static void bench_code_mission_results (void)
         gap_us = (uint32_t)((g_code.last_us - g_code.first_us) /
                             (uint64_t)(g_code.readings - 1U));
     }
+    /* Frame: readings 22 bits, the period 0-163.83 ms, counts as above,
+     * held 0-65535 mm, groups kept 0-15, spec refusals 0-4095 (every try).
+     */
+    bench_line(BK_BARCODES);
     bench_text(" barcodes: ");
-    bench_dec((int32_t)g_code.readings);
+    bench_u(g_code.readings, 22U);
     bench_text(" readings, one per ");
-    bench_fixed((int32_t)(gap_us / 10U), 2U);
+    bench_ux(gap_us / 10U, 2U, 14U);
     bench_text(" ms; groups ");
-    bench_dec((int32_t)g_code.groups_seen);
+    bench_u(g_code.groups_seen, 10U);
     bench_text(", codes ");
-    bench_dec((int32_t)codes);
+    bench_u(codes, 10U);
     bench_text("; held straight ");
-    bench_dec((int32_t)g_code.holds);
+    bench_u(g_code.holds, 10U);
     bench_text(" times, ");
-    bench_dec((int32_t)g_code.held_mm);
+    bench_u((uint32_t)g_code.held_mm, 16U);
     bench_text(" mm, let go ");
-    bench_dec((int32_t)g_code.let_gos);
-    if (g_code.groups_seen > g_code.founds)
+    bench_u(g_code.let_gos, 10U);
+    if (bench_flag(g_code.groups_seen > (g_code.founds + g_code.founds_done)))
     {
         bench_text(", the first ");
-        bench_dec((int32_t)g_code.founds);
+        bench_u(g_code.founds + g_code.founds_done, 10U);
         bench_text(" kept");
     }
-    if (g_code.b_full)
+    if (bench_flag(g_code.b_full))
     {
         bench_text("; STORE FULL");
     }
     /* Counted over every try, so one card can count several times. */
     bench_text("; spec refused frames: widths ");
-    bench_dec((int32_t)g_code.spec_widths);
+    bench_u(g_code.spec_widths, 12U);
     bench_text(", gaps ");
-    bench_dec((int32_t)g_code.spec_gaps);
+    bench_u(g_code.spec_gaps, 12U);
     bench_text(", quiet ");
-    bench_dec((int32_t)g_code.spec_quiet);
+    bench_u(g_code.spec_quiet, 12U);
     /* Samples still waiting are dropped: nothing long after the stop. */
     g_raw_length = 0U;
     bench_text("; raw sent for ");
-    bench_dec((int32_t)g_raw_done);
+    bench_u(g_raw_done, 10U);
     bench_text(" of ");
-    bench_dec((int32_t)g_raw_cuts);
+    bench_u(g_raw_cuts, 10U);
     bench_text(" cuts");
     bench_flush();
 }
@@ -8924,15 +9980,14 @@ static void bench_code_mission_results (void)
 static void bench_d0_sample (int32_t unit, bool b_level)
 {
     bench_d0_group_t * p_open = &g_d0.open;
-    uint16_t           at;
+    uint32_t           at;
     bool               b_dark_high;
 
     if (unit < 0)
     {
         return;
     }
-    at = (unit > (int32_t)UINT16_MAX) ? (uint16_t)UINT16_MAX :
-                                        (uint16_t)unit;
+    at = (uint32_t)unit;
     if (g_d0.b_started && (at < g_d0.unit))
     {
         at = g_d0.unit;
@@ -9150,30 +10205,38 @@ static bool bench_d0_text (void)
         bench_vote_add(BENCH_VOTE_D0, bench_vote_mm((uint32_t)p_group->edge[0]),
                        bench_vote_mm((uint32_t)p_group->edge[stored - 1U]),
                        b_order ? text : (b_reverse ? reverse : NULL));
+        /* Frame: texts 15 characters at most (4-bit length), bars 0-1023,
+         * why-not 2 bits (0 too many, 1 no frame, 2 not a count).
+         */
+        bench_line(BK_D0);
         bench_text(" D0 ");
-        if (b_order || b_reverse)
+        if (bench_flag(b_order || b_reverse))
         {
             ++g_d0.reads;
-            bench_text(b_order ? text : reverse);
-            bench_text(b_order ? " read in order" : " read end to start");
+            bench_str(b_order ? text : reverse, 4U);
+            bench_text(bench_flag(b_order) ? " read in order" :
+                                             " read end to start");
         }
         else
         {
-            bench_dec((int32_t)(p_group->edges / 2U));
+            bench_u(p_group->edges / 2U, 10U);
             bench_text(" bars, ");
             if (p_group->edges > BENCH_D0_EDGES)
             {
+                bench_code(0U, 2U);
                 bench_text("too many to keep");
             }
             else if ('\0' != text[0])
             {
+                bench_code(1U, 2U);
                 bench_text("no frame: ");
-                bench_text(text);
+                bench_str(text, 4U);
                 bench_text(" / ");
-                bench_text(reverse);
+                bench_str(reverse, 4U);
             }
             else
             {
+                bench_code(2U, 2U);
                 bench_text("not a Code 39 count");
             }
         }
@@ -9185,12 +10248,18 @@ static bool bench_d0_text (void)
         g_d0.b_widths = true;
         return true;
     }
+    /* Frame: the count 0-BENCH_D0_WIDTHS (36, 6 bits), each width 0-511
+     * units (9 bits; a group ends at BENCH_CODE_QUIET_MM of white).
+     */
+    bench_line(BK_D0_WIDTHS);
     bench_text(" D0 widths u:");
+    bench_code(((stored > BENCH_D0_WIDTHS) ? BENCH_D0_WIDTHS :
+                (stored - 1U)), 6U);
     for (index = 1U; (index < stored) && (index <= BENCH_D0_WIDTHS); ++index)
     {
         bench_text(" ");
-        bench_dec((int32_t)p_group->edge[index] -
-                  (int32_t)p_group->edge[index - 1U]);
+        bench_u((uint32_t)p_group->edge[index] -
+                (uint32_t)p_group->edge[index - 1U], 9U);
     }
     g_d0.b_widths = false;
     --g_d0.queued;
@@ -9270,32 +10339,40 @@ static void bench_raw_keep (void)
 static bool bench_raw_text (void)
 {
     uint32_t chunk;
+    uint32_t index;
 
     if (0U == g_raw_length)
     {
         return false;
     }
+    /* Frame: cut number 0-1023 a run; first unit 0-8388607 (23 bits, 2 km
+     * of side path); units 0-BENCH_RAW_CHARS 4096 (13 bits); white and sd
+     * ADC 0-4095. Rows: up to BENCH_RAW_LINE characters, each '!'..'~' as
+     * 7 bits (c - '!').
+     */
     if (gb_raw_head)
     {
         gb_raw_head = false;
+        bench_line(BK_RAW_HEAD);
         bench_text(" RAW ");
-        bench_dec((int32_t)g_raw_number);
+        bench_u(g_raw_number, 10U);
         bench_text(": u");
-        bench_dec((int32_t)g_raw_first);
+        bench_u(g_raw_first, 23U);
         bench_text(" (side ");
         bench_code_unit_mm(g_raw_first);
         bench_text(" mm), ");
-        bench_dec((int32_t)g_raw_length);
+        bench_u(g_raw_length, 13U);
         bench_text(" units, white ");
-        bench_dec((int32_t)g_raw_white);
+        bench_u(g_raw_white, 12U);
         bench_text(" sd ");
-        bench_dec((int32_t)g_raw_sd);
+        bench_u(g_raw_sd, 12U);
         bench_text("; raw = white - 10 + 2 (c - '#') below 'c', else white"
                    " + 118 + 140 (c - 'c'); '!' none");
         return true;
     }
+    bench_line(BK_RAW_ROW);
     bench_text(" R ");
-    bench_dec((int32_t)g_raw_number);
+    bench_u(g_raw_number, 10U);
     bench_text(": ");
     chunk = g_raw_length - g_raw_sent;
     if (chunk > BENCH_RAW_LINE)
@@ -9305,6 +10382,12 @@ static bool bench_raw_text (void)
     if ((g_length + chunk + 2U) > BENCH_TEXT_BYTES)
     {
         chunk = BENCH_TEXT_BYTES - 2U - g_length;
+    }
+    bench_code(chunk, 7U);
+    for (index = 0U; index < chunk; ++index)
+    {
+        bench_code((uint32_t)(uint8_t)g_raw[g_raw_sent + index] -
+                   (uint32_t)BENCH_RAW_GAP, 7U);
     }
     (void)memcpy(&g_text[g_length], &g_raw[g_raw_sent], (size_t)chunk);
     g_length += chunk;
@@ -9383,14 +10466,19 @@ static void bench_ramp_start (void)
     g_ramp.cell = 1U;
     if (!g_ramp.b_ready)
     {
-        bench_text(gb_accel ? "RAMP off: the reference was refused" :
-                              "RAMP off: no accelerometer");
+        bench_line(BK_RAMP_OFF);
+        bench_text(bench_flag(gb_accel) ?
+                   "RAMP off: the reference was refused" :
+                   "RAMP off: no accelerometer");
         bench_flush();
         return;
     }
-    bench_text(b_still ? "RAMP flat reference: the last still second (n " :
-                         "RAMP flat reference: stored (car not still, n ");
-    bench_dec((int32_t)flat.count);
+    /* Frame: samples 0-1023, angles as bench_ramp_deg. */
+    bench_line(BK_RAMP_FLAT);
+    bench_text(bench_flag(b_still) ?
+               "RAMP flat reference: the last still second (n " :
+               "RAMP flat reference: stored (car not still, n ");
+    bench_u(flat.count, 10U);
     bench_text("), start pitch ");
     bench_ramp_deg(atan2(axes[0], hypot(axes[1], axes[2])));
     bench_text(" roll ");
@@ -9508,7 +10596,8 @@ static void bench_lift_check (uint64_t now_us, const double * p_axes,
     g_ramp.lift_up += (vertical * dt) -
                       (g_ramp.lift_up * (dt / BENCH_LIFT_LEAK_S));
     g_ramp.lift_height += (g_ramp.lift_up * dt) -
-                          (g_ramp.lift_height * (dt / BENCH_LIFT_HEIGHT_LEAK_S));
+                          (g_ramp.lift_height *
+                           (dt / BENCH_LIFT_HEIGHT_LEAK_S));
     g_ramp.lift_up_most = fmax(g_ramp.lift_up_most, g_ramp.lift_up);
     g_ramp.lift_height_most = fmax(g_ramp.lift_height_most,
                                    g_ramp.lift_height);
@@ -9518,11 +10607,30 @@ static void bench_lift_check (uint64_t now_us, const double * p_axes,
     }
     g_ramp.b_lifted = true;
     board_motor_brake();
+    bench_line(BK_LIFT_STOP);   /* 0-4095 mm */
     bench_text("LIFT: raised ");
-    bench_dec(bench_round(g_ramp.lift_height * 1000.0));
+    bench_u((uint32_t)bench_round(g_ramp.lift_height * 1000.0), 12U);
     bench_text(" mm: motors stopped");
     bench_avoid_say();
     bench_line_end(now_us, "stopped: lifted (IMU)");
+}
+
+/** @brief The time of the accelerometer sample just read (bench_ramp_step):
+ * now_us on the bench, which reads the sensor itself. The robot app's IMU
+ * task queues its samples, so each is taken at its own read time (22 Nov: at
+ * the step's time, the lift and hump integrals were bunched after a long
+ * step and lagged). A read before the last sample's time counts as none
+ * elapsed.
+ */
+static uint64_t bench_ramp_time (uint64_t now_us)
+{
+#if MISSION_ROBOT
+    uint64_t sample_us = mission_accel_sample_us(now_us);
+
+    return (sample_us < g_ramp.last_us) ? g_ramp.last_us : sample_us;
+#else
+    return now_us;
+#endif
 }
 
 /** @brief MISSION, each drive step: a fresh accelerometer sample (100 Hz)
@@ -9553,6 +10661,7 @@ static void bench_ramp_step (uint64_t now_us,
     {
         return;
     }
+    now_us = bench_ramp_time(now_us);
     for (axis = 0U; axis < 3U; ++axis)
     {
         mg[axis] = (double)milligravity[axis];
@@ -9711,8 +10820,7 @@ static void bench_ramp_lean (uint64_t now_us, double ds, int32_t centre_mm)
     {
         ++g_ramp.lean_turns;       /* At a turn: no hump is there */
         g_ramp.lean_sent = g_ramp.lean;
-        g_ramp.lean_out = g_ramp.lean.b_straight ? "at a turn" :
-                                                   "not on a straight";
+        g_ramp.lean_out = g_lean_out_names[g_ramp.lean.b_straight ? 0U : 1U];
         g_ramp.b_lean_send = true; /* Out, but shown */
         return;
     }
@@ -9720,7 +10828,7 @@ static void bench_ramp_lean (uint64_t now_us, double ds, int32_t centre_mm)
     {
         ++g_ramp.lean_steep;       /* Not one wheel on a hump */
         g_ramp.lean_sent = g_ramp.lean;
-        g_ramp.lean_out = "pitched";
+        g_ramp.lean_out = g_lean_out_names[2];
         g_ramp.b_lean_send = true;
         return;
     }
@@ -9728,7 +10836,7 @@ static void bench_ramp_lean (uint64_t now_us, double ds, int32_t centre_mm)
     {
         ++g_ramp.lean_wild;        /* Far beyond any hump on the track */
         g_ramp.lean_sent = g_ramp.lean;
-        g_ramp.lean_out = "lifted or knocked";
+        g_ramp.lean_out = g_lean_out_names[3];
         g_ramp.b_lean_send = true;
         return;
     }
@@ -9736,7 +10844,7 @@ static void bench_ramp_lean (uint64_t now_us, double ds, int32_t centre_mm)
     {
         ++g_ramp.lean_level;       /* Level: no wheel on a hump */
         g_ramp.lean_sent = g_ramp.lean;
-        g_ramp.lean_out = "no wheel 3 mm up";
+        g_ramp.lean_out = g_lean_out_names[4];
         g_ramp.b_lean_send = true;
         return;
     }
@@ -9785,23 +10893,29 @@ static void bench_ramp_lean_line (const char * p_head,
 {
     double height = bench_lean_height(p_lean);
 
+    /* Frame: heights 0-511 mm, the path as the live line, time 0-6553.5 s,
+     * the length 0-65535 mm. asin's argument held to +-1: a lifted car's
+     * "lean" is far past the lever (it printed a NaN's garbage before).
+     */
     bench_text(p_head);
-    bench_text((height >= 0.0) ? "left wheel up " : "right wheel up ");
-    bench_dec(bench_round(fabs(height) * 1000.0));
+    bench_text(bench_flag(height >= 0.0) ? "left wheel up " :
+                                           "right wheel up ");
+    bench_u((uint32_t)bench_round(fabs(height) * 1000.0), 9U);
     bench_text(" mm (30 mm mean, roll ");
-    bench_ramp_deg(asin(height / BENCH_RAMP_LEVER_M));
+    bench_ramp_deg(asin(fmax(-1.0, fmin(1.0, height / BENCH_RAMP_LEVER_M))));
     bench_text(" deg; peak ");
-    bench_dec(bench_round(fabs(p_lean->peak) * 1000.0));
+    bench_u((uint32_t)bench_round(fabs(p_lean->peak) * 1000.0), 9U);
     bench_text(" mm, roll ");
-    bench_ramp_deg(asin(p_lean->peak / BENCH_RAMP_LEVER_M));
+    bench_ramp_deg(asin(fmax(-1.0, fmin(1.0,
+                                        p_lean->peak / BENCH_RAMP_LEVER_M))));
     bench_text(" deg, pitch ");
     bench_ramp_deg(p_lean->pitch);
     bench_text(") at ");
-    bench_dec((0.0 != p_lean->held) ? p_lean->held_mm : p_lean->peak_mm);
+    bench_i((0.0 != p_lean->held) ? p_lean->held_mm : p_lean->peak_mm, 21U);
     bench_text(" mm, t ");
-    bench_fixed(p_lean->peak_ds, 1U);
+    bench_ux((uint32_t)p_lean->peak_ds, 1U, 16U);
     bench_text(" s, over ");
-    bench_dec(bench_round(p_lean->length * 1000.0));
+    bench_u((uint32_t)bench_round(p_lean->length * 1000.0), 16U);
     bench_text(" mm");
 }
 
@@ -9857,20 +10971,22 @@ static bool bench_cal_text (void)
         return false;
     }
     g_cal.b_sent = true;
+    /* Frame: ADC 0-4095 (12 bits each), the path +-1048575 mm (21). */
+    bench_line(BK_CAL);
     for (channel = 0U; channel < LINE_CTRL_CHANNELS; ++channel)
     {
         bench_text(names[channel]);
-        bench_dec((int32_t)g_cal.low[channel]);
+        bench_u((uint32_t)g_cal.low[channel], 12U);
         bench_text("-");
-        bench_dec((int32_t)g_cal.high[channel]);
+        bench_u((uint32_t)g_cal.high[channel], 12U);
         bench_text(" (set ");
-        bench_dec((int32_t)white[channel]);
+        bench_u((uint32_t)white[channel], 12U);
         bench_text("-");
-        bench_dec((int32_t)black[channel]);
+        bench_u((uint32_t)black[channel], 12U);
         bench_text(")");
     }
     bench_text(" over AUTO-CENTRE and ");
-    bench_dec(g_cal.done_mm);
+    bench_i(g_cal.done_mm, 21U);
     bench_text(" mm");
     return true;
 }
@@ -9889,10 +11005,16 @@ static void bench_ramp_offset (double ds)
     if (ds > 0.0)
     {
         g_ramp.travelled += ds;
-        share = ds / fmin(g_ramp.travelled, BENCH_RAMP_OFFSET_M);
+        share = ds / fmin(fmax(g_ramp.travelled, BENCH_RAMP_OFFSET_MIN_M),
+                          BENCH_RAMP_OFFSET_M);
         g_ramp.pitch_offset += share * (g_ramp.raw_pitch -
                                         g_ramp.pitch_offset);
-        g_ramp.roll_offset += share * (g_ramp.raw_roll - g_ramp.roll_offset);
+        if (!g_ramp.b_leaning)
+        {
+            /* The side lean's roll is not the car's own (22 Nov). */
+            g_ramp.roll_offset += share * (g_ramp.raw_roll -
+                                           g_ramp.roll_offset);
+        }
     }
     g_ramp.pitch = g_ramp.raw_pitch - g_ramp.pitch_offset;
     g_ramp.roll = g_ramp.raw_roll - g_ramp.roll_offset;
@@ -10019,17 +11141,22 @@ static bool bench_ramp_hold (void)
 /** @brief MISSION live: a closed hump, the bench's or the module's. */
 static bool bench_ramp_text (void)
 {
+    /* Frame: humps 0-1023 a run (a 1 h run); heights +-511 mm (10 bits);
+     * centre path
+     * +-1048575 mm (21 bits); time 0-6553.5 s; angles as bench_ramp_deg.
+     */
     if (g_ramp.b_send)
     {
         g_ramp.b_send = false;
+        bench_line(BK_RAMP);
         bench_text(" RAMP ");
-        bench_dec((int32_t)g_ramp.rises);
+        bench_u(g_ramp.rises, 10U);
         bench_text(": peak ");
-        bench_dec(bench_round(g_ramp.sent.peak * 1000.0));
+        bench_i(bench_round(g_ramp.sent.peak * 1000.0), 10U);
         bench_text(" mm at ");
-        bench_dec(g_ramp.sent.peak_mm);
+        bench_i(g_ramp.sent.peak_mm, 21U);
         bench_text(" mm (t ");
-        bench_fixed(g_ramp.sent.peak_ds, 1U);
+        bench_ux((uint32_t)g_ramp.sent.peak_ds, 1U, 16U);
         bench_text(" s), roll ");
         bench_ramp_deg(g_ramp.sent.roll);
         bench_ramp_side(g_ramp.sent.roll);
@@ -10038,32 +11165,42 @@ static bool bench_ramp_text (void)
         bench_text(" down ");
         bench_ramp_deg(g_ramp.sent.down);
         bench_text(" deg; from ");
-        bench_dec(g_ramp.sent.from_mm);
+        bench_i(g_ramp.sent.from_mm, 21U);
         bench_text(" mm");
         return true;
     }
     if (g_ramp.b_lean_send)
     {
         g_ramp.b_lean_send = false;
-        if (NULL != g_ramp.lean_out)  /* Left out: shown, not counted */
+        bench_line(BK_SIDE);
+        if (bench_flag(NULL != g_ramp.lean_out))  /* shown, not counted */
         {
+            uint32_t why = 0U;
+
+            while (((why + 1U) < BENCH_LEAN_OUTS) &&
+                   (g_lean_out_names[why] != g_ramp.lean_out))
+            {
+                ++why;
+            }
             bench_text(" SIDE left out (");
-            bench_text(g_ramp.lean_out);
+            bench_name(g_lean_out_names, why, 3U);
             bench_ramp_lean_line("): ", &g_ramp.lean_sent);
             return true;
         }
         bench_text(" SIDE ");
-        bench_dec((int32_t)g_ramp.leans);
+        bench_u(g_ramp.leans, 10U);
         bench_ramp_lean_line(": ", &g_ramp.lean_sent);
         return true;
     }
     if (g_ramp.b_terrain)
     {
         g_ramp.b_terrain = false;
-        bench_text(g_ramp.b_terrain_valid ? " TERRAIN hump counted: peak " :
+        bench_line(BK_TERRAIN);
+        bench_text(bench_flag(g_ramp.b_terrain_valid) ?
+                   " TERRAIN hump counted: peak " :
                    " TERRAIN hump not counted (turn, jolt or not level at"
                    " the end): peak ");
-        bench_dec(bench_round(g_ramp.terrain_peak * 1000.0));
+        bench_i(bench_round(g_ramp.terrain_peak * 1000.0), 10U);
         bench_text(" mm");
         return true;
     }
@@ -10073,7 +11210,8 @@ static bool bench_ramp_text (void)
 /** @brief MISSION status line: pitch, roll, and the height in a hump. */
 static void bench_ramp_status (void)
 {
-    if (!g_ramp.b_ready)
+    /* Angles as bench_ramp_deg (12 bits), height +-511 mm (10 bits). */
+    if (!bench_flag(g_ramp.b_ready))
     {
         return;
     }
@@ -10082,7 +11220,7 @@ static void bench_ramp_status (void)
     bench_text(" roll ");
     bench_ramp_deg(g_ramp.roll);
     bench_text(" h ");
-    bench_dec(bench_round(g_ramp.above * 1000.0));
+    bench_i(bench_round(g_ramp.above * 1000.0), 10U);
 }
 
 /** @brief An angle in degrees, signed, one decimal. */
@@ -10090,11 +11228,12 @@ static void bench_ramp_deg (double rad)
 {
     int32_t tenths = bench_round(rad * (1800.0 / CORE_PI));
 
+    /* Frame: +-204.7 deg in tenths, 12 bits (an IMU angle is +-180). */
     if (tenths >= 0)
     {
         bench_text("+");
     }
-    bench_fixed(tenths, 1U);
+    bench_x(tenths, 1U, 12U);
 }
 
 /** @brief Which wheel is higher at this roll, and by how much. */
@@ -10102,8 +11241,10 @@ static void bench_ramp_side (double roll)
 {
     int32_t mm = bench_round(fabs(sin(roll)) * ROBOT_TRACK_WIDTH_M * 1000.0);
 
-    bench_text((roll >= 0.0) ? " deg (left wheel " : " deg (right wheel ");
-    bench_dec(mm);
+    /* Frame: the side, then 0-255 mm (the track is 0.12 m wide). */
+    bench_text(bench_flag(roll >= 0.0) ? " deg (left wheel " :
+                                         " deg (right wheel ");
+    bench_u((uint32_t)mm, 8U);
     bench_text(" mm higher)");
 }
 
@@ -10116,6 +11257,12 @@ static void bench_ramp_side (double roll)
  */
 static void bench_ramp_results (void)
 {
+    /* Frames: run counts 0-1023 (a 1 h run, as the live lines); heights
+     * +-511 mm; centre path +-1048575 mm (21 bits); time 0-6553.5 s; held
+     * over humps 0-65535 mm; lift height and speed 0-4095 mm, mm/s; motor
+     * direction changes 0-65535; IMU samples 0-524287 (19 bits, over an
+     * hour at 100 Hz); angles as bench_ramp_deg.
+     */
     if (!g_ramp.b_ready)
     {
         return;
@@ -10124,17 +11271,18 @@ static void bench_ramp_results (void)
     {
         bench_flush();
     }
+    bench_line(BK_RAMP_HIGHEST);
     bench_text(" ramp: highest ");
-    bench_dec(bench_round(g_ramp.best.peak * 1000.0));
+    bench_i(bench_round(g_ramp.best.peak * 1000.0), 10U);
     bench_text(" mm");
-    if (g_ramp.best.peak > 0.0)
+    if (bench_flag(g_ramp.best.peak > 0.0))
     {
         bench_text(" (rise ");
-        bench_dec((int32_t)g_ramp.best_rise);
+        bench_u(g_ramp.best_rise, 10U);
         bench_text(") at ");
-        bench_dec(g_ramp.best.peak_mm);
+        bench_i(g_ramp.best.peak_mm, 21U);
         bench_text(" mm, t ");
-        bench_fixed(g_ramp.best.peak_ds, 1U);
+        bench_ux((uint32_t)g_ramp.best.peak_ds, 1U, 16U);
         bench_text(" s, roll ");
         bench_ramp_deg(g_ramp.best.roll);
         bench_ramp_side(g_ramp.best.roll);
@@ -10142,23 +11290,25 @@ static void bench_ramp_results (void)
     bench_flush();
     if (g_ramp.b_rising && (g_ramp.rise.peak > 0.0))
     {
+        bench_line(BK_RAMP_OPEN);
         bench_text(" ramp: open at the stop, not counted: peak ");
-        bench_dec(bench_round(g_ramp.rise.peak * 1000.0));
+        bench_i(bench_round(g_ramp.rise.peak * 1000.0), 10U);
         bench_text(" mm at ");
-        bench_dec(g_ramp.rise.peak_mm);
+        bench_i(g_ramp.rise.peak_mm, 21U);
         bench_text(" mm, t ");
-        bench_fixed(g_ramp.rise.peak_ds, 1U);
+        bench_ux((uint32_t)g_ramp.rise.peak_ds, 1U, 16U);
         bench_text(" s, roll ");
         bench_ramp_deg(g_ramp.rise.roll);
         bench_ramp_side(g_ramp.rise.roll);
         bench_flush();
     }
+    bench_line(BK_RAMP_RISES);
     bench_text(" ramp: rises ");
-    bench_dec((int32_t)g_ramp.rises);
+    bench_u(g_ramp.rises, 10U);
     bench_text(" of 5 mm or more, robot module ");
-    bench_dec((int32_t)g_ramp.output.completed_humps);
+    bench_u((uint32_t)g_ramp.output.completed_humps, 10U);
     bench_text(" counted, max ");
-    bench_dec((int32_t)terrain_height_mm(g_ramp.output.run_maximum_m));
+    bench_u((uint32_t)terrain_height_mm(g_ramp.output.run_maximum_m), 9U);
     bench_text(" mm; car's own offset pitch ");
     bench_ramp_deg(g_ramp.pitch_offset);
     bench_text(" roll ");
@@ -10177,7 +11327,8 @@ static void bench_ramp_results (void)
         g_ramp.lean_best = g_ramp.lean;
         g_ramp.best_lean = g_ramp.leans + 1U;
     }
-    if (0U != g_ramp.best_lean)
+    bench_line(BK_RAMP_LEANS);
+    if (bench_flag(0U != g_ramp.best_lean))
     {
         bench_ramp_lean_line(" ramp: most side lean ", &g_ramp.lean_best);
     }
@@ -10186,55 +11337,61 @@ static void bench_ramp_results (void)
         bench_text(" ramp: no side lean of 5 mm");
     }
     bench_text("; leans ");
-    bench_dec((int32_t)g_ramp.leans);
+    bench_u(g_ramp.leans, 10U);
     bench_text(", jolts ");
-    bench_dec((int32_t)g_ramp.jolts);
+    bench_u(g_ramp.jolts, 12U);   /* 73 in 2 min on the car */
     bench_flush();
+    bench_line(BK_RAMP_HELD);
     bench_text(" ramp: held straight over humps ");
-    bench_dec((int32_t)g_ramp.hump_holds);
+    bench_u(g_ramp.hump_holds, 10U);
     bench_text(" times, ");
-    bench_dec((int32_t)g_ramp.hump_held_mm);
+    bench_u((uint32_t)g_ramp.hump_held_mm, 16U);
     bench_text(" mm, let go for a bend ");
-    bench_dec((int32_t)g_ramp.hump_let_gos);
+    bench_u(g_ramp.hump_let_gos, 10U);
     bench_flush();
+    bench_line(BK_RAMP_OUT);
     bench_text(" ramp: left out at a turn or not on a straight: rises ");
-    bench_dec((int32_t)g_ramp.rise_turns);
+    bench_u(g_ramp.rise_turns, 10U);
     bench_text(", leans ");
-    bench_dec((int32_t)g_ramp.lean_turns);
+    bench_u(g_ramp.lean_turns, 10U);
     bench_text("; leans pitched over 10 deg ");
-    bench_dec((int32_t)g_ramp.lean_steep);
+    bench_u(g_ramp.lean_steep, 10U);
     bench_text("; no wheel 3 mm up (level): rises ");
-    bench_dec((int32_t)g_ramp.rise_level);
+    bench_u(g_ramp.rise_level, 10U);
     bench_text(", leans ");
-    bench_dec((int32_t)g_ramp.lean_level);
+    bench_u(g_ramp.lean_level, 10U);
     bench_flush();
+    bench_line(BK_RAMP_WILD);
     bench_text(" ramp: left out as lifted or knocked (over ");
-    bench_dec(bench_round(BENCH_RAMP_PEAK_MAX_M * 1000.0));
+    bench_u((uint32_t)bench_round(BENCH_RAMP_PEAK_MAX_M * 1000.0), 9U);
     bench_text(" mm up): ");
-    bench_dec((int32_t)g_ramp.lean_wild);
+    bench_u(g_ramp.lean_wild, 10U);
     bench_flush();
-    bench_text(g_ramp.b_lifted ? " lift: STOPPED the run; most height " :
-                                 " lift: not lifted; most height ");
-    bench_dec(bench_round(g_ramp.lift_height_most * 1000.0));
+    bench_line(BK_LIFT);
+    bench_text(bench_flag(g_ramp.b_lifted) ?
+               " lift: STOPPED the run; most height " :
+               " lift: not lifted; most height ");
+    bench_u((uint32_t)bench_round(g_ramp.lift_height_most * 1000.0), 12U);
     bench_text(" mm (stop at ");
-    bench_dec(bench_round(BENCH_LIFT_HEIGHT_M * 1000.0));
+    bench_u((uint32_t)bench_round(BENCH_LIFT_HEIGHT_M * 1000.0), 12U);
     bench_text("), most upward speed ");
-    bench_dec(bench_round(g_ramp.lift_up_most * 1000.0));
+    bench_u((uint32_t)bench_round(g_ramp.lift_up_most * 1000.0), 12U);
     bench_text(" mm/s; motor direction changes ");
-    bench_dec((int32_t)g_ramp.lift_settles);
+    bench_u(g_ramp.lift_settles, 16U);
     bench_flush();
+    bench_line(BK_RAMP_ROLL);
     bench_text(" ramp: most roll left ");
     bench_ramp_deg(g_ramp.left);
     bench_text(" at ");
-    bench_dec(g_ramp.left_mm);
+    bench_i(g_ramp.left_mm, 21U);
     bench_text(" mm, right ");
     bench_ramp_deg(g_ramp.right);
     bench_text(" at ");
-    bench_dec(g_ramp.right_mm);
+    bench_i(g_ramp.right_mm, 21U);
     bench_text(" mm; samples ");
-    bench_dec((int32_t)g_ramp.samples);
+    bench_u(g_ramp.samples, 19U);
     bench_text(", no tilt ");
-    bench_dec((int32_t)g_ramp.refused);
+    bench_u(g_ramp.refused, 19U);
     bench_flush();
 }
 
@@ -10824,6 +11981,37 @@ static void bench_code_dark_end (uint32_t group, uint32_t runs,
     }
 }
 
+/** @brief MISSION, before a cut's tries: the groups already sent are done
+ * (their line went out, their vote is in), so they give their room back.
+ * Only BENCH_CODE_FOUND (12) were ever kept: with no run limit (22 Nov) a
+ * run read no more cards after its 12th group (the sim's long scenario).
+ * The run's totals keep counting them (founds_done, codes_done).
+ */
+static void bench_code_found_drop (void)
+{
+    uint32_t from;
+    uint32_t to = 0U;
+
+    for (from = 0U; from < g_code.founds; ++from)
+    {
+        if (g_code.found[from].b_sent)
+        {
+            ++g_code.founds_done;
+            if (g_code.found[from].b_framed)
+            {
+                ++g_code.codes_done;
+            }
+            continue;
+        }
+        if (to != from)
+        {
+            g_code.found[to] = g_code.found[from];
+        }
+        ++to;
+    }
+    g_code.founds = to;
+}
+
 /** @brief MISSION, a cut (bench_code_stream): its samples frozen at
  * cut_count (later ones are stored after them), tape lines, white and noise
  * found once; its tries then run one per line step (bench_code_tries_step),
@@ -10832,6 +12020,7 @@ static void bench_code_dark_end (uint32_t group, uint32_t runs,
  */
 static void bench_code_tries_begin (uint32_t gap_units)
 {
+    bench_code_found_drop();
     g_code.b_trying = true;
     g_code.try_next = 0U;
     g_code.try_most = 0U;
@@ -10960,7 +12149,10 @@ static void bench_code_tries_step (void)
     uint32_t framed = 0U;
     uint32_t index;
 
+    uint64_t start_us = board_time_us();
+
     bench_fit_run();   /* TRIAL: the fit, a slice of each step */
+    bench_slowest(&g_drive.slow_fit_us, start_us);
     if (!g_code.b_trying)
     {
         return;
@@ -11865,7 +13057,8 @@ static void bench_code_trace (void)
 /** @brief Decoder units as whole millimetres. */
 static void bench_code_unit_mm (uint32_t units)
 {
-    bench_dec(bench_round((double)units * g_code.unit_m * 1000.0));
+    /* The side sensor's path from the start, 0-2097151 mm (21 bits). */
+    bench_u((uint32_t)bench_round((double)units * g_code.unit_m * 1000.0), 21U);
 }
 
 /** @brief The selected gain set, without a line end. */
@@ -11935,48 +13128,58 @@ static void bench_report (void)
     int16_t  compass[3] = {0, 0, 0};
     uint32_t axis;
 
+    /* Frames: IR ADC 0-4095; samples 0-1023 a second; acceleration
+     * +-4095 mg (13 bits); compass raw as P lines; encoder counts
+     * +-16777215 (25 bits: over an hour of driving), mm +-2097151 (22 bits);
+     * errors 0-65535.
+     */
+    bench_line(BK_IR);
+    (void)bench_flag(0U != g_ir.count);
     for (axis = 0U; (axis < 3U) && (0U != g_ir.count); ++axis)
     {
         bench_text(ir_names[axis]);
-        bench_dec((int32_t)(g_ir.sum[axis] / g_ir.count));
+        bench_u(g_ir.sum[axis] / g_ir.count, 12U);
         bench_text(" ");
-        bench_dec((int32_t)g_ir.minimum[axis]);
+        bench_u((uint32_t)g_ir.minimum[axis], 12U);
         bench_text("-");
-        bench_dec((int32_t)g_ir.maximum[axis]);
+        bench_u((uint32_t)g_ir.maximum[axis], 12U);
     }
     bench_flush();
+    bench_line(BK_ACC);
     bench_text("ACC mg n ");
-    bench_dec((int32_t)g_accel.count);
+    bench_u(g_accel.count, 10U);
     for (axis = 0U; (axis < 3U) && (0U != g_accel.count); ++axis)
     {
         bench_text(axis_names[axis]);
-        bench_signed(g_accel.sum[axis] / (int32_t)g_accel.count);
+        bench_s(g_accel.sum[axis] / (int32_t)g_accel.count, 13U);
         bench_text(" ");
-        bench_signed((int32_t)g_accel.minimum[axis]);
+        bench_s((int32_t)g_accel.minimum[axis], 13U);
         bench_text("..");
-        bench_signed((int32_t)g_accel.maximum[axis]);
+        bench_s((int32_t)g_accel.maximum[axis], 13U);
     }
     bench_flush();
     if (bench_mag_read(compass))
     {
+        bench_line(BK_MAG);
         bench_text("MAG");
         for (axis = 0U; axis < 3U; ++axis)
         {
             bench_text(axis_names[axis]);
-            bench_signed((int32_t)compass[axis]);
+            bench_s((int32_t)compass[axis], 13U);
         }
         bench_flush();
     }
+    bench_line(BK_ENC);
     bench_text("ENC counts L ");
-    bench_signed(g_distance[BENCH_LEFT]);
+    bench_s(g_distance[BENCH_LEFT], 25U);
     bench_text(" R ");
-    bench_signed(g_distance[BENCH_RIGHT]);
+    bench_s(g_distance[BENCH_RIGHT], 25U);
     bench_text(" mm L ");
-    bench_signed(bench_mm(g_distance[BENCH_LEFT]));
+    bench_s(bench_mm(g_distance[BENCH_LEFT]), 22U);
     bench_text(" R ");
-    bench_signed(bench_mm(g_distance[BENCH_RIGHT]));
+    bench_s(bench_mm(g_distance[BENCH_RIGHT]), 22U);
     bench_text(" err ");
-    bench_dec((int32_t)g_encoder_errors);
+    bench_u(g_encoder_errors, 16U);
     bench_flush();
     g_ramp.flat = g_accel;
     g_ir.count = 0U;
@@ -12018,6 +13221,17 @@ static int32_t bench_round (double value)
     return (int32_t)((value >= 0.0) ? (value + 0.5) : (value - 0.5));
 }
 
+/** @brief *p_most = the longest of it and the time since start_us. */
+static void bench_slowest (uint32_t * p_most, uint64_t start_us)
+{
+    uint32_t took = (uint32_t)(board_time_us() - start_us);
+
+    if (took > *p_most)
+    {
+        *p_most = took;
+    }
+}
+
 static void bench_text (const char * p_text)
 {
     while (('\0' != *p_text) && ((g_length + 2U) < BENCH_TEXT_BYTES))
@@ -12029,8 +13243,10 @@ static void bench_text (const char * p_text)
     g_text[g_length] = '\0';
 }
 
-/** @brief Signed decimal; unsigned negation also covers INT32_MIN. */
-static void bench_dec (int32_t value)
+/** @brief Signed decimal into g_text; unsigned negation also covers
+ * INT32_MIN.
+ */
+static void bench_dec_text (int32_t value)
 {
     char     digits[12];
     uint32_t index = sizeof(digits) - 1U;
@@ -12052,18 +13268,18 @@ static void bench_dec (int32_t value)
     bench_text(&digits[index]);
 }
 
-/** @brief Decimal with an explicit sign. */
-static void bench_signed (int32_t value)
+/** @brief Decimal with an explicit sign, into g_text. */
+static void bench_signed_text (int32_t value)
 {
     if (value >= 0)
     {
         bench_text("+");
     }
-    bench_dec(value);
+    bench_dec_text(value);
 }
 
-/** @brief value / 10^places (1 or 2) with that many decimals. */
-static void bench_fixed (int32_t value, uint32_t places)
+/** @brief value / 10^places (1 or 2) with that many decimals, into g_text. */
+static void bench_fixed_text (int32_t value, uint32_t places)
 {
     uint32_t scale = (1U == places) ? 10U : 100U;
     uint32_t magnitude = (value < 0) ? (0U - (uint32_t)value) :
@@ -12074,34 +13290,358 @@ static void bench_fixed (int32_t value, uint32_t places)
     {
         bench_text("-");
     }
-    bench_dec((int32_t)(magnitude / scale));
+    bench_dec_text((int32_t)(magnitude / scale));
     bench_text(".");
     if ((100U == scale) && (fraction < 10U))
     {
         bench_text("0");
     }
-    bench_dec((int32_t)fraction);
+    bench_dec_text((int32_t)fraction);
 }
+
+/** @brief A number printed with no width: the line cannot be a frame
+ * (bench_frame_close counts it and nothing is sent).
+ */
+static void bench_untyped (void)
+{
+#if BENCH_FRAMES
+    if (BK_NONE != g_frame_kind)
+    {
+        gb_frame_text = true;
+    }
+#endif
+}
+
+/** @brief Signed decimal, text only (a line using it is never sent). */
+static void bench_dec (int32_t value)
+{
+    bench_untyped();
+    bench_dec_text(value);
+}
+
+/** @brief Decimal with an explicit sign, text only. */
+static void bench_signed (int32_t value)
+{
+    bench_untyped();
+    bench_signed_text(value);
+}
+
+/** @brief value / 10^places with that many decimals, text only. */
+static void bench_fixed (int32_t value, uint32_t places)
+{
+    bench_untyped();
+    bench_fixed_text(value, places);
+}
+
+/** @brief A new line of this kind: its frame's header (seq set at
+ * sending) and kind. Text build: nothing.
+ */
+static void bench_line (bench_kind_t kind)
+{
+#if BENCH_FRAMES
+    bitpack_writer_init(&g_frame_w, g_frame, sizeof(g_frame));
+    bitpack_write(&g_frame_w, BENCH_FRAME_HEAD, 8U);
+    bitpack_write(&g_frame_w, 0U, 8U);
+    bitpack_write(&g_frame_w, (uint32_t)kind, BENCH_FRAME_KIND_BITS);
+    g_frame_kind = (uint32_t)kind;
+    gb_frame_text = false;
+#else
+    (void)kind;
+#endif
+}
+
+/** @brief One field of the line's frame, already in its bits. */
+static void bench_frame_put (uint32_t field, uint32_t bits)
+{
+#if BENCH_FRAMES
+    if (BK_NONE != g_frame_kind)
+    {
+        bitpack_write(&g_frame_w, field, bits);
+    }
+#else
+    (void)field;
+    (void)bits;
+#endif
+}
+
+/** @brief value in bits unsigned bits, saturated (counted). */
+static uint32_t bench_frame_unsigned (uint32_t value, uint32_t bits)
+{
+    uint32_t largest = bitpack_mask(bits);
+
+    if (value > largest)
+    {
+        ++g_frame_sat;
+        return largest;
+    }
+    return value;
+}
+
+/** @brief value as a bits-bit two's complement field, saturated at
+ * +/-(2^(bits-1)-1) (counted); the most negative code is never made.
+ */
+static uint32_t bench_frame_signed (int32_t value, uint32_t bits)
+{
+    int32_t largest = bitpack_signed_max(bits);
+
+    if ((value > largest) || (value < -largest))
+    {
+        ++g_frame_sat;
+    }
+    return bitpack_signed(value, bits);
+}
+
+static void bench_u (uint32_t value, uint32_t bits)
+{
+    bench_frame_put(bench_frame_unsigned(value, bits), bits);
+    bench_dec_text((int32_t)value);
+}
+
+static void bench_i (int32_t value, uint32_t bits)
+{
+    bench_frame_put(bench_frame_signed(value, bits), bits);
+    bench_dec_text(value);
+}
+
+static void bench_s (int32_t value, uint32_t bits)
+{
+    bench_frame_put(bench_frame_signed(value, bits), bits);
+    bench_signed_text(value);
+}
+
+static void bench_x (int32_t value, uint32_t places, uint32_t bits)
+{
+    bench_frame_put(bench_frame_signed(value, bits), bits);
+    bench_fixed_text(value, places);
+}
+
+static void bench_ux (uint32_t value, uint32_t places, uint32_t bits)
+{
+    bench_frame_put(bench_frame_unsigned(value, bits), bits);
+    bench_fixed_text((int32_t)value, places);
+}
+
+static bool bench_flag (bool b_value)
+{
+    bench_frame_put(b_value ? 1U : 0U, 1U);
+    return b_value;
+}
+
+static void bench_code (uint32_t value, uint32_t bits)
+{
+    bench_frame_put(bench_frame_unsigned(value, bits), bits);
+}
+
+static void bench_name (const char * const * p_names, uint32_t index,
+                        uint32_t bits)
+{
+    bench_frame_put(bench_frame_unsigned(index, bits), bits);
+    bench_text(p_names[index]);
+}
+
+/** @brief Decoded text: its length (length_bits), then 6 bits a character,
+ * the index in g_code39_chars (44 characters), BENCH_CODE_CHARS + 1 for
+ * '?' (an unread character). Printed as it is.
+ */
+static void bench_str (const char * p_text, uint32_t length_bits)
+{
+    uint32_t length = 0U;
+    uint32_t index;
+    uint32_t code;
+
+    while ((length < bitpack_mask(length_bits)) && ('\0' != p_text[length]))
+    {
+        ++length;
+    }
+    bench_code(length, length_bits);
+    for (index = 0U; index < length; ++index)
+    {
+        code = BENCH_CODE_CHARS;
+        while ((code > 0U) && (g_code39_chars[code - 1U] != p_text[index]))
+        {
+            --code;
+        }
+        /* code: 1 + its index, or 0: not a Code 39 character ('?'). */
+        bench_code((0U == code) ? (BENCH_CODE_CHARS + 1U) : (code - 1U), 6U);
+    }
+    bench_text(p_text);
+}
+
+/** @brief p_text as its index in p_names (bits); a text not in the table
+ * has no code, so the line is not sent (bench_untyped).
+ */
+static void bench_name_of (const char * const * p_names, uint32_t count,
+                           const char * p_text, uint32_t bits)
+{
+    uint32_t index = 0U;
+
+    while ((index < count) && (0 != strcmp(p_names[index], p_text)))
+    {
+        ++index;
+    }
+    if (index < count)
+    {
+        bench_name(p_names, index, bits);
+        return;
+    }
+    bench_untyped();
+    bench_text(p_text);
+}
+
+/** @brief Text of a fixed length from a small alphabet (map rows): each
+ * character's index in p_alphabet, bits each, no length (the template knows
+ * it). A character not in it has no code: the line is not sent.
+ */
+static void bench_marks (const char * p_text, const char * p_alphabet,
+                         uint32_t bits)
+{
+    uint32_t index;
+    uint32_t code;
+
+    for (index = 0U; '\0' != p_text[index]; ++index)
+    {
+        code = 0U;
+        while (('\0' != p_alphabet[code]) &&
+               (p_alphabet[code] != p_text[index]))
+        {
+            ++code;
+        }
+        if ('\0' == p_alphabet[code])
+        {
+            bench_untyped();
+        }
+        bench_code(code, bits);
+    }
+    bench_text(p_text);
+}
+
+/** @brief One character from a known range: ch - base in bits bits. */
+static void bench_char (char ch, char base, uint32_t bits)
+{
+    char text[2];
+
+    text[0] = ch;
+    text[1] = '\0';
+    bench_code((uint32_t)(uint8_t)ch - (uint32_t)(uint8_t)base, bits);
+    bench_text(text);
+}
+
+/** @brief End the line's frame: its size in bytes, or 0 when the line has
+ * no frame (no kind, or a number with no width: counted in
+ * g_frame_unsent) or overflowed BENCH_FRAME_BYTES (g_frame_bad). Either way
+ * the next line starts with no kind.
+ */
+static uint32_t bench_frame_close (void)
+{
+    uint32_t size = 0U;
+
+#if BENCH_FRAMES
+    if ((BK_NONE == g_frame_kind) || gb_frame_text)
+    {
+        ++g_frame_unsent;
+    }
+    else
+    {
+        size = (uint32_t)bitpack_writer_size(&g_frame_w);
+        if (0U == size)
+        {
+            ++g_frame_bad;
+        }
+    }
+    g_frame_kind = BK_NONE;
+    gb_frame_text = false;
+#endif
+    return size;
+}
+
+#if BENCH_FRAMES && ROBOT_MQTT
+/** @brief Queue one frame for the radio with the next seq; false if the
+ * queue is full (the caller may try again: the seq is not used up).
+ */
+static bool bench_frame_send (uint8_t * p_frame, uint32_t size)
+{
+    p_frame[1] = g_frame_seq;
+    if (!net_mqtt_ipc_send(p_frame, size))
+    {
+        return false;
+    }
+    ++g_frame_seq;
+    ++g_frame_sent;
+    return true;
+}
+#endif
+
+#if BENCH_FRAMES && !ROBOT_MQTT
+/** @brief Offline and the sim: the frame in hex ("#F"), then its text, so a
+ * run checks every frame against the line it stands for
+ * (bench_codec.py check).
+ */
+static void bench_frame_print (uint8_t * p_frame, uint32_t size,
+                               const char * p_text)
+{
+    static const char p_hex[] = "0123456789abcdef";
+    char     line[(2U * BENCH_FRAME_BYTES) + 6U];
+    uint32_t index;
+
+    if (0U == size)
+    {
+        (void)tm_printf((const UB *)"#T %s", p_text);
+        return;
+    }
+    p_frame[1] = g_frame_seq;
+    ++g_frame_seq;
+    ++g_frame_sent;
+    line[0] = '#';
+    line[1] = 'F';
+    line[2] = ' ';
+    for (index = 0U; index < size; ++index)
+    {
+        line[3U + (2U * index)] = p_hex[p_frame[index] >> 4];
+        line[4U + (2U * index)] = p_hex[p_frame[index] & 0x0FU];
+    }
+    line[3U + (2U * size)] = '\n';
+    line[4U + (2U * size)] = '\0';
+    (void)tm_printf((const UB *)"%s%s", line, p_text);
+}
+#endif
 
 /** @brief MISSION: the line built in g_text becomes the live line (g_live),
  * its first frames pushed at once.
  */
 static void bench_live_take (void)
 {
+#if BENCH_FRAMES
+    g_live_frame_size = bench_frame_close();
+    (void)memcpy(g_live_frame, g_frame, g_live_frame_size);
+#endif
     (void)memcpy(g_live, g_text, g_length);
     g_live[g_length] = '\n';
     g_live_length = g_length + 1U;
     g_live_sent = 0U;
     g_length = 0U;
+#if BENCH_FRAMES && ROBOT_MQTT
+    if (0U == g_live_frame_size)
+    {
+        g_live_length = 0U;     /* no frame: nothing to send */
+    }
+#endif
     bench_live_push();
 }
 
-/** @brief MISSION: as many frames of the live line as the MQTT queue takes
- * now, without waiting. Offline: all of it to UART0.
+/** @brief MISSION: as much of the live line as the MQTT queue takes now,
+ * without waiting (a frame, or text frames in the text build). Offline:
+ * all of it to UART0.
  */
 static void bench_live_push (void)
 {
 #if ROBOT_MQTT
+#if BENCH_FRAMES
+    if (gb_mqtt && (g_live_sent < g_live_length) &&
+        bench_frame_send(g_live_frame, g_live_frame_size))
+    {
+        g_live_sent = g_live_length;
+    }
+#else
     uint32_t chunk;
 
     while (gb_mqtt && (g_live_sent < g_live_length))
@@ -12117,11 +13657,16 @@ static void bench_live_push (void)
         }
         g_live_sent += chunk;
     }
+#endif
 #else
     if (g_live_sent < g_live_length)
     {
         g_live[g_live_length] = '\0';
+#if BENCH_FRAMES
+        bench_frame_print(g_live_frame, g_live_frame_size, g_live);
+#else
         (void)tm_printf((const UB *)"%s", g_live);
+#endif
         g_live_sent = g_live_length;
     }
 #endif
@@ -12145,25 +13690,45 @@ static void bench_live_finish (void)
     g_live_sent = 0U;
 }
 
-/** @brief Send one line, after any live line. MQTT: 20-byte frames, bounded
- * waits that keep the watchdog fed; a line the queue cannot take is
- * dropped. Offline: UART0.
+/** @brief Send one line, after any live line, with bounded waits that keep
+ * the watchdog fed; a line the queue cannot take is dropped. MQTT: its frame
+ * (text build: the text in NET_MQTT_IPC_TX_MAX pieces). Offline: UART0.
  */
 static void bench_flush (void)
 {
 #if ROBOT_MQTT
+    uint32_t tries;
+#if !BENCH_FRAMES
     uint32_t offset = 0U;
     uint32_t chunk;
-    uint32_t tries;
+#endif
+#endif
+#if BENCH_FRAMES
+    uint32_t size;
 #endif
 
     if (0U != g_live_length)
     {
         bench_live_finish();
     }
+#if BENCH_FRAMES
+    size = bench_frame_close();
+#endif
     g_text[g_length] = '\n';
     ++g_length;
 #if ROBOT_MQTT
+#if BENCH_FRAMES
+    tries = 0U;
+    while (gb_mqtt && (0U != size) && !bench_frame_send(g_frame, size))
+    {
+        ++tries;
+        if (tries >= g_send_tries)
+        {
+            break;
+        }
+        bench_tick();
+    }
+#else
     while (gb_mqtt && (offset < g_length))
     {
         chunk = g_length - offset;
@@ -12187,9 +13752,14 @@ static void bench_flush (void)
             offset += chunk;
         }
     }
+#endif
 #else
     g_text[g_length] = '\0';
+#if BENCH_FRAMES
+    bench_frame_print(g_frame, size, g_text);
+#else
     (void)tm_printf((const UB *)"%s", g_text);
+#endif
 #endif
     board_watchdog_feed();
     g_length = 0U;
@@ -12204,7 +13774,8 @@ static void bench_flush (void)
  * cuts at 30 mm of white, and a blurred small card whose narrow bars vanish
  * has up to 45 mm between wide bars); the fit then runs over the next line
  * steps, at most BENCH_FIT_BUDGET_US of each, and sends its own reading as
- * one Decoder 2 line. It changes nothing the darkness tries do or report (CODE /
+ * one Decoder 2 line. It changes nothing the darkness tries do or report (CODE
+ * /
  * GROUP lines), nor the driving.
  *
  * Stage 1: every Code 39 symbol *X* has six wide bars (X any character
@@ -12229,7 +13800,8 @@ static void bench_flush (void)
  * the sensor's spot and dead zone (the 30 Oct big-card fit gave sigma
  * 3.3-3.8 mm, c0 0.45-0.55). No letter, card size or track position.
  */
-#define BENCH_FIT_JOIN_MM (54.0)    /* 15 modules between wide bars + 3, at 3 mm */
+/* 15 modules between wide bars + 3, at 3 mm */
+#define BENCH_FIT_JOIN_MM (54.0)
 #define BENCH_FIT_BINS (640U)       /* 1 mm bins: at most 640 mm decoded */
 #define BENCH_FIT_PAD_MM (30.0)     /* white kept either side of the dark */
 #define BENCH_FIT_LONGEST_MM (420.0) /* longer dark: not one card */
@@ -12358,7 +13930,8 @@ typedef struct
 } bench_fit_t;
 
 static bench_fit_t g_fit;
-/* A Decoder 2 line waiting to go out: the fit goes on whatever the link does. */
+/* A Decoder 2 line waiting to go out: the fit goes on whatever the link
+ * does. */
 typedef struct
 {
     bench_fit_why_t why;
@@ -12414,7 +13987,10 @@ static bool        gb_fit_force;  /* stopped at a junction for the decode
                                    * to the fit without the white after it */
 
 static const float g_fit_shape_m[3] = { 0.985f, 1.0f, 1.015f };
-static const float g_fit_shape_sigma[6] = { 1.5f, 2.1f, 2.7f, 3.3f, 3.9f, 4.5f };
+static const float g_fit_shape_sigma[6] =
+{
+    1.5f, 2.1f, 2.7f, 3.3f, 3.9f, 4.5f
+};
 static const float g_fit_shape_c0[BENCH_FIT_C0S] =
 {
     0.15f, 0.25f, 0.35f, 0.45f, 0.55f, 0.65f
@@ -12445,12 +14021,14 @@ static bool bench_fit_tables (void)
     if (phi_i <= (BENCH_FIT_PHI_N / 2U))
     {
         /* The lower half only: Phi(-z) = 1 - Phi(z). */
-        for (t = 0U; (t < BENCH_FIT_PHI_SLICE) && (phi_i <= (BENCH_FIT_PHI_N / 2U)); ++t, ++phi_i)
+        for (t = 0U; (t < BENCH_FIT_PHI_SLICE) &&
+                     (phi_i <= (BENCH_FIT_PHI_N / 2U)); ++t, ++phi_i)
         {
             z = -4.0 + (8.0 * (double)phi_i / (double)BENCH_FIT_PHI_N);
             g_fit_phi[phi_i] = (uint16_t)bench_round(
                 (double)BENCH_FIT_ONE * 0.5 * (1.0 + erf(z / sqrt(2.0))));
-            g_fit_phi[BENCH_FIT_PHI_N - phi_i] = (uint16_t)(BENCH_FIT_ONE - g_fit_phi[phi_i]);
+            g_fit_phi[BENCH_FIT_PHI_N - phi_i] =
+                (uint16_t)(BENCH_FIT_ONE - g_fit_phi[phi_i]);
         }
         return false;
     }
@@ -12462,7 +14040,8 @@ static bool bench_fit_tables (void)
         }
     }
     for (c = next_c, t = 0U;
-         (c < BENCH_CODE_CHARS) && ((n + 1U) < BENCH_FIT_CANDS) && (t < BENCH_FIT_CHAR_SLICE);
+         (c < BENCH_CODE_CHARS) && ((n + 1U) < BENCH_FIT_CANDS) &&
+         (t < BENCH_FIT_CHAR_SLICE);
          ++c, ++t)
     {
         uint16_t pat[3];
@@ -12576,7 +14155,8 @@ static bool bench_fit_render (uint32_t cand, float m, float sigma)
     }
     for (b = 0U; b < BENCH_FIT_EDGES; ++b)
     {
-        float   edge = ((float)g_fit_edge[cand][b] * m) + (float)BENCH_FIT_TPL_PAD_MM;
+        float   edge = ((float)g_fit_edge[cand][b] * m) +
+                       (float)BENCH_FIT_TPL_PAD_MM;
         int32_t sign = (0U == (b % 2U)) ? 1 : -1;
         int32_t p0 = pe[b] - reach;
         int32_t p1 = pe[b] + reach;
@@ -12662,7 +14242,8 @@ static void bench_fit_eval (float x0, const float * p_c0, uint32_t c0s,
     }
     for (i = 0U; i < g_fit.valid; ++i)
     {
-        int32_t idx = idx0 + ((int32_t)BENCH_FIT_TPL_Q * (int32_t)g_fit.valid_bin[i]);
+        int32_t idx = idx0 + ((int32_t)BENCH_FIT_TPL_Q *
+                              (int32_t)g_fit.valid_bin[i]);
 
         if ((idx >= 0) && (idx < (int32_t)g_fit.tpl_points) &&
             ((int32_t)g_fit_tpl[idx] > c0_min))
@@ -12830,7 +14411,8 @@ static void bench_fit_humps (void)
         }
         a = (i > 0U) ? ext[i - 1U] : 0U;
         b = ((i + 1U) < exts) ? ext[i + 1U] : (bins - 1U);
-        base = ((int32_t)p_v[a] > (int32_t)p_v[b]) ? (int32_t)p_v[a] : (int32_t)p_v[b];
+        base = ((int32_t)p_v[a] > (int32_t)p_v[b]) ? (int32_t)p_v[a] :
+                                                      (int32_t)p_v[b];
         half = base + (((int32_t)p_v[ext[i]] - base) / 2);
         for (p = a; p <= b; ++p)
         {
@@ -12870,7 +14452,8 @@ static void bench_fit_humps (void)
 
             for (i = 0U; i < humps; ++i)
             {
-                if ((!b_used[i]) && ((BENCH_FIT_HUMPS == best) || (ha[i] > ha[best])))
+                if ((!b_used[i]) &&
+                    ((BENCH_FIT_HUMPS == best) || (ha[i] > ha[best])))
                 {
                     best = i;
                 }
@@ -13008,7 +14591,8 @@ static void bench_fit_say (bench_fit_why_t why, float from, float to)
         ++g_fit_lines_lost;
         return;
     }
-    p_line = &g_fit_lines[(g_fit_line_first + g_fit_line_count) % BENCH_FIT_LINES];
+    p_line = &g_fit_lines[(g_fit_line_first + g_fit_line_count) %
+                          BENCH_FIT_LINES];
     ++g_fit_line_count;
     p_line->why = why;
     p_line->b_read = g_fit.b_read;
@@ -13073,7 +14657,8 @@ static void bench_fit_add (void)
 static bool bench_fit_prepare (void)
 {
     float    unit_mm = (float)(g_code.unit_m * 1000.0);
-    uint32_t pad_u = (uint32_t)bench_round((BENCH_FIT_PAD_MM / 1000.0) / g_code.unit_m);
+    uint32_t pad_u = (uint32_t)bench_round((BENCH_FIT_PAD_MM / 1000.0) /
+                                           g_code.unit_m);
     uint32_t i;
     int64_t  svv = 0;
     int32_t  sv = 0;
@@ -13095,7 +14680,8 @@ static bool bench_fit_prepare (void)
         return false;
     }
     g_fit.x_first = (float)g_fit_bin.u0 * unit_mm;
-    g_fit.bins = (((g_fit_bin.last_u + pad_u - g_fit_bin.u0) * g_fit_bin.k16) >> 16) + 1U;
+    g_fit.bins = (((g_fit_bin.last_u + pad_u - g_fit_bin.u0) *
+                   g_fit_bin.k16) >> 16) + 1U;
     if (g_fit.bins > BENCH_FIT_BINS)
     {
         g_fit.bins = BENCH_FIT_BINS;
@@ -13142,8 +14728,10 @@ static bool bench_fit_prepare (void)
 static void bench_fit_begin (void)
 {
     float    unit_mm = (float)(g_code.unit_m * 1000.0);
-    uint32_t join_u = (uint32_t)bench_round((BENCH_FIT_JOIN_MM / 1000.0) / g_code.unit_m);
-    uint32_t pad_u = (uint32_t)bench_round((BENCH_FIT_PAD_MM / 1000.0) / g_code.unit_m);
+    uint32_t join_u = (uint32_t)bench_round((BENCH_FIT_JOIN_MM / 1000.0) /
+                                            g_code.unit_m);
+    uint32_t pad_u = (uint32_t)bench_round((BENCH_FIT_PAD_MM / 1000.0) /
+                                           g_code.unit_m);
     uint32_t floor_adc;
     uint32_t first_u = 0U;
     uint32_t last_u = 0U;
@@ -13225,8 +14813,10 @@ static void bench_fit_finish (void)
     }
     for (k = 0U; k < g_fit.short_n; ++k)
     {
-        if ((g_fit_char[g_fit.short_cand[k]] != g_fit_char[g_fit.short_cand[best]]) &&
-            ((BENCH_FIT_SHORT == other) || (g_fit.best[k].sse < g_fit.best[other].sse)))
+        if ((g_fit_char[g_fit.short_cand[k]] !=
+             g_fit_char[g_fit.short_cand[best]]) &&
+            ((BENCH_FIT_SHORT == other) ||
+             (g_fit.best[k].sse < g_fit.best[other].sse)))
         {
             other = k;
         }
@@ -13246,7 +14836,8 @@ static void bench_fit_finish (void)
     {
         g_fit.text_other = g_fit_char[g_fit.short_cand[other]];
         g_fit.b_text_other_rev = gb_fit_rev[g_fit.short_cand[other]];
-        g_fit.text_margin = g_fit.best[other].sse / fmaxf(g_fit.best[best].sse, 1.0f);
+        g_fit.text_margin = g_fit.best[other].sse /
+                            fmaxf(g_fit.best[best].sse, 1.0f);
     }
     g_fit.b_read = (g_fit.text_margin >= BENCH_FIT_MARGIN);
     if (g_fit.b_read)
@@ -13258,7 +14849,8 @@ static void bench_fit_finish (void)
         ++g_fit.no_reads;
     }
     bench_fit_say(BENCH_FIT_WHY_FIT, g_fit.best[best].x0,
-                  g_fit.best[best].x0 + (BENCH_FIT_MODULES * g_fit.best[best].m));
+                  g_fit.best[best].x0 +
+                  (BENCH_FIT_MODULES * g_fit.best[best].m));
     g_fit.phase = BENCH_FIT_IDLE;
 }
 
@@ -13304,7 +14896,8 @@ static bool bench_fit_slice (void)
             return true;
         case BENCH_FIT_LSQ:
             /* Every choice of six of the largest humps, every candidate. */
-            for (t = 0U; (t < BENCH_FIT_LSQ_SLICE) && (g_fit.c < BENCH_FIT_CANDS); ++t)
+            for (t = 0U; (t < BENCH_FIT_LSQ_SLICE) &&
+                         (g_fit.c < BENCH_FIT_CANDS); ++t)
             {
                 bench_fit_lsq(g_fit.c);
                 ++g_fit.c;
@@ -13322,7 +14915,8 @@ static bool bench_fit_slice (void)
             if (g_fit.s1_rel > BENCH_FIT_MISFIT)
             {
                 ++g_fit.no_reads;
-                bench_fit_say(BENCH_FIT_WHY_MISFIT, g_fit.dark_from, g_fit.dark_to);
+                bench_fit_say(BENCH_FIT_WHY_MISFIT, g_fit.dark_from,
+                              g_fit.dark_to);
                 g_fit.phase = BENCH_FIT_IDLE;
                 return false;
             }
@@ -13371,8 +14965,9 @@ static bool bench_fit_slice (void)
             cand = g_fit.short_cand[g_fit.k];
             tpls = BENCH_FIT_CANDS_TPLS;
             m = g_fit.ms[cand] * (0.97f + (0.01f * (float)(g_fit.tpl % 7U)));
-            sigma = g_fit.shape.sigma * ((0U == (g_fit.tpl / 7U)) ? 0.85f :
-                                         ((1U == (g_fit.tpl / 7U)) ? 1.0f : 1.15f));
+            sigma = g_fit.shape.sigma *
+                    ((0U == (g_fit.tpl / 7U)) ? 0.85f :
+                     ((1U == (g_fit.tpl / 7U)) ? 1.0f : 1.15f));
             x0n = BENCH_FIT_X0S;
             x0 = g_fit.x0s[cand] - 3.0f + (0.5f * (float)g_fit.xi);
             c0s[0] = fmaxf(0.0f, g_fit.shape.c0 - 0.07f);
@@ -13475,15 +15070,18 @@ static bool bench_fit_slice (void)
  */
 static void bench_fit_run (void)
 {
-    uint32_t join_u = (uint32_t)bench_round((BENCH_FIT_JOIN_MM / 1000.0) / g_code.unit_m);
-    uint32_t newest = (0U != g_code.count) ? g_code.sample[g_code.count - 1U].unit : 0U;
+    uint32_t join_u = (uint32_t)bench_round((BENCH_FIT_JOIN_MM / 1000.0) /
+                                            g_code.unit_m);
+    uint32_t newest = (0U != g_code.count) ?
+                      g_code.sample[g_code.count - 1U].unit : 0U;
     uint64_t t0;
     uint32_t used = 0U;
     bool     b_more;
 
     if (!gb_fit_tables)
     {
-        (void)bench_fit_tables();   /* a share of the tables each step, from the first */
+        /* a share of the tables each step, from the first */
+        (void)bench_fit_tables();
     }
     if ((!gb_fit_tables) && (BENCH_FIT_IDLE == g_fit.phase))
     {
@@ -13516,7 +15114,8 @@ static void bench_fit_run (void)
 
 /** @brief MISSION, after the stop: the fit under way, else (b_bin) the
  * binned card, finished at once. True while there is something to say or
- * do: called until false, its Decoder 2 line sent each time. The watchdog is fed
+ * do: called until false, its Decoder 2 line sent each time. The watchdog is
+ * fed
  * each table share and slice: no bench tick runs here, and a whole card's
  * fit takes longer than BENCH_WATCHDOG_MS (4 Nov: the car reset after the
  * stop and its Decoder 2 reads and totals were lost).
@@ -13548,7 +15147,7 @@ static void bench_fit_char (char ch)
 
     text[0] = ch;
     text[1] = '\0';
-    bench_text(text);
+    bench_str(text, 1U);   /* frame: a 1-bit length (always 1), 6 bits */
 }
 
 /** @brief The Decoder 2 line, once per fitted cut (at most 150 characters:
@@ -13570,56 +15169,67 @@ static bool bench_fit_text (void)
     code[1] = p_line->ch;
     code[2] = '*';
     code[3] = '\0';
-    bench_vote_add(BENCH_VOTE_DECODER2, (int32_t)p_line->from, (int32_t)p_line->to,
+    bench_vote_add(BENCH_VOTE_DECODER2, (int32_t)p_line->from,
+                   (int32_t)p_line->to,
                    ((BENCH_FIT_WHY_FIT == p_line->why) && p_line->b_read) ?
                    code : NULL);
+    /* Frame: why 2 bits (bench_fit_why_t); dark length 0-65535 mm; misfit
+     * 0-102.3 mm; margin 0-99.00 (capped there); module 0-20.47 mm; spot
+     * 0-25.5 mm; dead 0-1.27; path 0-2097151 mm (21 bits each); fit time
+     * 0-65535 ms; steps 0-65535; tests 0-1048575 thousand.
+     */
+    bench_line(BK_FIT);
+    bench_code((uint32_t)p_line->why, 2U);
     switch (p_line->why)
     {
         case BENCH_FIT_WHY_LONG:
             bench_text(" Decoder 2 no read: dark for ");
-            bench_dec((int32_t)(p_line->to - p_line->from));
+            bench_u((uint32_t)(p_line->to - p_line->from), 16U);
             bench_text(" mm, longer than a card");
             break;
         case BENCH_FIT_WHY_MISFIT:
-            bench_text(" Decoder 2 no read: the 6 widest bars fit no character (");
-            bench_fixed((int32_t)(10.0f * p_line->rms), 1U);
+            bench_text(" Decoder 2 no read: the 6 widest bars fit no"
+                       " character (");
+            bench_ux((uint32_t)(10.0f * p_line->rms), 1U, 10U);
             bench_text(" mm off)");
             break;
         case BENCH_FIT_WHY_BUSY:
             bench_text(" Decoder 2 skipped: still fitting the last card");
             break;
         default:
-            bench_text(p_line->b_read ? " Decoder 2 *" : " Decoder 2 no read: best *");
+            bench_text(bench_flag(p_line->b_read) ?
+                       " Decoder 2 *" : " Decoder 2 no read: best *");
             bench_fit_char(p_line->ch);
-            bench_text(p_line->b_rev ? "* rev" : "*");
+            bench_text(bench_flag(p_line->b_rev) ? "* rev" : "*");
             bench_text(", margin ");
-            bench_fixed((int32_t)(100.0f * fminf(p_line->margin, 99.0f)), 2U);
+            bench_ux((uint32_t)(100.0f * fminf(p_line->margin, 99.0f)), 2U,
+                     14U);
             bench_text(" over *");
             bench_fit_char(p_line->other);
-            bench_text(p_line->b_other_rev ? "* rev" : "*");
+            bench_text(bench_flag(p_line->b_other_rev) ? "* rev" : "*");
             bench_text("; module ");
-            bench_fixed((int32_t)(100.0f * p_line->m), 2U);
+            bench_ux((uint32_t)(100.0f * p_line->m), 2U, 11U);
             bench_text(" mm, spot ");
-            bench_fixed((int32_t)(10.0f * p_line->sigma), 1U);
+            bench_ux((uint32_t)(10.0f * p_line->sigma), 1U, 8U);
             bench_text(" mm, dead ");
-            bench_fixed((int32_t)(100.0f * p_line->c0), 2U);
+            bench_ux((uint32_t)(100.0f * p_line->c0), 2U, 7U);
             break;
     }
     bench_text("; at ");
-    bench_dec((int32_t)p_line->from);
+    bench_u((uint32_t)p_line->from, 21U);
     bench_text("-");
-    bench_dec((int32_t)p_line->to);
+    bench_u((uint32_t)p_line->to, 21U);
     bench_text(" mm");
     if (BENCH_FIT_WHY_FIT == p_line->why)
     {
         bench_text("; ");
-        bench_dec((int32_t)(p_line->cpu_us / 1000U));
+        bench_u(p_line->cpu_us / 1000U, 16U);
         bench_text(" ms, ");
-        bench_dec((int32_t)p_line->steps);
+        bench_u(p_line->steps, 16U);
         bench_text(" steps, ");
-        bench_dec((int32_t)(p_line->work / 1000U));
+        bench_u(p_line->work / 1000U, 20U);
         bench_text("k tests");
-        if (0U != p_line->joins)
+        if (bench_flag(0U != p_line->joins))
         {
             bench_text(", cuts joined");
         }
@@ -13641,16 +15251,18 @@ static void bench_fit_reset (void)
 /** @brief MISSION, after the stop: the Decoder 2 decoder's counts. */
 static void bench_fit_totals (void)
 {
+    /* Frame: counts 0-1023 a run; the margin setting 0-2.55. */
+    bench_line(BK_FIT_TOTALS);
     bench_text(" Decoder 2: ");
-    bench_dec((int32_t)g_fit.reads);
+    bench_u(g_fit.reads, 10U);
     bench_text(" read, ");
-    bench_dec((int32_t)g_fit.no_reads);
+    bench_u(g_fit.no_reads, 10U);
     bench_text(" no read, ");
-    bench_dec((int32_t)g_fit.skipped);
+    bench_u(g_fit.skipped, 10U);
     bench_text(" skipped, ");
-    bench_dec((int32_t)g_fit_lines_lost);
+    bench_u(g_fit_lines_lost, 10U);
     bench_text(" lines lost (margin needed ");
-    bench_fixed((int32_t)(100.0f * BENCH_FIT_MARGIN), 2U);
+    bench_ux((uint32_t)(100.0f * BENCH_FIT_MARGIN), 2U, 8U);
     bench_text(")");
     bench_flush();
 }
@@ -13659,7 +15271,8 @@ static void bench_fit_totals (void)
  * Our rule, after 10 counted rounds on the tape track: any decoder
  * that reads gives the answer; if those that read disagree, the code read by
  * more than half of them wins, else no code (a wrong code is worse than
- * none). The voters: Decoder 1 (CODE lines), Decoder 2 (the TRIAL fit, a read only
+ * none). The voters: Decoder 1 (CODE lines), Decoder 2 (the TRIAL fit, a read
+ * only
  * past BENCH_FIT_MARGIN) and D0. Each decoder's result joins the vote whose
  * path it overlaps when its own line goes out, final by then. Decoders
  * report in path order, so one that reports a mark beyond a vote's end will
@@ -13815,7 +15428,8 @@ static bool bench_vote_text (void)
     uint32_t             index;
 
     if ((0U == g_vote.count) ||
-        ((!g_vote.b_end) && (BENCH_VOTE_ALL != (p_vote->done & BENCH_VOTE_ALL))))
+        ((!g_vote.b_end) &&
+         (BENCH_VOTE_ALL != (p_vote->done & BENCH_VOTE_ALL))))
     {
         return false;
     }
@@ -13840,28 +15454,37 @@ static bool bench_vote_text (void)
             p_best = p_vote->code[who];
         }
     }
+    /* Frame: the answer 2 bits (0 no read, 1 agreed, 2 majority, 3 split),
+     * codes 15 characters at most (4-bit length), each decoder 2 bits (0
+     * none, 1 no read, 2 a code), path 0-2097151 mm (21 bits).
+     */
+    bench_line(BK_CAR);
     bench_text(" CAR ");
     if ((0U == readers) || (NULL == p_best))
     {
+        bench_code(0U, 2U);
         bench_text("no code");
         ++g_vote.unread;
     }
     else if (best_votes == readers)
     {
+        bench_code(1U, 2U);
         bench_text("*");
-        bench_text(p_best);
+        bench_str(p_best, 4U);
         bench_text("*");
         ++g_vote.agreed;
     }
     else if ((2U * best_votes) > readers)
     {
+        bench_code(2U, 2U);
         bench_text("*");
-        bench_text(p_best);
+        bench_str(p_best, 4U);
         bench_text("* by majority");
         ++g_vote.majority;
     }
     else
     {
+        bench_code(3U, 2U);
         bench_text("no code, the decoders disagree");
         ++g_vote.split;
     }
@@ -13872,23 +15495,26 @@ static bool bench_vote_text (void)
         bench_text(g_vote_names[who]);
         if (0U == (p_vote->in & ((uint32_t)1U << who)))
         {
+            bench_code(0U, 2U);
             bench_text(" none");
         }
         else if ('\0' == p_vote->code[who][0])
         {
+            bench_code(1U, 2U);
             bench_text(" no read");
         }
         else
         {
+            bench_code(2U, 2U);
             bench_text(" *");
-            bench_text(p_vote->code[who]);
+            bench_str(p_vote->code[who], 4U);
             bench_text("*");
         }
     }
     bench_text(") at ");
-    bench_dec(p_vote->from_mm);
+    bench_u((uint32_t)p_vote->from_mm, 21U);
     bench_text("-");
-    bench_dec(p_vote->to_mm);
+    bench_u((uint32_t)p_vote->to_mm, 21U);
     bench_text(" mm");
     --g_vote.count;
     for (index = 0U; index < g_vote.count; ++index)
@@ -13907,21 +15533,23 @@ static void bench_vote_finish (void)
 /** @brief MISSION, after the stop: the car's answers counted. */
 static void bench_vote_totals (void)
 {
+    /* Frame: counts 0-1023 a run (the codes total 0-2047). */
+    bench_line(BK_CAR_TOTALS);
     bench_text(" CAR: ");
-    bench_dec((int32_t)(g_vote.agreed + g_vote.majority));
+    bench_u(g_vote.agreed + g_vote.majority, 11U);
     bench_text(" codes (");
-    bench_dec((int32_t)g_vote.agreed);
+    bench_u(g_vote.agreed, 10U);
     bench_text(" all readers agreed, ");
-    bench_dec((int32_t)g_vote.majority);
+    bench_u(g_vote.majority, 10U);
     bench_text(" by majority), no code ");
-    bench_dec((int32_t)g_vote.split);
+    bench_u(g_vote.split, 10U);
     bench_text(" times as the decoders disagreed, ");
-    bench_dec((int32_t)g_vote.unread);
+    bench_u(g_vote.unread, 10U);
     bench_text(" with no read");
-    if (0U != g_vote.lost)
+    if (bench_flag(0U != g_vote.lost))
     {
         bench_text("; ");
-        bench_dec((int32_t)g_vote.lost);
+        bench_u(g_vote.lost, 10U);
         bench_text(" results lost (no vote free)");
     }
     bench_flush();
@@ -13955,11 +15583,12 @@ static void bench_vote_totals (void)
 #endif
 
 /** @brief Compass trial: the LSM303DLHC magnetometer's raw X, Y, Z counts
- * (sensor axes) into p_xyz. The first call switches it on (30 Hz, +-1.3
- * gauss, continuous) and reads nothing. False when it is off or missing,
- * an axis is out of range, or on the host simulations (no I2C).
+ * (sensor axes) into p_xyz, over I2C. The first call switches it on (30 Hz,
+ * +-1.3 gauss, continuous) and reads nothing. False when it is off or
+ * missing, an axis is out of range, or on the host simulations (no I2C).
+ * The robot app calls it from the IMU task only (mission_mag_poll).
  */
-static bool bench_mag_read (int16_t * p_xyz)
+static bool bench_mag_bus (int16_t * p_xyz)
 {
 #if defined(PICO_ON_DEVICE) && (1 == PICO_ON_DEVICE)
     static const uint8_t setup[3][2] =
@@ -14018,6 +15647,59 @@ static bool bench_mag_read (int16_t * p_xyz)
 #endif
 }
 
+#if MISSION_ROBOT
+/* The IMU task's last compass reading: raw counts (16-bit words), valid. */
+typedef struct
+{
+    uint32_t x       : 16;
+    uint32_t y       : 16;
+    uint32_t z       : 16;
+    bool     b_valid : 1;
+} mission_mag_t;
+
+static mission_mag_t g_mag;
+
+/** @brief IMU task (mission.h): one compass read, kept for the mission. */
+void mission_mag_poll (void)
+{
+    int16_t  xyz[3] = {0, 0, 0};
+    bool     b_valid = bench_mag_bus(xyz);
+    uint32_t saved = app_main_lock();
+
+    /* The fields hold the 16-bit two's complement words. */
+    g_mag.x = (uint16_t)xyz[0];
+    g_mag.y = (uint16_t)xyz[1];
+    g_mag.z = (uint16_t)xyz[2];
+    g_mag.b_valid = b_valid;
+    app_main_unlock(saved);
+}
+
+/** @brief The compass reading the IMU task last took (mission_mag_poll),
+ * at most 100 ms old. False if that read failed or none came yet.
+ */
+static bool bench_mag_read (int16_t * p_xyz)
+{
+    mission_mag_t sample;
+    uint32_t      saved = app_main_lock();
+
+    sample = g_mag;
+    app_main_unlock(saved);
+    if (sample.b_valid)
+    {
+        p_xyz[0] = (int16_t)(uint16_t)sample.x;
+        p_xyz[1] = (int16_t)(uint16_t)sample.y;
+        p_xyz[2] = (int16_t)(uint16_t)sample.z;
+    }
+    return sample.b_valid;
+}
+#else
+/** @brief The bench loop owns the bus: read the compass now. */
+static bool bench_mag_read (int16_t * p_xyz)
+{
+    return bench_mag_bus(p_xyz);
+}
+#endif
+
 /** @brief MISSION start: no letter is carried over from the last run; the
  * map (from MQTT) stays.
  */
@@ -14035,6 +15717,9 @@ static void bench_nav_start (void)
     g_nav.b_waiting = false;
     g_nav.wait_us = 0U;
     g_nav.waits = 0U;
+    g_nav.b_probe = false;
+    g_nav.turns = 0U;
+    g_nav.guard_to_mm = INT32_MIN;
     gb_fit_force = false;
 }
 
@@ -14044,12 +15729,13 @@ static void bench_nav_start (void)
  */
 static void bench_nav_poll_map (void)
 {
-#if ROBOT_MQTT
+#if ROBOT_MQTT || MISSION_ROBOT
     uint8_t bytes[NAVMAP_LENGTH];
     char    letters[NAVMAP_MOVES];
 
-    if (gb_mqtt && net_mqtt_ipc_receive_map(bytes) &&
-        navmap_unpack(bytes, letters))
+    /* The robot app's map queue always exists (the host sim fills it). */
+    if ((gb_mqtt || (0 != MISSION_ROBOT)) &&
+        net_mqtt_ipc_receive_map(bytes) && navmap_unpack(bytes, letters))
     {
         (void)memcpy(g_nav.letters, letters, sizeof(g_nav.letters));
         g_nav.b_mapped = true;
@@ -14061,28 +15747,28 @@ static void bench_nav_poll_map (void)
         (!g_scan.b_running) && (0U == g_length))
     {
         g_nav.b_say_map = false;
-        bench_nav_say_map();
+        bench_nav_say_map(BK_MAP);
         bench_flush();
     }
 }
 
 /** @brief The map as one line of text (not flushed). */
-static void bench_nav_say_map (void)
+static void bench_nav_say_map (bench_kind_t kind)
 {
     static const char * const p_names[NAVMAP_MOVES] =
     {
         "forward ", ", U-turn ", ", left ", ", right "
     };
-    char     one[2] = {'\0', '\0'};
     uint32_t move;
 
+    /* Frame: each letter A-Z as 5 bits, as navmap.h sends them. */
+    bench_line(kind);
     bench_text("MAP set:");
     for (move = 0U; move < (uint32_t)NAVMAP_MOVES; ++move)
     {
         bench_text((0U == move) ? " " : "");
         bench_text(p_names[move]);
-        one[0] = g_nav.letters[move];
-        bench_text(one);
+        bench_char(g_nav.letters[move], 'A', 5U);
     }
 }
 
@@ -14150,6 +15836,7 @@ static void bench_nav_hex (uint8_t value)
     text[0] = digits[(value >> 4) & 0x0FU];
     text[1] = digits[value & 0x0FU];
     text[2] = '\0';
+    bench_code((uint32_t)value, 8U);   /* frame: the byte, 8 bits */
     bench_text(text);
 }
 
@@ -14185,7 +15872,8 @@ static void bench_nav_code (const bench_code_found_t * p_found)
 /** @brief One decoder's result for a card (bench_vote_add, or Decoder 1 at
  * once): p_code NULL or not a single framed A-Z is a report with no read.
  * A path past the card held starts a new card; a card wholly before the
- * last junction, or wholly before the card held, is late and ignored. The card's
+ * last junction, or wholly before the card held, is late and ignored. The
+ * card's
  * letter is decided again at each report (bench_nav_decide).
  */
 static void bench_nav_report (uint32_t who, int32_t from_mm, int32_t to_mm,
@@ -14304,30 +15992,39 @@ static char bench_nav_decide (uint32_t * p_votes, uint32_t * p_readers)
            best : '\0';
 }
 
-/** @brief The card's reads as text: "Decoder 1 A, Decoder 2 -, D0 A" (- no read,
- * ? not in yet).
+/** @brief The card's reads as text: "Decoder 1 A, Decoder 2 -, D0 A"
+ * (- no read, ? not in yet).
  */
 static void bench_nav_reads (void)
 {
-    static const char * const p_who[3] = {"Decoder 1 ", ", Decoder 2 ", ", D0 "};
+    static const char * const p_who[3] =
+    {
+        "Decoder 1 ", ", Decoder 2 ", ", D0 "
+    };
     char     one[2] = {'\0', '\0'};
     uint32_t who;
 
+    /* Frame: each decoder 2 bits (0 not in, 1 no read, 2 a letter, then it
+     * as a Code 39 character).
+     */
     for (who = 0U; who < 3U; ++who)
     {
         bench_text(p_who[who]);
         if (0U == (g_nav.reported & ((uint32_t)1U << who)))
         {
+            bench_code(0U, 2U);
             bench_text("?");
         }
         else if ('\0' == g_nav.read[who])
         {
+            bench_code(1U, 2U);
             bench_text("-");
         }
         else
         {
+            bench_code(2U, 2U);
             one[0] = g_nav.read[who];
-            bench_text(one);
+            bench_str(one, 1U);
         }
     }
 }
@@ -14353,8 +16050,9 @@ static void bench_nav_say (void)
         uint32_t index;
 
         gb_nav_restored = false;
+        bench_line(BK_NAV_RESTORED);   /* restores 0-255, 8 bytes */
         bench_text("NAV: map restored from its backup (restore ");
-        bench_dec((int32_t)g_nav_restores);
+        bench_u(g_nav_restores, 8U);
         bench_text("); g_nav began");
         for (index = 0U; index < sizeof(g_nav_seen); ++index)
         {
@@ -14367,7 +16065,7 @@ static void bench_nav_say (void)
     if (g_nav.b_say_map)
     {
         g_nav.b_say_map = false;
-        bench_nav_say_map();
+        bench_nav_say_map(BK_NAV_MAP);   /* queued: a leading space */
         bench_avoid_say();
         return;
     }
@@ -14378,29 +16076,34 @@ static void bench_nav_say (void)
     g_nav.b_say_code = false;
     move = bench_nav_move_of(g_nav.letter);
     one[0] = g_nav.letter;
+    /* Frame: the card's side path 0-2097151 mm (21 bits each), the reads,
+     * a letter (Code 39 character) and its move (2 bits).
+     */
+    bench_line(BK_NAV_CARD);
     bench_text("NAV: card ");
-    bench_dec(g_nav.card_from);
+    bench_u((uint32_t)g_nav.card_from, 21U);
     bench_text("-");
-    bench_dec(g_nav.card_to);
+    bench_u((uint32_t)g_nav.card_to, 21U);
     bench_text(" mm (");
     bench_nav_reads();
     bench_text("): ");
-    if ('\0' == g_nav.letter)
+    if (!bench_flag('\0' != g_nav.letter))
     {
         bench_text("no code yet (no read, or the decoders disagree)");
     }
     else
     {
-        bench_text(one);
+        bench_str(one, 1U);
         bench_text(", at the next junction: ");
-        if (move >= 0)
+        if (bench_flag(move >= 0))
         {
-            bench_text(p_moves[move]);
+            bench_name(p_moves, (uint32_t)move, 2U);
         }
         else
         {
-            bench_text(g_nav.b_mapped ? "not in the map, straight on" :
-                                        "no map yet, straight on");
+            bench_text(bench_flag(g_nav.b_mapped) ?
+                       "not in the map, straight on" :
+                       "no map yet, straight on");
         }
     }
     bench_avoid_say();
@@ -14426,12 +16129,17 @@ static bool bench_nav_junction (uint64_t now_us, int32_t centre,
     bool     b_card = g_nav.b_card;
 
     ++g_nav.junctions;
+    /* Frame: junctions 0-255 a run, centre path +-1048575 mm (21 bits), the
+     * reads, letter and move as in NAV card, why straight on 2 bits, the
+     * advance 0-511 mm.
+     */
+    bench_line(BK_NAV_JUNCTION);
     bench_text("NAV: junction ");
-    bench_dec((int32_t)g_nav.junctions);
+    bench_u(g_nav.junctions, 10U);
     bench_text(" at ");
-    bench_dec(bench_mm(centre));
+    bench_i(bench_mm(centre), 21U);
     bench_text(" mm: ");
-    if (b_card)
+    if (bench_flag(b_card))
     {
         bench_text("card (");
         bench_nav_reads();
@@ -14444,8 +16152,9 @@ static bool bench_nav_junction (uint64_t now_us, int32_t centre,
     g_nav.letter = '\0';
     g_nav.b_say_code = false;
     g_nav.junction_mm = bench_mm(centre);
-    if ('\0' == letter)
+    if (!bench_flag('\0' != letter))
     {
+        bench_code((!b_card) ? 0U : (0U == readers) ? 1U : 2U, 2U);
         bench_text((!b_card) ? "no code stored, straight on" :
                    (0U == readers) ? "no read, straight on" :
                                      "decoders disagree, straight on");
@@ -14454,24 +16163,25 @@ static bool bench_nav_junction (uint64_t now_us, int32_t centre,
     }
     one[0] = letter;
     bench_text("code ");
-    bench_text(one);
-    bench_text((votes == readers) ? "" : " by majority");
-    if (move < 0)
+    bench_str(one, 1U);
+    bench_text(bench_flag(votes != readers) ? " by majority" : "");
+    if (!bench_flag(move >= 0))
     {
-        bench_text(g_nav.b_mapped ? " not in the map, straight on" :
-                                    ", no map yet, straight on");
+        bench_text(bench_flag(g_nav.b_mapped) ?
+                   " not in the map, straight on" :
+                   ", no map yet, straight on");
         bench_avoid_say();
         return false;
     }
     bench_text(" -> ");
-    bench_text(p_moves[move]);
+    bench_name(p_moves, (uint32_t)move, 2U);
     if ((int32_t)NAVMAP_FORWARD == move)
     {
         bench_avoid_say();
         return false;
     }
     bench_text(", advancing ");
-    bench_dec(bench_round(BENCH_NAV_ADVANCE_MM));
+    bench_u((uint32_t)bench_round(BENCH_NAV_ADVANCE_MM), 9U);
     bench_text(" mm to turn on the crossing");
     bench_avoid_say();
     g_nav.move = (uint8_t)move;
@@ -14479,6 +16189,54 @@ static bool bench_nav_junction (uint64_t now_us, int32_t centre,
     g_nav.from_mm = bench_mm(centre);
     g_nav.hold = g_drive.heading;
     bench_nav_drive(now_us, centre, p_request);
+    return true;
+}
+
+/** @brief MISSION, both front sensors gone dark (BENCH_NAV_PROBE_*): straight
+ * on the heading held, until the line is seen again past the dark (a
+ * junction: bench_nav_junction from where it went dark) or is not by
+ * BENCH_NAV_PROBE_TO_MM (a turn: the letter kept, the line follower takes
+ * over). True while probing, or when the junction's move has started
+ * (*p_request set either way); false when the line follower goes on.
+ */
+static bool bench_nav_probe (uint64_t now_us, int32_t centre,
+                             motion_request_t * p_request)
+{
+    double past = (double)(bench_mm(centre) - bench_mm(g_nav.probe_from));
+    double left = g_centre.raw[0];
+    double right = g_centre.raw[1];
+    bool   b_line = (fmax(left, right) >= BENCH_NAV_LINE_DARK) ||
+                    ((left + right) >= BENCH_NAV_LINE_SUM);
+
+    if ((past >= BENCH_NAV_PROBE_FROM_MM) && b_line)
+    {
+        g_nav.b_probe = false;
+        g_nav.guard_to_mm = bench_mm(g_nav.probe_from) + BENCH_NAV_GUARD_MM;
+        return bench_nav_junction(now_us, g_nav.probe_from, p_request);
+    }
+    if (past >= BENCH_NAV_PROBE_TO_MM)
+    {
+        g_nav.b_probe = false;
+        ++g_nav.turns;
+        /* Frame: the dark's centre path +-1048575 mm (21 bits), the probe
+         * 0-511 mm, the reads (the letter is still stored).
+         */
+        bench_line(BK_NAV_TURN);
+        bench_text("NAV: no line ");
+        bench_u((uint32_t)bench_round(past), 9U);
+        bench_text(" mm past the dark at ");
+        bench_i(bench_mm(g_nav.probe_from), 21U);
+        bench_text(" mm: a turn, not a junction; the card (");
+        bench_nav_reads();
+        bench_text(") waits for the next junction");
+        bench_avoid_say();
+        return false;
+    }
+    (void)memset(p_request, 0, sizeof(*p_request));
+    p_request->kind = MOTION_VELOCITY;
+    p_request->command_id = g_drive.request.command_id;
+    bench_avoid_hold(g_nav.probe_heading, p_request);
+    g_drive.request = *p_request;
     return true;
 }
 
@@ -14524,8 +16282,9 @@ static void bench_nav_drive (uint64_t now_us, int32_t centre,
             g_nav.phase = (uint8_t)BENCH_NAV_IDLE;
             ++g_nav.moves;
             bench_avoid_rejoin(now_us, centre);
+            bench_line(BK_NAV_TURNED);   /* +-511 deg, 10 bits */
             bench_text("NAV: turned ");
-            bench_signed(bench_round(g_nav.turned * 180.0 / CORE_PI));
+            bench_s(bench_round(g_nav.turned * 180.0 / CORE_PI), 10U);
             bench_text(" deg on the crossing, following the line");
             bench_avoid_say();
         }
@@ -14602,8 +16361,9 @@ static bool bench_nav_wait (uint64_t now_us, int32_t centre,
         g_nav.wait_us = now_us;
         g_nav.wait_centre = centre;
         ++g_nav.waits;
+        bench_line(BK_NAV_WAIT);   /* centre path 21 bits, the reads */
         bench_text("NAV: junction at ");
-        bench_dec(bench_mm(centre));
+        bench_i(bench_mm(centre), 21U);
         bench_text(" mm, the card is still decoding (");
         bench_nav_reads();
         bench_text("): stopped to wait for it");
@@ -14628,8 +16388,10 @@ static bool bench_nav_wait (uint64_t now_us, int32_t centre,
     }
     g_nav.b_waiting = false;
     gb_fit_force = false;
+    bench_line(BK_NAV_WAITED);   /* 0-65535 ms, why 2 bits, the reads */
     bench_text("NAV: waited ");
-    bench_dec((int32_t)waited_ms);
+    bench_u(waited_ms, 16U);
+    bench_code((votes >= 2U) ? 0U : bench_nav_pending(false) ? 1U : 2U, 2U);
     bench_text((votes >= 2U) ? " ms, two decoders agree (" :
                bench_nav_pending(false) ?
                " ms, still decoding: deciding on (" : " ms, decoding done (");
@@ -14655,15 +16417,23 @@ static bool bench_nav_wait (uint64_t now_us, int32_t centre,
  *   s   side the line was last seen (+1 right, -1 left)
  *   n   side seeing it now (seen_side)
  *   f   flags: 1 junction (both dark), 2 going straight, 4 the keep-turning
- *       rule acted (both about as dark mid-turn: turn on the same way)
+ *       rule acted (both about as dark mid-turn: turn on the same way),
+ *       8 a side lean open, 16 a rise open, 32 the steering held straight
+ *       over a hump, 64 a junction probe (BENCH_NAV_PROBE_*)
+ *   B   side sensor darkness (%)
+ *   r   roll, q pitch (0.1 deg, + left up / nose up), as the ramp uses them
+ * 22 Nov: B, r, q and flags 8-64 added and the ring doubled to 10 s (500,
+ * 12 kB): the hump was missed (12 leans under 33 mm, "jolts") and read
+ * 6 mm, and a turn was taken for a junction; the 1 s status line could not
+ * show either.
  */
-#define BENCH_REC_N (250U)
+#define BENCH_REC_N (500U)
 #define BENCH_REC_US (20000U)
-#define BENCH_REC_PER_LINE (3U)   /* 3 x 48 at most: within a 160 B line */
+#define BENCH_REC_PER_LINE (3U)   /* a frame holds 3 (about 49 B) */
 
 typedef struct
 {
-    int16_t d_mm;
+    int32_t d_mm;       /* was int16: wrapped past 32.7 m, no run limit now */
     int16_t h_deg;
     uint8_t raw_l;
     uint8_t raw_r;
@@ -14675,6 +16445,9 @@ typedef struct
     int8_t  side;
     int8_t  seen;
     uint8_t flags;
+    uint8_t side_pct;   /* B */
+    int16_t roll_dd;    /* r, 0.1 deg */
+    int16_t pitch_dd;   /* q, 0.1 deg */
 } bench_rec_t;
 
 static bench_rec_t g_rec[BENCH_REC_N];
@@ -14716,7 +16489,7 @@ static void bench_rec_sample (uint64_t now_us, double raw_left,
     }
     g_rec_us = now_us;
     p_rec = &g_rec[g_rec_head];
-    p_rec->d_mm = (int16_t)bench_round(g_centre.path_m * 1000.0);
+    p_rec->d_mm = bench_round(g_centre.path_m * 1000.0);
     p_rec->h_deg = (int16_t)bench_round(g_drive.yaw * 180.0 / CORE_PI);
     p_rec->raw_l = bench_rec_pct(raw_left);
     p_rec->raw_r = bench_rec_pct(raw_right);
@@ -14729,7 +16502,17 @@ static void bench_rec_sample (uint64_t now_us, double raw_left,
     p_rec->seen = (int8_t)g_centre.seen_side;
     p_rec->flags = (uint8_t)((g_centre.b_both_dark ? 1U : 0U) |
                              (b_straight ? 2U : 0U) |
-                             (gb_rec_keep ? 4U : 0U));
+                             (gb_rec_keep ? 4U : 0U) |
+                             (g_ramp.b_leaning ? 8U : 0U) |
+                             (g_ramp.b_rising ? 16U : 0U) |
+                             (g_ramp.b_hump_held ? 32U : 0U) |
+                             (g_nav.b_probe ? 64U : 0U));
+    p_rec->side_pct = bench_rec_pct(g_centre.side_dark);
+    p_rec->roll_dd = (int16_t)(g_ramp.b_ready ?
+                               bench_round(g_ramp.roll * 1800.0 / CORE_PI) : 0);
+    p_rec->pitch_dd = (int16_t)(g_ramp.b_ready ?
+                                bench_round(g_ramp.pitch * 1800.0 /
+                                            CORE_PI) : 0);
     g_rec_head = (g_rec_head + 1U) % BENCH_REC_N;
     if (g_rec_n < BENCH_REC_N)
     {
@@ -14737,7 +16520,14 @@ static void bench_rec_sample (uint64_t now_us, double raw_left,
     }
 }
 
-/** @brief After a MISSION stop: the ring as REC lines, oldest first. */
+/** @brief After a MISSION stop: the ring as REC lines, oldest first.
+ * Frames: d +-1048575 mm (21 bits, the run has no length limit), h +-180
+ * deg (9), the four darkness 0-100 % (7 each), phase 0-3 (2), steering
+ * +-100 % (8 each), sides -1..+1 (2 each), flags 0-127 (7), B 0-100 % (7),
+ * roll and pitch +-204.7 deg in tenths (12 each): 118 bits a sample, at
+ * most BENCH_REC_PER_LINE (3) a frame, their count first (2 bits); row
+ * numbers 0-255 (8 bits: 500 samples are 167 rows).
+ */
 static void bench_rec_text (void)
 {
     const bench_rec_t * p_rec;
@@ -14745,50 +16535,65 @@ static void bench_rec_text (void)
                                 BENCH_REC_N;
     uint32_t            index;
     uint32_t            line = 0U;
+    uint32_t            count;
 
     if (0U == g_rec_n)
     {
         return;
     }
+    bench_line(BK_REC_HEAD);
     bench_text("REC: last ");
-    bench_dec((int32_t)g_rec_n);
+    bench_u(g_rec_n, 9U);
     bench_text(" samples, one per 20 ms, before the stop:"
-               " d,h,L,R,l,r,p,c,t,s,n,f");
+               " d,h,L,R,l,r,p,c,t,s,n,f,B,r,q");
     bench_flush();
     for (index = 0U; index < g_rec_n; ++index)
     {
         if (0U == (index % BENCH_REC_PER_LINE))
         {
+            count = g_rec_n - index;
+            if (count > BENCH_REC_PER_LINE)
+            {
+                count = BENCH_REC_PER_LINE;
+            }
+            bench_line(BK_REC_ROW);
             bench_text("REC ");
-            bench_dec((int32_t)line);
+            bench_u(line, 8U);
             bench_text(":");
+            bench_code(count, 2U);
             ++line;
         }
         p_rec = &g_rec[(first + index) % BENCH_REC_N];
         bench_text(" ");
-        bench_dec((int32_t)p_rec->d_mm);
+        bench_i(p_rec->d_mm, 21U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->h_deg);
+        bench_i((int32_t)p_rec->h_deg, 9U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->raw_l);
+        bench_u((uint32_t)p_rec->raw_l, 7U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->raw_r);
+        bench_u((uint32_t)p_rec->raw_r, 7U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->gate_l);
+        bench_u((uint32_t)p_rec->gate_l, 7U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->gate_r);
+        bench_u((uint32_t)p_rec->gate_r, 7U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->phase);
+        bench_u((uint32_t)p_rec->phase, 2U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->cmd);
+        bench_i((int32_t)p_rec->cmd, 8U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->turn);
+        bench_i((int32_t)p_rec->turn, 8U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->side);
+        bench_i((int32_t)p_rec->side, 2U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->seen);
+        bench_i((int32_t)p_rec->seen, 2U);
         bench_text(",");
-        bench_dec((int32_t)p_rec->flags);
+        bench_u((uint32_t)p_rec->flags, 7U);
+        bench_text(",");
+        bench_u((uint32_t)p_rec->side_pct, 7U);
+        bench_text(",");
+        bench_i((int32_t)p_rec->roll_dd, 12U);
+        bench_text(",");
+        bench_i((int32_t)p_rec->pitch_dd, 12U);
         if ((BENCH_REC_PER_LINE - 1U) == (index % BENCH_REC_PER_LINE))
         {
             bench_flush();
@@ -14798,8 +16603,336 @@ static void bench_rec_text (void)
     {
         bench_flush();
     }
+    bench_line(BK_REC_END);
     bench_text("REC end");
     bench_flush();
 }
 
+/* ==== The robot app's entry points (22 Nov 2026) =========================
+ * robot_app.c: mission_init before the tasks; the Line and IMU tasks push
+ * their samples; the Vehicle task runs mission_step every 5 ms and publishes
+ * mission_output(). The bench image has these too (robot_app.c is in its
+ * build), but nothing calls them there.
+ */
+
+/** @brief What bench_loop set up before its tasks: the encoder baseline,
+ * the BOOT line, the servo ahead.
+ */
+void mission_init (void)
+{
+#if MISSION_ROBOT
+    (void)memset(&g_out, 0, sizeof(g_out));
+    mission_publish_halt();
+    g_out.state = (uint32_t)VEHICLE_IDLE;
+    gb_accel = true;
+    gb_mqtt = (0 != ROBOT_MQTT);
+    board_encoder_totals(&g_last_total[BENCH_LEFT],
+                         &g_last_total[BENCH_RIGHT]);
+    g_ir_now_total[BENCH_LEFT] = g_last_total[BENCH_LEFT];
+    g_ir_now_total[BENCH_RIGHT] = g_last_total[BENCH_RIGHT];
+    g_mode = BENCH_MODE_MISSION;
+    /* The BOOT frame (bench_codec.py's template: the motion flag, then the
+     * accelerometer's).
+     */
+    bench_line(BK_BOOT);
+    (void)bench_flag(true);
+    bench_text("BENCH MOTION ready: START runs MISSION (line-follow +"
+               " barcode + obstacle go-around), STOP stops. Accel ");
+    bench_text(bench_flag(gb_accel) ? "ok" : "FAILED");
+    bench_flush();
+    (void)bench_scan_servo(0);
+    g_report_us = board_time_us();
+#endif
+}
+
+/** @brief The Motion task's controller as MISSION drives it. */
+void mission_motion_config (motion_config_t * p_config)
+{
+    bench_mode_t mode = g_mode;
+
+    g_mode = BENCH_MODE_MISSION;
+    bench_motion_config(p_config);
+    g_mode = mode;
+}
+
+/** @brief Line task: one IR sample into the ring (the oldest goes if it is
+ * full: the Vehicle task was held up for over 60 ms).
+ */
+void mission_ir_push (const uint16_t raw[3], bool b_valid,
+                      uint16_t left_total, uint16_t right_total)
+{
+#if MISSION_ROBOT
+    mission_ir_t sample;
+    uint32_t     saved;
+    uint32_t     next;
+
+    sample.left_raw = (uint32_t)raw[0] & 0xFFFU;
+    sample.right_raw = (uint32_t)raw[1] & 0xFFFU;
+    sample.side_raw = (uint32_t)raw[2] & 0xFFFU;
+    sample.b_valid = b_valid;
+    sample.left_total = left_total;
+    sample.right_total = right_total;
+    saved = app_main_lock();
+    next = (g_ir_head + 1U) % MISSION_IR_RING;
+    if (next == g_ir_tail)
+    {
+        g_ir_tail = (uint8_t)((g_ir_tail + 1U) % MISSION_IR_RING);
+        if (UINT8_MAX != g_ir_dropped)
+        {
+            ++g_ir_dropped;
+        }
+    }
+    g_ir_ring[g_ir_head] = sample;
+    g_ir_head = (uint8_t)next;
+    app_main_unlock(saved);
+#else
+    (void)raw;
+    (void)b_valid;
+    (void)left_total;
+    (void)right_total;
+#endif
+}
+
+/** @brief IMU task: one fresh accelerometer sample into the ring (the
+ * oldest goes if it is full).
+ */
+void mission_accel_push (const int16_t milligravity[3], uint32_t read_us)
+{
+#if MISSION_ROBOT
+    mission_accel_t sample;
+    uint32_t        saved;
+    uint32_t        next;
+
+    sample.x = (uint32_t)(uint16_t)milligravity[0];
+    sample.y = (uint32_t)(uint16_t)milligravity[1];
+    sample.z = (uint32_t)(uint16_t)milligravity[2];
+    sample.read_us = read_us;
+    saved = app_main_lock();
+    next = (g_acc_head + 1U) % MISSION_ACCEL_RING;
+    if (next == g_acc_tail)
+    {
+        g_acc_tail = (uint8_t)((g_acc_tail + 1U) % MISSION_ACCEL_RING);
+    }
+    g_acc_ring[g_acc_head] = sample;
+    g_acc_head = (uint8_t)next;
+    app_main_unlock(saved);
+#else
+    (void)milligravity;
+    (void)read_us;
+#endif
+}
+
+#if MISSION_ROBOT
+/** @brief The IR samples the Line task took since the last step: all but
+ * the newest into the barcode store while a run reads cards (the bench's
+ * 1 ms polls); the newest is this step's reading (board_read_ir).
+ */
+static void mission_ir_drain (void)
+{
+    mission_ir_t sample;
+    uint16_t     raw[LINE_CTRL_CHANNELS];
+    uint32_t     saved;
+    bool         b_have;
+
+    for (;;)
+    {
+        saved = app_main_lock();
+        b_have = g_ir_tail != g_ir_head;
+        if (b_have)
+        {
+            sample = g_ir_ring[g_ir_tail];
+            g_ir_tail = (uint8_t)((g_ir_tail + 1U) % MISSION_IR_RING);
+        }
+        app_main_unlock(saved);
+        if (!b_have)
+        {
+            return;
+        }
+        /* The previous newest was not this step's: a poll, as on the bench
+         * (a held sample was polled once already).
+         */
+        if (gb_ir_now && gb_ir_fresh && bench_code_polling())
+        {
+            bench_code_poll_at(g_ir_now, g_ir_now_total);
+        }
+        if (sample.b_valid)
+        {
+            raw[0] = (uint16_t)sample.left_raw;
+            raw[1] = (uint16_t)sample.right_raw;
+            raw[2] = (uint16_t)sample.side_raw;
+            (void)memcpy(g_ir_now, raw, sizeof(g_ir_now));
+            g_ir_now_total[BENCH_LEFT] = (uint16_t)sample.left_total;
+            g_ir_now_total[BENCH_RIGHT] = (uint16_t)sample.right_total;
+            gb_ir_now = true;
+            gb_ir_fresh = true;
+            g_ir_failed = 0U;
+        }
+        else
+        {
+            /* Noise control: a failed read keeps the last good sample, up
+             * to MISSION_IR_HOLD failed reads in a row (the Line task's
+             * OPTICAL_SAMPLE needs as many).
+             */
+            gb_ir_fresh = false;
+            if (g_ir_failed < UINT8_MAX)
+            {
+                ++g_ir_failed;
+            }
+            gb_ir_now = gb_ir_now && (g_ir_failed < MISSION_IR_HOLD);
+        }
+    }
+}
+
+/** @brief End report, robot app (SYS-12 evidence): each task's longest step
+ * (us, 0-65535) and skipped periods (0-4095) since this run's START. Frame:
+ * the eight pairs in app_main.c's task order. A step still under way is not
+ * in it yet (the Vehicle task's own, which sends this line). Then the IMU
+ * task's evidence (robot_app_imu_evidence_t): failed reads (and the last
+ * one's wall time: near ROBOT_I2C_TIMEOUT_US is a timeout, short a refused
+ * transfer), saturated reads, the longest gap between fresh samples, the
+ * slowest read, and the samples terrain refused, late (past its 50 ms
+ * bound) or otherwise.
+ */
+static void bench_tasks_text (void)
+{
+    static const char * const p_names[ROBOT_APP_TASKS] =
+    {
+        "Safety ", ", Motion ", ", Line ", ", Vehicle ", ", IMU ",
+        ", Scan ", ", Comm ", ", Telemetry "
+    };
+    static const char * const p_owners[ROBOT_APP_OWNERS] =
+    {
+        "Motion ", " ms, Line ", " ms, Vehicle ", " ms, IMU ", " ms, Scan ",
+        " ms, Comm "
+    };
+    robot_app_task_time_t      timing[ROBOT_APP_TASKS];
+    robot_app_imu_evidence_t   imu;
+    robot_app_owner_evidence_t owners;
+    uint32_t                   index;
+
+    /* Each owner's longest health gap: over its gate is OWNER_TIMEOUT. */
+    robot_app_owner_evidence(&owners);
+    bench_line(BK_OWNERS);
+    bench_text(" owner health, longest gap since START: ");
+    for (index = 0U; index < ROBOT_APP_OWNERS; ++index)
+    {
+        bench_text(p_owners[index]);
+        bench_u(owners.longest_ms[index], 16U);
+    }
+    bench_text(" ms");
+    bench_flush();
+    robot_app_imu_evidence(&imu);
+    bench_line(BK_IMU);
+    bench_text(" IMU since START: failed reads ");
+    bench_u(imu.failed, 8U);
+    bench_text(" (the last took ");
+    bench_u(imu.failed_us, 16U);
+    bench_text(" us), saturated ");
+    bench_u(imu.saturated, 8U);
+    bench_text(", longest gap ");
+    bench_u(imu.longest_ms, 16U);
+    bench_text(" ms, slowest read ");
+    bench_u(imu.slowest_us, 16U);
+    bench_text(" us; terrain refused ");
+    bench_u(imu.late, 8U);
+    bench_text(" late, ");
+    bench_u(imu.refused, 8U);
+    bench_text(" other");
+    bench_flush();
+    robot_app_timing(timing);
+    bench_line(BK_TASKS);
+    bench_text(" tasks, longest step us/skipped periods: ");
+    for (index = 0U; index < ROBOT_APP_TASKS; ++index)
+    {
+        bench_text(p_names[index]);
+        bench_u((timing[index].worst_us > 65535U) ? 65535U :
+                timing[index].worst_us, 16U);
+        bench_text("/");
+        bench_u((timing[index].skipped > 4095U) ? 4095U :
+                timing[index].skipped, 12U);
+    }
+    bench_flush();
+}
+
+/** @brief The vehicle state the mission is in, for the robot's telemetry
+ * and its Safety task (an active state keeps the owners' health gates).
+ */
+static vehicle_state_t mission_state (void)
+{
+    if (!g_drive.b_running)
+    {
+        return VEHICLE_IDLE;
+    }
+    if (BENCH_AVOID_STRAIGHT != g_avoid.phase)
+    {
+        return VEHICLE_BYPASS;
+    }
+    if ((uint8_t)BENCH_NAV_IDLE != g_nav.phase)
+    {
+        return VEHICLE_NAVIGATE;
+    }
+    return VEHICLE_FOLLOW;
+}
+#endif
+
+/** @brief Vehicle task: one step of bench_run_loop's body on this step's
+ * input: the IR since the last step, the wheels, a new junction map, then
+ * the run (or the idle reports).
+ */
+void mission_step (const mission_input_t * p_input)
+{
+#if MISSION_ROBOT
+    uint8_t command = BENCH_CMD_NONE;
+
+    g_in = *p_input;
+    mission_ir_drain();
+    bench_track();
+    bench_nav_poll_map();
+    if (MISSION_CMD_STOP == p_input->command)
+    {
+        command = BENCH_CMD_STOP;
+    }
+    else if (MISSION_CMD_START == p_input->command)
+    {
+        command = BENCH_CMD_START;
+    }
+    else
+    {
+        /* None. */
+    }
+    if (g_drive.b_running)
+    {
+        bench_drive_tick(command);
+    }
+    else
+    {
+        /* Idle: the sensor report each second, the brake held. A STOP when
+         * idle needs nothing more (the Safety task braked).
+         */
+        bench_idle((BENCH_CMD_STOP == command) ? BENCH_CMD_NONE : command);
+        if (!g_drive.b_running)
+        {
+            mission_publish_halt();
+        }
+    }
+    g_out.state = (uint32_t)mission_state();
+    g_out.b_running = g_drive.b_running;
+#else
+    (void)p_input;
+#endif
+}
+
+/** @brief The mission's current requests. */
+const mission_output_t * mission_output (void)
+{
+#if MISSION_ROBOT
+    return &g_out;
+#else
+    static const mission_output_t none = {{0}};
+
+    return &none;
+#endif
+}
+
 /* End of file. */
+

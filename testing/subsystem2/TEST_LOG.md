@@ -1,6 +1,6 @@
 # Subsystem 2 — test log
 
-**Subsystem:** Motion: motors, encoders, PID (Buddy 2, Ong Teck Ang)  ·  **Student ID:** 2500738  ·  **Code:** `app_program/subsystem2/` (`motion.c/.h`), the shared `app_program/core.c` and the motor and encoder parts of `app_program/board.c`
+**Subsystem:** Motion: motors, encoders, PID (Buddy 2, Ong Teck Ang)  ·  **Student ID:** 2500738  ·  **Code:** `app_program/subsystem2/` (`motion.c/.h`), the shared `app_program/core.c` and the motor and encoder parts of `app_program/board.c`; since 22 Nov 2026 also `mission_drive.c/.h` (the mission's drive), `robot_motion.c/.h` (Motion task)
 
 See `testing/README.md` for how to run tests and record results, and
 `TESTING.md` for the set-up. P2 = after TESTING.md section 4; bench = with a

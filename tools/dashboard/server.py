@@ -12,7 +12,7 @@ phone on the same hotspot. The broker is the Docker container "mqtt"
 (eclipse-mosquitto) on this laptop; this server never starts one.
 
 Topics (config/net_mqtt_config.h), base inf2004/is29/:
-  telemetry  car -> laptop. The bench image (firmware/bench/bench_main.c)
+  telemetry  car -> laptop. The bench image (app_program/subsystem5/mission.c)
              sends plain text lines cut into 20-byte messages, so the server
              joins the messages and splits on newlines. A message the car
              could not queue is dropped, which glues two lines together; the
@@ -60,6 +60,23 @@ def load_codec():
 
 CODEC = load_codec()
 
+
+def load_bench_codec():
+    """The mission's minimum-bit frame codec (bench_codec.py beside this
+    file, Change Requirement 1), or None if it is missing: then bench
+    frames are only counted."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "bench_codec.py")
+    if not os.path.isfile(path):
+        return None
+    spec = importlib.util.spec_from_file_location("bench_codec", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+BENCH = load_bench_codec()
+
 # Command bytes: validity pattern 10101b in bits 3-7, code in bits 0-2.
 CMDS = {"START": 0xAA, "STOP": 0xA9, "RESET": 0xAB,
         "NEXT_TEST": 0xAF, "NEXT_GAINS": 0xAD}
@@ -68,7 +85,7 @@ CMD_NAMES = {0xA9: "STOP", 0xAA: "START", 0xAB: "RESET",
              0xAE: "configured gains", 0xAF: "NEXT_TEST"}
 
 # ---------------------------------------------------------------------------
-# Bench text lines (firmware/bench/bench_main.c, bench_text/bench_flush)
+# Bench text lines (app_program/subsystem5/mission.c, bench_text/bench_flush)
 # ---------------------------------------------------------------------------
 GAINS = (r"gains (?P<g>\d+)(?P<cfg> \(configured\))? P (?P<P>-?\d+\.\d+)"
          r" I (?P<I>-?\d+\.\d+) D (?P<D>-?\d+\.\d+)")
@@ -124,6 +141,10 @@ HEAD_RE = re.compile(r"(?P<mode>.*?) (?P<reason>(?:aborted|done|complete|"
                      r"stopped)(?:[: ].*?)?)"
                      r"(?:,? (?:complete )?after (?P<secs>\d+\.\d) s)?")
 DT_RE = re.compile(r"dt max (\d+\.\d) ms")
+# MISSION status line: " t 4.0 s d 389 mm TRACKING B 2380 max 2460 L 300
+# R 1500 groups ..." (L and R since 22 Nov): side sensor now, front sensors.
+LIVE_IR_RE = re.compile(r" t \d+\.\d s d -?\d+ mm [A-Z]+ B (\d+) max \d+"
+                        r" L (\d+) R (\d+) ")
 # Where a line can begin; used to split two lines glued by a lost message.
 SPLIT_RE = re.compile(
     r"IR L \d|ACC mg n \d|ENC counts L [+-]|MODE \S|"
@@ -150,7 +171,7 @@ def ints(groups):
 # ---------------------------------------------------------------------------
 # Mission lines (bench MISSION, navvote2): barcodes, junction moves, humps,
 # obstacles. They stay event lines in the log; these only feed the Mission
-# card. Formats from firmware/bench/bench_main.c (bench_nav_*, bench_ramp_text,
+# card. Formats from app_program/subsystem5/mission.c (bench_nav_*, bench_ramp_text,
 # bench_avoid_*).
 # ---------------------------------------------------------------------------
 MISSION_RES = [
@@ -236,7 +257,7 @@ def new_mission(run_id, now):
 # Barcode cards (bench MISSION): each decoder's result per card, D0's bar and
 # space widths (decoder units), and the side sensor's raw samples, for the
 # Barcodes panel. Formats from bench_d0_text, bench_code_*, bench_fit_text and
-# bench_vote_text in firmware/bench/bench_main.c.
+# bench_vote_text in app_program/subsystem5/mission.c.
 # ---------------------------------------------------------------------------
 BARCODE_RES = [
     # D0 *F* read in order at 210-486 mm
@@ -472,7 +493,11 @@ class Hub:
         self.runs = deque(maxlen=12)
         self.run_seq = 0
         self.events = deque(maxlen=600)
-        self.stats = {"messages": 0, "lines": 0, "garbled": 0, "frames": 0}
+        self.stats = {"messages": 0, "lines": 0, "garbled": 0, "frames": 0,
+                      "bench_frames": 0, "bench_bytes": 0,
+                      "bench_text_bytes": 0, "bench_lost": 0,
+                      "bench_bad": 0}
+        self.bench_seq = None
         self.buf = ""
         self.buf_t = 0.0
         self.robot_state = None
@@ -566,7 +591,31 @@ class Hub:
             self.write_log(f"[command] {text}")
             self.event(now, text, "sent")
 
+    def on_bench_frame(self, payload, now):
+        """A bench minimum-bit frame (bench_codec.py): its line, as if it had
+        come as text; a seq gap counts lost frames."""
+        try:
+            seq, _, text = BENCH.decode(bytes(payload))
+        except Exception as error:         # never take the MQTT thread down
+            with self.lock:
+                self.stats["bench_bad"] += 1
+            self.write_log(f"[frame] undecodable bench frame "
+                           f"{bytes(payload).hex()}: {error}")
+            return
+        with self.lock:
+            self.stats["bench_frames"] += 1
+            self.stats["bench_bytes"] += len(payload)
+            self.stats["bench_text_bytes"] += len(text) + 1
+            if self.bench_seq is not None and seq != (self.bench_seq + 1) % 256:
+                self.stats["bench_lost"] += (seq - self.bench_seq - 1) % 256
+            self.bench_seq = seq
+        with self.parse_lock:
+            self.on_line(text, now)
+
     def on_telemetry(self, payload, now):
+        if BENCH is not None and BENCH.is_frame(bytes(payload)):
+            self.on_bench_frame(payload, now)
+            return
         if not is_text(payload) and CODEC is not None:
             try:
                 name, values = CODEC.decode(bytes(payload))
@@ -1112,7 +1161,25 @@ class Hub:
         self.push({"type": "trace", "id": run["id"], "end": d["end"],
                    "row": d["row"]})
 
+    def on_run_ir(self, text, now):
+        """MISSION's status line (once a second while it drives) carries the
+        front sensors and the side sensor now: the live sensor chart and
+        tiles take them, so they move during a run (the idle IR report
+        stops while the car drives). Not through periodic(): an idle line
+        there means the run is over."""
+        m = LIVE_IR_RE.match(text)
+        if not m:
+            return
+        b, l, r = (int(v) for v in m.groups())
+        d = {"L": [l, l, l], "R": [r, r, r], "B": [b, b, b], "t": now,
+             "run": True}
+        with self.lock:
+            self.live["ir"] = d
+            self.ir_hist.append([round(now, 2), l, r, b])
+        self.push({"type": "ir", "data": d})
+
     def on_event(self, text, now):
+        self.on_run_ir(text, now)
         self.on_barcode_text(text, now)
         self.on_mission_text(text, now)
         self.encounter_line(text, now)
@@ -1386,7 +1453,8 @@ def main():
     server.daemon_threads = True
     print(f"IS29 dashboard on http://localhost:{args.port}  "
           f"(other devices: http://<this laptop's IP>:{args.port}); "
-          f"binary frame decoder {'loaded' if CODEC else 'MISSING'}", flush=True)
+          f"binary frame decoder {'loaded' if CODEC else 'MISSING'}, bench frame "
+          f"decoder {'loaded' if BENCH else 'MISSING'}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

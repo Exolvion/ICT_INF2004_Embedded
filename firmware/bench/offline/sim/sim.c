@@ -237,16 +237,109 @@ board_accel_status_t board_read_accel (int16_t milligravity[3])
                                       ROBOT_ACCEL_BIAS_Z_MG);
     return BOARD_ACCEL_FRESH;
 }
-bool board_ultrasonic_trigger (void) { return false; }
+/* Front sonar (22 Nov): off unless a box is set ("obstacle" scenario), so
+ * every other scenario runs as before. The box is axis-aligned: centre
+ * g_box_x/y, half sizes along x and y. The sonar sits SIM_SONAR_AHEAD ahead
+ * of the axle on the servo; its beam is 5 rays over +-SIM_BEAM_DEG, the
+ * nearest hit counts; no hit within 4 m is no echo.
+ */
+#define SIM_SONAR_AHEAD (0.08)
+#define SIM_BEAM_DEG (8.0)
+static bool     gb_box;
+static double   g_line_end = 5.0;   /* the straight line ends here (m) */
+/* "corner": the line turns 90 deg right at g_corner_x (on to -y), and a
+ * crossing bar 0.6 m long lies across that leg at y = g_corner_cross_y.
+ */
+static bool     gb_corner;
+static double   g_corner_x = 0.6;
+static double   g_corner_cross_y = -0.5;
+static double   g_box_x, g_box_y, g_box_hx, g_box_hy;
+static uint16_t g_servo_pulse = ROBOT_SERVO_CENTRE_US;
+static bool     gb_echo;
+static uint32_t g_echo_us;
+static bool     gb_echo_valid;
+
+/** Distance along a ray from (ox, oy) at angle a to the box, or -1. */
+static double box_ray (double ox, double oy, double a)
+{
+    double dx = cos(a), dy = sin(a);
+    double t0 = -1e9, t1 = 1e9;
+    double lo[2] = {g_box_x - g_box_hx, g_box_y - g_box_hy};
+    double hi[2] = {g_box_x + g_box_hx, g_box_y + g_box_hy};
+    double o[2] = {ox, oy}, d[2] = {dx, dy};
+    int    axis;
+
+    for (axis = 0; axis < 2; ++axis)
+    {
+        if (fabs(d[axis]) < 1e-12)
+        {
+            if ((o[axis] < lo[axis]) || (o[axis] > hi[axis]))
+            {
+                return -1.0;
+            }
+            continue;
+        }
+        double ta = (lo[axis] - o[axis]) / d[axis];
+        double tb = (hi[axis] - o[axis]) / d[axis];
+        if (ta > tb) { double s = ta; ta = tb; tb = s; }
+        if (ta > t0) { t0 = ta; }
+        if (tb < t1) { t1 = tb; }
+    }
+    return ((t0 <= t1) && (t0 > 0.0)) ? t0 : -1.0;
+}
+
+bool board_ultrasonic_trigger (void)
+{
+    scanner_config_t config;
+    double physical, angle, ox, oy, best = -1.0, d;
+    int    ray;
+
+    if (!gb_box)
+    {
+        return false;
+    }
+    physical = ((double)g_servo_pulse - (double)ROBOT_SERVO_CENTRE_US) /
+               ((g_servo_pulse < ROBOT_SERVO_CENTRE_US) ?
+                (double)(ROBOT_SERVO_CENTRE_US - BENCH_ROBOT_SERVO_MIN_US) :
+                (double)(BENCH_ROBOT_SERVO_MAX_US - ROBOT_SERVO_CENTRE_US)) *
+               (double)ROBOT_SCAN_HALF_ANGLE_DEG;
+    angle = g_th + (physical * (double)ROBOT_SERVO_ANGLE_SIGN) * CORE_PI / 180.0;
+    ox = g_x + SIM_SONAR_AHEAD * cos(g_th);
+    oy = g_y + SIM_SONAR_AHEAD * sin(g_th);
+    for (ray = -2; ray <= 2; ++ray)
+    {
+        d = box_ray(ox, oy, angle + (ray * SIM_BEAM_DEG / 2.0) * CORE_PI / 180.0);
+        if ((d > 0.0) && ((best < 0.0) || (d < best)))
+        {
+            best = d;
+        }
+    }
+    app_cfg_scanner(&config);
+    gb_echo = true;
+    gb_echo_valid = (best > 0.0) && (best < 4.0);
+    g_echo_us = gb_echo_valid ?
+        (uint32_t)lround(2.0 * best / config.range.sound_speed_m_per_s * 1e6) :
+        0U;
+    return true;
+}
 void board_ultrasonic_service (void) {}
 void board_ultrasonic_notify (void (* p_notify)(void)) { (void)p_notify; }
 bool board_ultrasonic_result (uint32_t * p_pulse_us, bool * p_valid)
 {
-    *p_pulse_us = 0U;
-    *p_valid = false;
-    return false;
+    *p_pulse_us = g_echo_us;
+    *p_valid = gb_echo_valid;
+    if (!gb_echo)
+    {
+        return false;
+    }
+    gb_echo = false;
+    return true;
 }
-bool board_servo_us (uint16_t pulse_us) { (void)pulse_us; return true; }
+bool board_servo_us (uint16_t pulse_us)
+{
+    g_servo_pulse = pulse_us;
+    return true;
+}
 void board_motor_duty (core_real_t left_duty, core_real_t right_duty)
 {
     g_wduty[0] = left_duty;
@@ -261,8 +354,16 @@ void board_motor_brake (void)
 }
 bool board_stop_pressed (void) { return false; }
 bool board_start_pressed (void) { return false; }
-/* Barcode D0 not simulated: always low, so no D0 groups. */
-bool board_barcode_d0 (void) { return false; }
+/* Barcode D0: off (always low, no D0 groups) unless SIM_D0 is set; then the
+ * module's comparator on the same spot model: high while the spot is mostly
+ * over a bar (22 Nov, for the frame check). Defined after cover_spot.
+ */
+static double cover_spot (double forward, double left, double spot);
+bool board_barcode_d0 (void)
+{
+    return (NULL != getenv("SIM_D0")) &&
+           (cover_spot(W.b_ahead, W.b_left, W.b_spot) > 0.5);
+}
 
 /* ---- world ---- */
 static double sim_noise (void)
@@ -463,7 +564,19 @@ static double shade_at (double x, double y)
     int    j;
     double mid;
 
-    if (W.b_sbend)
+    if (gb_corner)
+    {
+        if (((fabs(y) <= SIM_LINE_HALF) && (x > -1.0) &&
+             (x <= g_corner_x + SIM_LINE_HALF)) ||
+            ((fabs(x - g_corner_x) <= SIM_LINE_HALF) && (y <= SIM_LINE_HALF) &&
+             (y > -3.0)) ||
+            ((fabs(y - g_corner_cross_y) <= SIM_LINE_HALF) &&
+             (fabs(x - g_corner_x) <= 0.3)))
+        {
+            return 1.0;
+        }
+    }
+    else if (W.b_sbend)
     {
         if (sbend_on(x, y))
         {
@@ -471,7 +584,7 @@ static double shade_at (double x, double y)
         }
     }
     else if (W.b_line && (fabs(y) <= SIM_LINE_HALF) && (x > -1.0) &&
-             (x < 5.0))
+             (x < g_line_end))
     {
         return 1.0;
     }
@@ -1261,6 +1374,151 @@ int main (int argc, char ** argv)
                   0.0) / 1000.0,
                  getenv("SIM_START_DEG") ? atof(getenv("SIM_START_DEG")) : 4.0,
                  14.0, 22.0);
+        return 0;
+    }
+    if ((argc > 1) && (0 == strcmp(argv[1], "corner")))
+    {
+        /* MISSION (22 Nov): a *A* card, a sharp 90 deg right turn at
+         * corner_m, then a real crossing cross_m down the new leg; the map
+         * makes A a LEFT. The turn must not be the junction: the move is to
+         * be made at the crossing. corner [corner_m cross_m]
+         */
+        world_measured(4.0);
+        gb_corner = true;
+        g_corner_x = (argc > 2) ? atof(argv[2]) : 0.6;
+        g_corner_cross_y = -((argc > 3) ? atof(argv[3]) : 0.5);
+        W.b_bars = true;
+        bars_build("*A*", 0.003, 0.009, 0.10 + W.b_ahead);
+        memcpy(g_nav.letters, "QZAF", 4);   /* forward Q, U-turn Z, left A */
+        g_nav.b_mapped = true;
+        printf("===== CORNER: *A* card, 90 deg right turn at %.0f mm, crossing"
+               " %.0f mm down the new leg; A = LEFT\n", g_corner_x * 1000.0,
+               -g_corner_cross_y * 1000.0);
+        run_mode(BENCH_MODE_MISSION, 0.0, 0.0, 4.0, 25.0, 30.0);
+        printf("CORNER: end t %.1f s at x %.0f y %.0f mm, heading %+.0f deg\n",
+               g_sim_t, g_x * 1000.0, g_y * 1000.0, g_th * 180.0 / CORE_PI);
+        return 0;
+    }
+    if ((argc > 1) && (0 == strcmp(argv[1], "long")))
+    {
+        /* MISSION far past 21 m (22 Nov): a card at at_m (default 22.0)
+         * and a crossing 0.4 m on. With 16-bit units (0.32 mm) the barcode
+         * store took nothing past 21.1 m, so this card went unread.
+         */
+        double at = (argc > 2) ? atof(argv[2]) : 22.0;
+
+        world_measured(4.0);
+        W.b_bars = true;
+        bars_build("*A*", 0.003, 0.009, at);
+        W.b_cross = true;
+        W.cross_x = at + 0.4;
+        g_line_end = at + 3.0;
+        printf("===== LONG: *A* card at %.1f m, crossing at %.1f m\n", at,
+               at + 0.4);
+        run_mode(BENCH_MODE_MISSION, 0.0, 0.0, 4.0,
+                 (at + 0.8) / 0.08 + 20.0, (at + 0.8) / 0.08 + 30.0);
+        return 0;
+    }
+    if ((argc > 1) && (0 == strcmp(argv[1], "lines")))
+    {
+        /* Lines no drive here reaches (22 Nov, for the frame check): each
+         * output function called on set-up state, as the car would.
+         */
+        static const uint8_t seen[8] = {0x12, 0xab, 0x00, 0xff, 1, 2, 3, 4};
+        int variant;
+
+        printf("===== LINES: idle report, map, restore, AUTO-CENTRE\n");
+        world_default();
+        g_drive.mode = BENCH_MODE_MISSION;
+        g_ir.count = 0U;
+        bench_report();                       /* no IR samples, no ACC */
+        g_ir.count = 4U;
+        g_ir.sum[0] = 4000U; g_ir.sum[1] = 16380U; g_ir.sum[2] = 400U;
+        g_ir.minimum[0] = 990U; g_ir.maximum[0] = 1010U;
+        g_ir.minimum[1] = 4090U; g_ir.maximum[1] = 4095U;
+        g_ir.minimum[2] = 0U; g_ir.maximum[2] = 200U;
+        g_accel.count = 101U;
+        g_accel.sum[0] = -404; g_accel.sum[1] = 1212; g_accel.sum[2] = 100798;
+        g_accel.minimum[0] = -72; g_accel.maximum[0] = 67;
+        g_accel.minimum[1] = -65; g_accel.maximum[1] = 113;
+        g_accel.minimum[2] = 953; g_accel.maximum[2] = 1027;
+        g_distance[BENCH_LEFT] = 6700000;
+        g_distance[BENCH_RIGHT] = -205701;
+        g_encoder_errors = 7U;
+        bench_report();
+        memcpy(g_nav.letters, "AZQF", 4);
+        bench_nav_say_map(BK_MAP);
+        bench_flush();
+        g_nav.b_say_map = true;
+        bench_nav_say();
+        gb_nav_restored = true;
+        g_nav_restores = 3U;
+        memcpy(g_nav_seen, seen, sizeof(seen));
+        bench_nav_say();
+        while (bench_avoid_text())
+        {
+            bench_flush();
+        }
+        /* Two D0 groups: 6 changes (not a Code 39 count), then 80 (more
+         * than the store keeps); each a D0 line and a widths line.
+         */
+        for (variant = 0; variant < 2; ++variant)
+        {
+            uint32_t edge;
+
+            memset(&g_d0.group[0], 0, sizeof(g_d0.group[0]));
+            g_d0.group[0].edges = (0 == variant) ? 6U : 80U;
+            for (edge = 0U; edge < BENCH_D0_EDGES; ++edge)
+            {
+                g_d0.group[0].edge[edge] = 65500U + 20U * edge +
+                                           ((edge % 2U) * 7U);  /* across 2^16 */
+            }
+            g_d0.queued = 1U;
+            g_d0.b_widths = false;
+            while (bench_d0_text())
+            {
+                bench_flush();
+            }
+        }
+        for (variant = 0; variant < 3; ++variant)
+        {
+            memset(&g_auto, 0, sizeof(g_auto));
+            g_auto.b_failed = (0 == variant);
+            g_auto.b_active = (1 == variant);
+            g_auto.p_fail = g_auto_fail_names[3];
+            g_auto.done_ms = 4567U;
+            g_auto.sweeps = 3U;
+            g_auto.corrections = 2U;
+            g_auto.coast_rad = -0.05;
+            g_auto.b_found[0] = (variant != 1);
+            g_auto.b_found[1] = (variant == 2);
+            g_auto.found_rad[0] = 0.3;
+            g_auto.found_rad[1] = -0.4;
+            g_auto.middle_rad = -0.05;
+            g_auto.end_rad = -0.04;
+            g_auto.raw[0] = 300U;
+            g_auto.raw[1] = 4000U;
+            bench_auto_results();
+        }
+        return 0;
+    }
+    if ((argc > 1) && (0 == strcmp(argv[1], "obstacle")))
+    {
+        /* MISSION on the straight line with a box on it (22 Nov, for the
+         * go-around's lines): obstacle [x_mm width_mm depth_mm], defaults
+         * 900 100 100. STOP at 70 s.
+         */
+        world_measured(4.0);
+        gb_box = true;
+        g_box_x = ((argc > 2) ? atof(argv[2]) : 900.0) / 1000.0;
+        g_box_y = 0.0;
+        g_box_hy = ((argc > 3) ? atof(argv[3]) : 100.0) / 2000.0;
+        g_box_hx = ((argc > 4) ? atof(argv[4]) : 100.0) / 2000.0;
+        printf("===== OBSTACLE: %.0f x %.0f mm box on the line at %.0f mm\n",
+               g_box_hy * 2000.0, g_box_hx * 2000.0, g_box_x * 1000.0);
+        run_mode(BENCH_MODE_MISSION, 0.0, 0.0, 4.0, 70.0, 80.0);
+        printf("OBSTACLE: end t %.1f s at x %.0f y %.0f mm, heading %+.0f deg\n",
+               g_sim_t, g_x * 1000.0, g_y * 1000.0, g_th * 180.0 / CORE_PI);
         return 0;
     }
     if ((argc > 1) && (0 == strcmp(argv[1], "sbend")))

@@ -31,7 +31,8 @@ import sys
 from datetime import datetime, timezone
 
 from robot_paths import (FIRMWARE, PORTABLE_HEADERS, PORTABLE_SOURCES, REPO,
-                         TARGET_HEADERS, app_file, include_flags)
+                         ROBOT_APP_PARTS, TARGET_HEADERS, app_file,
+                         include_flags)
 
 FLAGS = [
     "-std=c99", "-Wall", "-Wextra", "-Wpedantic", "-Werror",
@@ -94,8 +95,8 @@ def prepare(destination: Path, profile: str) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     for source in TARGET_HEADERS:
         shutil.copy2(source, destination / source.name)
-    for name in ("robot_app.c", "app_cfg.c"):
-        shutil.copy2(app_file(name), destination / name)
+    for source in (*ROBOT_APP_PARTS, app_file("app_cfg.c")):
+        shutil.copy2(source, destination / source.name)
     config_path = destination / "robot_config.h"
     config = config_path.read_text()
     opened = (() if profile == "default" else
@@ -162,7 +163,7 @@ def main() -> int:
     source_paths = sorted(set(
         list(PORTABLE_SOURCES) + list(PORTABLE_HEADERS) +
         list(TARGET_HEADERS) +
-        [app_file("robot_app.c"), app_file("app_cfg.c"),
+        [*ROBOT_APP_PARTS, app_file("app_cfg.c"),
          test_source, firmware / "tests/apphost_test_main.h",
          Path(__file__).resolve()]))
     source_hashes = {
@@ -233,11 +234,15 @@ def main() -> int:
                 options = ["-O1", "-g", "-fno-omit-frame-pointer",
                            "-fsanitize=address,undefined,float-cast-overflow",
                            "-fno-sanitize-recover=all"]
-            command = [compiler, *FLAGS, *options,
+            # The original FOLLOW/NAVIGATE/SCAN/BYPASS supervisor: the
+            # mission (ROBOT_APP_MISSION 1, the default) is covered by
+            # firmware/robot/sim instead.
+            command = [compiler, *FLAGS, *options, "-DROBOT_APP_MISSION=0",
                        f"-DAPPHOST_FIXTURE={int(profile != 'default')}",
                        f"-I{destination}", *include_flags(),
                        f"-I{firmware / 'tests'}", *portable,
-                       str(destination / "robot_app.c"),
+                       *(str(destination / part.name)
+                         for part in ROBOT_APP_PARTS),
                        str(destination / "app_cfg.c"), str(test_source),
                        "-lm", "-o", str(executable)]
             compiled = run(command, environment)

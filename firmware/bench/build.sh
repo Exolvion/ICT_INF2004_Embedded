@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# BENCH IMAGE, NOT THE ROBOT FIRMWARE (see bench_main.c for the commands).
+# BENCH IMAGE, NOT THE ROBOT FIRMWARE (see app_program/subsystem5/mission.c
+# for the commands).
 # Builds from a scratch copy of the project, so the working tree is never
 # modified. Run in WSL from the repository root:
 #   bash firmware/bench/build.sh offline|mqtt [motion] [BROKER_IPV4]
@@ -56,7 +57,14 @@ sys.path.insert(0, sys.argv[1])
 from robot_paths import copy_project
 copy_project(Path(sys.argv[2]))
 PY
-cp -- "$src/bench.h" "$src/bench_main.c" "$project/app_program/"
+# The bench source is firmware/bench/bench_main.c: the mission as one file,
+# frozen when the robot app's mission was split into its subsystems (22 Nov
+# 2026), BENCH_IMAGE making it the bench loop. It replaces the robot's
+# mission parts in the copy.
+rm -f -- "$project"/app_program/subsystem*/mission*.c \
+         "$project/app_program/mission_private.h"
+cp -- "$src/bench_main.c" "$project/app_program/subsystem5/mission.c"
+cp -- "$src/bench.h" "$project/app_program/"
 
 # Point usermain at the bench loop; the robot's start-up is kept but unused.
 python3 - "$project/app_program/app_main.c" <<'PY'
@@ -97,6 +105,7 @@ for name, value in (("ROBOT_CALIBRATION_CONFIRMED", "1"),
                           f'#define {name} {value}', text)
     assert count == 1, f'expected one {name}'
 header = ('/* BENCH IMAGE ONLY: outputs opened for bench measurements. */\n'
+          '#define BENCH_IMAGE 1\n'
           f'#define BENCH_ROBOT_MAX_DUTY {robot_max[0]}\n'
           f'#define BENCH_ROBOT_SERVO_MIN_US {robot_servo["ROBOT_SERVO_MIN_US"]}\n'
           f'#define BENCH_ROBOT_SERVO_MAX_US {robot_servo["ROBOT_SERVO_MAX_US"]}\n')
@@ -104,6 +113,9 @@ if sys.argv[2] == '1':
     header += '#define BENCH_MOTION 1\n'
 open(path, 'w', newline='').write(header + text)
 PY
+
+# The telemetry slots (net_mqtt_ipc.h) are the mission's 64-byte frames, 8
+# deep, sent in bursts, in both builds since 22 Nov: nothing to change.
 
 if [[ "$profile" == mqtt ]]; then
     cp -- "$repo/config/wifi_credentials.h" "$repo/config/net_mqtt_config.h" \

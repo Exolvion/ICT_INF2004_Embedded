@@ -71,7 +71,10 @@ desktop.ini
 firmware/bench/offline/sim/proj/
 firmware/bench/offline/sim/sim
 
+# Robot app host sim build products (firmware/robot/sim/make.sh).
+firmware/robot/sim/obj/
+firmware/robot/sim/robot_sim
 
-# Contained MQTT broker dependencies (tools/broker, see README.md).
+# Contained MQTT broker dependencies (tools/broker/README.md).
 tools/broker/node_modules/
 tools/broker/package-lock.json

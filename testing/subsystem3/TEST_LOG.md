@@ -1,6 +1,6 @@
 # Subsystem 3 — test log
 
-**Subsystem:** Optical: IR line following, barcodes (Buddy 3, Tan Yi Jian Ethan)  ·  **Student ID:** 2501528  ·  **Code:** `app_program/subsystem3/` (`line_ctrl.c/.h`, `barcode.c/.h`, `course_cfg.c/.h`)
+**Subsystem:** Optical: IR line following, barcodes (Buddy 3, Tan Yi Jian Ethan)  ·  **Student ID:** 2501528  ·  **Code:** `app_program/subsystem3/` (`line_ctrl.c/.h`, `barcode.c/.h`, `course_cfg.c/.h`); since 22 Nov 2026 also `mission_line.c/.h`, `mission_barcode.c/.h` (the mission's line and cards), `robot_line.c/.h` (Line task)
 
 See `testing/README.md` for how to run tests and record results, and
 `TESTING.md` for the set-up. P2 = after TESTING.md section 4; bench = with a

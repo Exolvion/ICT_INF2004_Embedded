@@ -1,6 +1,6 @@
 # Subsystem 1 — test log
 
-**Subsystem:** Communications: Wi-Fi, MQTT, telemetry (Buddy 1, Subque)  ·  **Student ID:** 2500599  ·  **Code:** `app_program/subsystem1/` (`net_mqtt*.c/.h`, `telemetry.c/.h`, `mqttcmd.c/.h`), `firmware/scripts/telemetry_codec.py`
+**Subsystem:** Communications: Wi-Fi, MQTT, telemetry (Buddy 1, Subque)  ·  **Student ID:** 2500599  ·  **Code:** `app_program/subsystem1/` (`net_mqtt*.c/.h`, `telemetry.c/.h`, `mqttcmd.c/.h`), `firmware/scripts/telemetry_codec.py`; since 22 Nov 2026 also `mission_frames.c/.h` (the mission's frames), `robot_comm.c/.h` (Comm and Telemetry tasks)
 
 See `testing/README.md` for how to run tests and record results, and
 `TESTING.md` for the set-up. P2 = after TESTING.md section 4.

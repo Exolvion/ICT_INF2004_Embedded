@@ -10,19 +10,20 @@
 #include <tk/tkernel.h>
 
 #define NET_MQTT_IPC_DEPTH 4U
-/* Telemetry frames waiting for the radio (19 Nov: 4 x 20 B, one sent per
- * 100 ms, held the bench's text to ~150 characters/s; now 8 x 64 B, and
- * net_mqtt_transmit sends every waiting frame each 100 ms).
+/* Telemetry frames waiting for the radio: NET_MQTT_IPC_TX_DEPTH and
+ * NET_MQTT_IPC_TX_MAX (net_mqtt_ipc.h): 8 x 64 B, the mission's frames and
+ * the robot's own (4 x 20 B for the robot app alone until 22 Nov).
  */
-#define NET_MQTT_IPC_TX_DEPTH 8U
 /* The kernel stores each message as a 4-byte header plus its length rounded
  * up to 4 bytes (messagebuf.h HEADERSZ and ROUNDSZ): words per message.
  */
 #define NET_MQTT_IPC_WORDS(maximum) ((((maximum) + 3U) / 4U) + 1U)
-/* HEADERSZ (4 B) + ROUNDSZ(64 B) = 68 B per frame and 4 + ROUNDSZ(1) = 8 B
- * per command: a change to either maximum must revisit the buffer sizes.
+/* HEADERSZ (4 B) + ROUNDSZ(64 B) = 68 B per frame (the robot app alone had
+ * 20 B slots, 24 B, until 22 Nov) and 4 + ROUNDSZ(1) = 8 B per command: a
+ * change to either maximum must revisit the buffer sizes.
  */
-#if (NET_MQTT_IPC_WORDS(NET_MQTT_IPC_TX_MAX) != 17U) || \
+#define NET_MQTT_IPC_TX_WORDS 17U
+#if (NET_MQTT_IPC_WORDS(NET_MQTT_IPC_TX_MAX) != NET_MQTT_IPC_TX_WORDS) || \
     (NET_MQTT_IPC_WORDS(NET_MQTT_IPC_RX_MAX) != 2U) || \
     (NET_MQTT_IPC_WORDS(NET_MQTT_IPC_MAP_MAX) != 2U)
 #error "IPC slots must hold the 4-byte header plus the rounded body"
@@ -35,7 +36,9 @@ static ID gh_rx_id   = 0;
 static ID gh_stop_id = 0;
 static ID gh_map_id  = 0;
 
-/* 8 x 68 B telemetry, 4 x 8 B commands, one 8 B pending STOP. */
+/* 4 x 24 B telemetry (bench 8 x 68 B), 4 x 8 B commands, one 8 B pending
+ * STOP.
+ */
 static uint32_t g_tx_storage[NET_MQTT_IPC_TX_DEPTH *
                              NET_MQTT_IPC_WORDS(NET_MQTT_IPC_TX_MAX)];
 static uint32_t g_rx_storage[NET_MQTT_IPC_DEPTH *
@@ -188,7 +191,7 @@ static ID net_mqtt_ipc_create (void * p_buffer, uint32_t size,
     T_CMBF config = {0};
 
     config.mbfatr = TA_TFIFO | TA_USERBUF;
-    /* All callers use static buffers <=544 bytes and messages <=64. */
+    /* Static buffers <= 544 bytes (bench) and messages <= 64. */
     config.bufsz  = (SZ)size;
     config.maxmsz = (INT)maximum;
     config.bufptr = p_buffer;

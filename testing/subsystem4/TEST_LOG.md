@@ -1,6 +1,6 @@
 # Subsystem 4 — test log
 
-**Subsystem:** Terrain: IMU, tilt, hump height (Buddy 4, Dian Ze)  ·  **Student ID:** 2500916  ·  **Code:** `app_program/subsystem4/` (`terrain.c/.h`), the IMU parts of the shared `app_program/board.c` and `app_program/robot_app.c`
+**Subsystem:** Terrain: IMU, tilt, hump height (Buddy 4, Dian Ze)  ·  **Student ID:** 2500916  ·  **Code:** `app_program/subsystem4/` (`terrain.c/.h`), the IMU parts of the shared `app_program/board.c` and `app_program/robot_app.c`; since 22 Nov 2026 also `mission_terrain.c/.h`, `mission_compass.c/.h` (the mission's hump, lift, compass), `robot_imu.c/.h` (IMU task)
 
 See `testing/README.md` for how to run tests and record results, and
 `TESTING.md` for the set-up. Bench = with a bench program (TESTING.md

@@ -16,6 +16,11 @@
 
 #define APP_MAIN_TASKS (8U)
 #define APP_MAIN_STACK_BYTES (4096)
+/* The Vehicle task runs the mission (mission.c): its decoders and end report
+ * nest deeper, as the bench's 8 KiB control task did.
+ */
+#define APP_MAIN_VEHICLE_STACK_BYTES (8192)
+#define APP_MAIN_VEHICLE_INDEX (3U)
 #define APP_MAIN_GPIO_IRQ (13U)
 
 /* usermain is the sole external entry name mandated by this BSP. */
@@ -130,7 +135,9 @@ INT usermain (void)
     {
         definition.tskatr  = TA_HLNG | TA_RNG3;
         definition.task    = entries[index];
-        definition.stksz   = APP_MAIN_STACK_BYTES;
+        definition.stksz   = (APP_MAIN_VEHICLE_INDEX == index) ?
+                             APP_MAIN_VEHICLE_STACK_BYTES :
+                             APP_MAIN_STACK_BYTES;
         /* index+1 is in [1,8], inside PRI range. */
         definition.itskpri = (PRI)(index + 1U);
         h_task_ids[index] = tk_cre_tsk(&definition);

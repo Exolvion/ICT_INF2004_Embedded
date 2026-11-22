@@ -1,0 +1,1475 @@
+# subsystem 2 lines of testing/system/logs/2026-11-06_dashboard.txt (tools/split_logs.py); the day log has them all.
+15:18:44.427 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:45.458 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:48.082 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:49.507 ENC counts L +29719 R +34227 mm L +2396 IR L 241 206-266 R 446 409-470 B 1834 1812-1853
+15:18:50.217 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:51.258 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:52.231 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:53.246 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:54.258 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:55.269 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:56.282 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:57.293 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:58.310 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:18:59.330 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:00.338 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:01.356 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:02.388 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:03.394 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:04.409 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:05.425 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:06.429 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:07.445 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:08.465 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:09.487 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:10.499 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:11.523 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:12.640 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:13.647 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:14.663 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:15.679 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:16.695 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:17.714 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:18.732 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:19.744 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:20.777 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:21.778 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:22.802 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:23.810 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:24.829 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:25.839 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:26.855 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:27.871 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:28.887 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:30.005 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:31.125 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:32.248 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:33.290 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:34.274 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:37.712 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:39.145 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:40.159 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:41.174 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:42.189 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:43.214 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:44.237 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:45.239 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:46.254 ENC counts L +29719 R +34227 mm L +2396 R +2759 err 0
+15:19:46.358 ENC distance zeroed
+15:19:47.278 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:48.198 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:49.098 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:50.006 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:50.913 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:51.824 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:52.835 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:53.841 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:54.855 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:55.861 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:56.868 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:19:59.397 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:00.122 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:01.011 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:01.920 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:04.952 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:06.261 ENC counts L +0 R +0IR L 237 197-264 R 445 401-469 B 1830 1805-1854
+15:20:06.873 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:07.883 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:08.884 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:09.886 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:10.894 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:11.905 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:12.909 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:13.926 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:14.938 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:15.933 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:16.940 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:17.947 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:18.854 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:21.282 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:22.196 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:23.112 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:24.015 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:25.943 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:27.045 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:27.956 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:28.954 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:29.965 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:30.885 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:31.896 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:32.891 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:33.899 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:35.905 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:37.254 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:38.208 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:39.054 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:39.961 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:40.973 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:41.983 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:42.984 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:44.045 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:44.907 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:45.912 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:48.441 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:50.265 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:51.280 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:52.282 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:54.120 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:56.586 ENC counts L +0 R +0IR L 235 198-266 R 444 405-465 B 1828 1803-1851
+15:20:57.138 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:58.051 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:58.959 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:20:59.963 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:00.971 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:01.983 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:02.989 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:03.999 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:05.006 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:06.016 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:07.059 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:08.045 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:09.048 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:10.067 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:11.075 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:12.068 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:13.097 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:14.090 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:14.990 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:15.999 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:17.009 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:18.017 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:19.064 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:20.031 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:21.042 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:22.046 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:23.057 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:41.355 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:42.248 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:44.058 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:44.291 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:45.192 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:46.171 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:47.191 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:48.237 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:49.120 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:50.112 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:53.342 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:54.672 ENC counts L +0 R +0IR L 239 203-267 R 443 403-466 B 1830 1803-1850
+15:21:55.267 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:56.184 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:57.176 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:58.183 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:21:59.205 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:00.206 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:01.220 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:02.222 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:04.147 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:06.571 ENC counts L +0 R +0IR L 232 198-267 R 449 414-466 B 1830 1814-1849
+15:22:07.386 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:08.286 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:09.233 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:10.272 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:11.215 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:12.217 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:13.248 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:15.785 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:17.269 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:18.274 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:19.282 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:20.193 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:21.214 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:22.214 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:23.217 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:24.231 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:26.211 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:27.764 ENC counts L +0 R +0IR L 239 206-268 R 447 403-468 B 1830 1805-1854
+15:22:28.364 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:30.185 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:31.400 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:32.307 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:33.314 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:34.405 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:35.329 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:36.346 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:37.273 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:38.249 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:39.259 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:40.266 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:41.281 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:42.282 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:43.288 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:44.313 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:45.312 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:46.315 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:49.782 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:50.459 ENC counts L +0 R +0ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:51.369 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:52.378 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:55.603 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:56.825 ENC counts L +0 R +0IR L 238 198-266 R 447 420-474 B 1832 1809-1853
+15:22:58.385 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:22:59.867 ENC counts L +0 R +0IR L 236 196-290 R 446 402-470 B 1832 1810-1854
+15:23:00.458 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:02.352 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:03.823 ENC counts L +0 R +0IR L 239 200-268 R 445 410-469 B 1833 1812-1855
+15:23:04.412 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:05.401 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:06.422 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:07.432 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:08.434 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:11.350 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:12.478 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:13.979 ENC counts L +0 R +0IR L 237 197-270 R 447 416-470 B 1831 1814-1850
+15:23:14.584 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:15.493 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:16.467 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:17.414 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:18.431 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:19.430 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:20.451 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:22.323 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:24.312 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:26.571 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:23:30.644 ENC counts L +0 R +0IR L 240 208-268 R 443 398-474 B 1833 18
+15:30:44.480 ENC counts L +26900 R +28244 mm L +2169 R +2277 err 0
+15:30:45.595 ENC counts L +26900 R +28244 mm L +2169 R +2277 err 0
+15:30:46.717 ENC counts L +26900 R +28244 mm L +2169 R +2277 err 0
+15:30:47.870 ENC counts L +26900 R +28244 mm L +2169 R +2277 err 0
+15:30:48.950 ENC counts L +26900 R +28244 mm L +2169 R +2277 err 0
+15:30:50.074 ENC counts L +26900 R +28244 mm L +2169 R +2277 err 0
+15:30:51.204 ENC counts L +26900 R +28244 mm L +2169 R +2277 err 0
+15:30:56.043 ENC counts L +26900 
+15:30:59.507  mm L +0 R +0 err 0
+15:31:00.758 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:01.773 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:02.744 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:03.795 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:04.798 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:05.813 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:06.817 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:07.823 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:08.836 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:09.747 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:10.858 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:11.764 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:12.778 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:13.685 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:14.915 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:17.233 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:17.959 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:19.078 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:20.159 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:21.275 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:22.410 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:31:23.207 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:31:24.120 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:31:25.034 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:31:25.940 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:31:26.849 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:31:27.754 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:31:28.813 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:31:29.893 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:31:30.774 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:31:31.782 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:31:32.813 ENC counts L +0 R +1 mm L +0 R +0 err 0
+15:32:03.029 ENC counts L -45 R +0 mm L -4 R +0 err 0
+15:32:04.245 ENC counts L -45 R +0 mm L -4 R +0 err 0
+15:32:05.463 ENC counts L -45 R +0 mm L -4 R +0 err 0
+15:32:07.384 ENC counts L -45 R +0 mm L -4 R +0 err 0
+15:32:08.423 ENC counts L -45 R +0 mm L -4 R +0 err 0
+15:32:09.313 ENC counts L -44 R -1 mm L -4 R +0 err 0
+15:32:10.347 ENC counts L -45 R -IR L 519 490-549 R 1556 1529-1576 B 175 157-195
+15:32:11.061 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:12.259 ENC counts L -45 R -IR L 523 490-552 R 1556 1535-1577 B 177 160-194
+15:32:13.969 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:15.297 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:16.189 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:19.475 ENC counts L -45 R -IR L 522 483-544 R 1550 1534-1572 B 180 160-195
+15:32:20.031 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:21.981 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:24.661 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:25.995 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:27.049 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:28.056 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:29.041 ENC counts L -45 R -1 mm L -4 R +0 err 0
+15:32:35.937  P 1 0 -1 C -269 +189 +51
+15:32:36.662  P 41 0 -1 C -280 +217 +45
+15:32:36.993  P 89 0 0 C -269 +284 +70
+15:32:37.705  P 138 0 0 C -271 +314 +127
+15:32:38.025  P 187 1 0 C -268 +285 +191
+15:32:38.747  P 236 1 2 C -250 +214 +184
+15:32:38.955  P 286 1 -1 C -223 +123 +66
+15:32:39.689  P 335 2 2 C -189 +238 -94
+15:32:39.999  P 384 2 -1 C -183 +380 -136
+15:32:41.445  P 434 2 1 C -152 +547 -48
+15:32:41.659  P 485 3 1 C -146 +601 +108
+15:32:42.379  P 575 4 0 C -165 +508 +252
+15:32:43.148  P 648 4 0 C -180 +410 +240
+15:32:46.546  P 979 4 2 C -152 +533 +152
+15:32:47.323  P 1056 13 17 C -36 +743 +262
+15:32:48.050  P 1118 40 28 C +71 +914 +396
+15:32:49.014  P 1183 101 67 C +716 +821 +614
+15:32:49.935  P 1185 181 106 C +1021 +225 +550
+15:32:50.902  P 1140 250 140 C +939 -227 +447
+15:33:02.103 ENC counts L +15287 R +19756 mm L +1232 R +1593 err 0
+15:33:04.786 ENC counts L +15287 R +19756 mm L +1232 IR L 299 299-299 R 923 923-923 B 208 208-208
+15:33:05.561 ENC counts L +15288 R +19750 mm L +1232 IR L 269 237-298 R 916 881-944 B 196 178-212
+15:33:06.271 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:07.287 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:08.299 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:09.323 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:10.334 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:11.462 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:12.468 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:13.588 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:14.706 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:15.725 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:16.840 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:17.853 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:18.971 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:20.108 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:21.106 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:22.967 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:24.259 ENC counts L +15288 IR L 267 232-297 R 915 876-946 B 194 178-211
+15:33:26.494 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:27.808 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:28.802 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:29.853 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:30.820 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:31.838 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:32.841 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:34.939 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:36.083 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:37.098 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:38.215 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:40.426 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:41.854 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:45.398 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:46.229 ENC counts L +15288 R +19750 mm L +1232 IR L 270 237-297 R 919 885-942 B 196 177-213
+15:33:46.946 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:47.925 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:48.947 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:49.946 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:50.962 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:51.964 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:52.976 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:53.997 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:54.995 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:56.017 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:57.013 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:58.056 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:33:59.040 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:00.051 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:01.061 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:02.091 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:03.803 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:05.221 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:07.502 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:09.375 ENC counts L +15288 R +19750 mm L +1232 IR L 266 226-296 R 918 882-946 B 195 170-214
+15:34:10.489 ENC counts L +15288 R +19750 mm L +1232 IR L 271 235-297 R 915 872-940 B 196 169-211
+15:34:11.200 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:12.220 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:13.229 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:14.254 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:15.273 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:16.318 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:17.286 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:18.306 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:19.310 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:20.339 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:21.479 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:22.591 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:24.901 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:26.424 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:27.445 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:28.463 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:29.489 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:30.484 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:31.491 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:32.501 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:33.543 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:34.535 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:35.547 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:36.565 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:37.580 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:38.623 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:39.715 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:40.832 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:41.986 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:42.965 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:44.087 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:45.203 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:46.318 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:47.464 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:50.689 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:51.800 ENC counts L +15288 R +19750 mm L +1232 IR L 271 241-291 R 923 901-940 B 193 181-211
+15:34:52.641 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:53.789 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:55.762 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:56.786 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:57.956 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:34:59.012 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:00.134 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:01.249 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:02.367 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:03.485 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:05.617 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:07.825 ENC counts L +15288 R +19750 mm L +1232 IR L 273 244-294 R 920 904-939 B 199 191-208
+15:35:08.567 ENC counts L +15288 R +19750 mm L +1232 IR L 270 229-298 R 921 877-947 B 195 176-218
+15:35:09.284 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:11.695 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:12.923 ENC counts L +15288 R +19750 mm L +1232 IR L 270 243-293 R 918 897-949 B 195 180-215
+15:35:13.758 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:14.878 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:15.979 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:17.018 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:21.899 ENC counts L +15288 MAG x +380 y -178 z +128
+15:35:22.130 ENC counts L +15288 IR L 268 230-300 R 921 891-946 B 193 180-212
+15:35:22.744 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:23.775 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:24.873 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:25.897 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:26.906 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:27.919 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:28.947 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:29.949 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:31.000 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:31.983 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:32.997 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:34.927 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:35.948 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:36.960 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:38.088 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:39.194 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:40.311 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:41.328 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:42.463 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:43.561 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:46.656 ENC counts L +15288 R +19750 mm L +1232 IR L 268 241-296 R 917 872-946 B 192 171-213
+15:35:47.372 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:48.331 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:49.349 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:50.377 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:51.367 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:52.380 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:54.484 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:55.322 ENC counts L +15288 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:56.337 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:57.350 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:58.375 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:35:59.378 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:00.501 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:01.510 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:02.527 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:03.553 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:04.661 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:05.783 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:06.899 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:08.035 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:10.166 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:11.444 ENC counts L +15288 R +19750 mm L +1232 IR L 275 256-296 R 927 906-936 B 193 181-207
+15:36:12.094 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:13.201 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:14.350 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:15.435 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:16.556 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:17.571 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:18.631 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:20.698 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:22.134 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:23.159 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:24.161 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:26.230 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:27.494 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:28.515 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:29.530 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:30.645 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:31.763 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:32.882 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:33.910 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:35.015 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:36.041 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:37.839 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:39.285 ENC counts L +15288 R +19750 mm L +1232 IR L 279 258-298 R 926 905-936 B 196 185-213
+15:36:40.134 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:42.126 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:43.246 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:44.362 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:45.481 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:46.613 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:47.820 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:48.838 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:49.997 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:51.088 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:52.191 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:53.321 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:54.452 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:55.561 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:56.686 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:58.793 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:36:59.615 ENC counts L +15288 IR L 270 233-308 R 921 879-948 B 196 180-213
+15:37:01.437 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:03.788 ENC counts L +15288 R +19750 mm L +1232 IR L 270 236-295 R 918 875-947 B 195 169-211
+15:37:04.867 ENC counts L +15288 R +19750 mm L +1232 IR L 268 232-297 R 918 891-942 B 197 181-211
+15:37:05.577 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:06.591 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:07.611 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:08.626 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:09.779 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:11.709 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:12.902 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:14.012 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:15.153 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:17.413 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:18.879 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:19.893 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:20.913 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:21.935 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:23.042 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:24.043 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:26.092 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:27.086 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:28.139 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:29.111 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:30.128 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:31.162 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:34.554 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:36.201 ENC counts L +15288 IR L 268 225-298 R 920 890-950 B 196 175-216
+15:37:36.915 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:37.965 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:38.967 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:39.981 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:40.987 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:41.985 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:42.994 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:43.985 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:44.996 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:46.006 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:47.172 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:48.130 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:49.146 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:50.157 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:51.175 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:52.191 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:53.205 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:54.218 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:55.238 ENC counts L +15288 R +19750 mm L +1232 R +1592 err 0
+15:37:56.277 ENC counts L +15287 R +19750 mm L +1232 R +1592 err 0
+15:37:57.304 ENC counts L +15287 R +19744 mm L +1232 R +1592 err 0
+15:37:58.286 ENC counts L +15287 R +19838 mm L +1232 R +1599 err 1
+15:37:59.309 ENC counts L +15287 R +19869 mm L +1232 R +1602 err 1
+15:38:29.347 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:30.323 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:31.376 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:32.561 ENC counts L -51 R -IR L 266 230-296 R 1075 1041-1108 B 201 177-221
+15:38:33.247 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:34.257 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:35.264 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:36.280 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:37.282 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:38.304 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:39.303 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:40.414 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:41.523 ENC counts L -51 R -IR L 267 225-292 R 1082 1040-1107 B 200 174-218
+15:38:42.239 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:43.250 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:44.246 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:45.251 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:46.322 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:47.269 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:48.281 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:49.315 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:50.302 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:51.312 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:52.308 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:53.316 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:54.322 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:55.358 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:56.376 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:57.351 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:58.353 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:38:59.380 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:00.419 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:01.380 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:02.394 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:03.437 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:04.403 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:05.418 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:06.422 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:07.434 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:08.460 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:09.689 ENC counts L -51 R -IR L 269 227-293 R 1080 1049-1107 B 202 179-221
+15:39:10.362 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:11.372 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:13.402 ENC counts L -51 R -ACC mg n 51 x +10 +5..+15 y +29 +23..+36 z +1023 +1015..+1030
+15:39:13.920 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:14.923 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:15.940 ENC counts L -51 R -100 mm L -4 R -8 err 0
+15:39:16.853 ENC counts L -51 R -106 mm L -4 R -9 err 0
+15:39:17.879 ENC counts L -50 R -106 mm L -4 R -9 err 0
+15:39:20.066 ENC counts L -50 R -105 mm L -4 R -8 err 0
+15:39:20.729 ENC counts L -50 R -105 mm L -4 R -8 err 0
+15:39:21.932 ENC counts L -50 R -105 mm L -4 R -8 err 0
+15:39:22.994 ENC counts L -59 R -105 mm L -5 R -8 err 0
+15:39:23.997 ENC counts L -68 R -105 mm L -5 R -8 err 0
+15:39:24.880 ENC counts L -76 R -105 mm L -6 R -8 err 0
+15:39:25.807 ENC counts L -76 R -105 mm L -6 R -8 err 0
+15:39:26.811 ENC counts L -76 R -IR L 1733 1705-1758 R 506 472-526 B 180 154-195
+15:39:27.534 ENC counts L -76 R -105 mm L -6 R -8 err 0
+15:39:28.522 ENC counts L -76 R -105 mm L -6 R -8 err 0
+15:39:29.568 ENC counts L -76 R -105 mm L -6 R -8 err 0
+15:39:30.764 ENC counts L -76 R -IR L 1734 1708-1762 R 509 471-533 B 178 152-195
+15:39:31.451 ENC counts L -76 R -105 mm L -6 R -8 err 0
+15:39:32.460 ENC counts L -76 R -105 mm L -6 R -8 err 0
+15:39:36.490 ENC counts L -76 R -105 mm L -6 R -8 err
+15:39:38.458  P 187 6 1 C -257 +320 +178
+15:39:39.256  P 236 8 2 C -241 +251 +200
+15:39:39.429  P 285 9 3 C -214 +179 +128
+15:39:40.193  P 335 10 0 C -189 +171 -43
+15:39:40.467  P 384 10 0 C -165 +332 -132
+15:39:42.471  P 435 11 1 C -142 +510 -82
+15:39:42.475  P 485 12 1 C -135 +598 +50
+15:39:43.072  P 536 13 2 C -135 +593 +183
+15:39:43.271  P 621 15 2 C -159 +489 +268
+15:39:47.052  P 991 22 1 C -155 +523 +148
+15:39:47.842  P 1068 31 14 C -73 +724 +246
+15:39:48.560  P 1132 53 25 C +18 +885 +393
+15:39:57.594 ENC counts L +13988 IR L 2594 2561-2618 R 373 347-394 B 180 161-196
+15:39:58.305 ENC counts L +13988 R +15253 mm L +1128 R +1230 err 1
+15:40:03.816  P 191 6 2 C -261 +290 +193
+15:40:04.655  P 241 8 3 C -243 +190 +165
+15:40:04.839  P 291 11 3 C -209 +157 +21
+15:40:05.583  P 342 14 3 C -173 +271 -115
+15:40:09.018  P 657 29 4 C -163 +420 +237
+15:40:11.140  P 746 33 4 C -143 +372 +133
+15:40:12.169  P 967 41 2 C -162 +516 +150
+15:40:12.987  P 1044 52 16 C -67 +722 +247
+15:40:15.981  P 1108 76 26 C +27 +887 +390
+15:40:16.941  P 1101 304 155 C +875 -363 +446
+15:40:17.655  P 1039 312 -171 C +617 -696 +509
+15:40:18.382  P 978 286 -146 C +241 -950 +389
+15:40:19.645  P 884 211 -142 C +33 -712 +18
+15:40:20.579  P 820 147 -127 C -153 -319 +129
+15:40:21.520  P 762 81 -141 C +19 -345 +332
+15:40:22.021  P 721 52 -151 C +135 -380 +440
+15:40:36.555 ENC counts L +20260 IR L 1862 1839-1889 
+15:40:38.192  P 187 -1 0 C -275 +310 +96
+15:40:38.928  P 238 -1 0 C -266 +323 +164
+15:40:39.227  P 289 0 0 C -258 +264 +201
+15:40:39.981  P 339 0 0 C -232 +169 +131
+15:40:40.289  P 389 0 0 C -192 +181 -45
+15:40:43.418  P 653 0 -1 C -160 +497 +259
+15:40:44.199  P 723 0 0 C -165 +432 +248
+15:40:45.113  P 814 -1 0 C -157 +363 +150
+15:40:46.497  P 957 -4 -1 C -129 +445 +64
+15:40:47.394  P 1037 -4 -2 C -176 +495 +144
+15:40:48.078  P 1106 -1 8 C -106 +667 +222
+15:40:49.729  P 1188 29 26 C +75 +917 +391
+15:40:51.522  P 1265 142 92 C +983 +435 +592
+15:40:52.036  P 1246 203 120 C +1008 -18 +477
+15:40:52.936  P 1133 267 -173 C +583 -698 +508
+15:40:53.661  P 1070 245 -151 C +277 -935 +398
+15:40:55.647  P 990 186 -143 C +17 -783 +34
+15:41:06.103 ENC counts L +19078 R +25368 mm L +1538 IR L 2403 2403-2403 R 339 339-339 B 182 182-182
+15:41:06.911 ENC counts L +19078 R +25368 mm L +1538 R +2045 err 0
+15:41:08.038 ENC counts L +19078 R +25368 mm L +1538 R +2045 err 0
+15:41:12.085 ENC counts L +19078 
+15:41:13.792  P 188 -3 -1 C -269 +302 +92
+15:41:15.518  P 238 -5 -1 C -276 +320 +158
+15:41:15.722  P 289 -6 -1 C -259 +272 +201
+15:41:16.461  P 403 -7 0 C -188 +209 -64
+15:41:20.602  P 812 -15 -1 C -156 +369 +163
+15:41:23.482  P 1096 -23 3 C -138 +608 +191
+15:41:24.340  P 1171 -3 22 C +44 +856 +321
+15:41:25.079  P 1232 28 35 C +228 +968 +511
+15:41:25.993  P 1273 94 83 C +936 +559 +616
+15:41:26.944  P 1259 176 118 C +1010 -6 +489
+15:41:27.940  P 1201 234 155 C +840 -400 +442
+15:41:29.334  P 1138 244 -171 C +568 -716 +507
+15:41:32.031  P 976 151 -146 C +15 -694 +9
+15:41:41.556 ENC counts L +20003 R +26346 mm L +1613 R +2124 err 0
+15:41:42.672 ENC counts L +20003 R +26346 mm L +1613 R +2124 err 0
+15:41:43.829 ENC counts L +20003 R +26346 mm L +1613 R +2124 err 0
+15:41:44.920 ENC counts L +20003 R +26346 mm L +1613 R +2124 err 0
+15:41:45.940 ENC counts L +20003 R +26346 mm L +1613 R +2124 err 0
+15:41:48.087 ENC counts L +20003 R +26346 mm L +1613 R +2124 err 0
+15:41:49.135 ENC counts L +20003 R +26346 mm L +1613 R +2124 err 0
+15:41:51.106 ENC counts L +20003 R +26346 mm L +1613 R +2124 err 0
+15:41:53.250 ENC counts L +20002 R +26304 mm L +1613 IR L 4051 4033-4076 R 4057 4035-4076 B 4063 4048-4084
+15:41:54.381 ENC counts L +20002 R +26304 mm L +1613 IR L 3986 3986-3986 R 4025 4022-4029 B 4013 4010-4016
+15:41:55.478 ENC counts L +20002 R +26304 mm L +1613 IR L 259 259-259 R 1155 1155-1155 B 184 184-184
+15:41:56.220 ENC counts L +20003 R +26259 mm L +1613 R +2117 err 2
+15:41:57.209 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:41:58.244 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:41:59.241 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:00.364 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:02.512 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:03.102 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:04.133 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:05.158 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:06.139 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:07.154 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:08.254 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:09.197 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:10.239 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:11.223 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:12.223 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:13.260 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:14.263 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:15.276 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:16.292 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:17.327 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:18.343 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:19.370 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:20.381 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:22.209 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:23.198 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:26.032 ENC counts L +20003 R +26260 mm L +1613 ACC mg n 44 x +15 +9..+23 y +29 +22..+36 z +1024 +1017..+1032
+15:42:26.755 ENC counts L +20003 R +26260 mm L +1613 IR L 273 273-273 R 1163 1163-1163 B 193 193-193
+15:42:27.558 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:28.571 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:29.586 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:30.707 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:31.734 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:32.737 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:33.754 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:34.779 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:35.799 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:36.802 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:38.789 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:39.545 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:40.567 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:41.569 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:42.593 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:43.599 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:45.752 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:46.538 ENC counts L +20003 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:47.553 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:48.594 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:54.858 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:57.881 ENC counts L +20003 R +26260 mm L +1613 IR L 282 254-310 R 1161 1116-1184 B 195 181-213
+15:42:58.584 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:42:59.608 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:00.613 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:01.657 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:02.644 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:03.655 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:04.671 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:05.703 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:07.719 ENC counts L +20003 R +26260 mm L +1613 IR L 287 249-308 R 1159 1120-1184 B 197 172-219
+15:43:08.420 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:09.426 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:11.250 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:12.670 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:13.766 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:14.706 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:15.737 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:16.726 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:17.736 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:18.781 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:19.770 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:20.784 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:21.801 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:22.818 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:23.835 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:24.849 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:25.887 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:26.898 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:27.913 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:28.921 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:29.951 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:31.066 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:32.089 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:33.123 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:34.145 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:35.118 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:36.139 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:37.255 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:39.896 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:41.008 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:42.018 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:43.032 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:44.050 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:45.057 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:46.105 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:47.077 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:49.946 ENC counts L +20003 R +26260 mm L +1613 ACC mg n 44 x +11 +2..+23 y +30 +20..+43 z +1021 +1015..+1029
+15:43:50.654 ENC counts L +20003 R +26260 mm L +1613 IR L 287 257-308 R 1153 1126-1170 B 198 174-211
+15:43:51.472 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:52.471 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:53.474 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:55.653 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:57.020 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:58.047 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:43:59.043 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:00.119 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:02.078 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:04.098 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:05.320 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:07.449 ENC counts L +20003 R +26260 mm L +1613 IR L 281 250-309 R 1163 1123-1186 B 193 173-214
+15:44:08.167 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:09.164 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:10.214 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:12.095 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:13.223 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:15.781 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:17.165 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:18.180 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:20.153 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:21.188 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:22.207 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:23.227 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:24.242 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:25.243 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:26.248 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:27.315 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:28.294 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:29.286 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:30.299 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:31.311 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:32.363 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:33.337 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:34.361 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:35.408 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:36.381 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:37.391 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:38.404 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:39.416 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:40.435 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:41.446 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:42.464 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:43.487 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:44.497 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:45.512 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:46.550 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:47.595 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:48.556 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:49.583 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:51.924 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:53.347 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:54.341 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:55.351 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:56.366 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:57.374 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:58.396 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:44:59.400 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:00.408 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:01.421 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:02.437 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:03.456 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:04.462 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:05.480 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:06.492 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:07.498 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:08.513 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:09.528 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:10.544 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:11.565 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:12.573 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:13.595 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:16.236 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:17.461 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:18.450 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:19.467 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:20.475 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:21.485 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:22.512 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:23.548 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:24.527 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:25.537 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:26.566 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:27.566 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:28.673 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:29.593 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:30.608 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:32.922 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:34.486 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:35.465 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:37.391 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:38.395 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:39.422 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:40.429 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:41.426 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:42.435 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:43.485 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:44.452 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:45.572 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:46.496 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:48.503 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:49.422 ENC counts L +20003 ACC mg n 45 x +10 +4..+16 y +28 +24..+34 z +1026 +1015..+1035
+15:45:50.122 ENC counts L +20003 R +26260 mm L +1613 IR L 288 267-302 R 1153 1129-1173 B 195 180-215
+15:45:50.938 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:52.054 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:53.169 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:56.161 ENC counts L +20003 R +26260 mm L +1613 IR L 285 250-310 R 1160 1112-1184 B 197 177-214
+15:45:57.246 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:58.242 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:45:59.303 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:00.981 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:01.992 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:03.009 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:04.045 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:05.941 ENC counts L +20003 ACC mg n 41 x +12 +5..+21 y +31 +22..+39 z +1026 +1020..+1032
+15:46:06.650 ENC counts L +20003 R +26260 mm L +1613 IR L 291 291-291 R 1153 1153-1153 B 200 200-200
+15:46:07.464 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:08.513 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:09.506 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:10.530 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:11.529 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:12.625 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:13.565 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:14.582 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:15.593 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:16.610 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:17.625 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:18.801 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:20.694 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:22.388 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:23.404 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:24.414 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:27.163 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:28.755 ENC counts L +20003 IR L 286 253-310 R 1161 1116-1192 B 195 174-213
+15:46:31.293 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:32.793 ENC counts L +20003 IR L 287 244-313 R 1166 1132-1204 B 194 173-215
+15:46:33.547 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:34.503 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:35.561 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:38.203 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:39.755 ENC counts L +20003 IR L 287 253-309 R 1165 1117-1196 B 195 169-214
+15:46:40.462 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:41.473 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:42.482 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:43.489 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:44.503 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:45.510 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:46:46.551 ENC counts L +20003 R +26260 mm L +1613 R +2117 err 2
+15:47:13.996  mm L +0 R +0 err 0
+15:47:14.845 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:47:15.903 ENC counts L +0 R +0 mm L +0 R +0 err 0
+15:47:16.858 ENC counts L +1 R +0 mm L +0 R +0 err 0
+15:47:29.177 ENC counts L +70 R -1 mm L +6 R +0 err 0
+15:47:30.514 ENC counts L +70 R -1 mm L +6 R +0 err 0
+15:47:31.494 ENC counts L +70 R -1 mm L +6 R +0 err 0
+15:47:32.517 ENC counts L +70 R -1 mm L +6 R +0 err 0
+15:47:33.512 ENC counts L +70 R -1 mm L +6 R +0 err 0
+15:47:34.522 ENC counts L +70 R -1 mm L +6 R +0 err 0
+15:47:35.744 ENC counts L -27 R -191 mm L -2 R -15 err 1
+15:47:36.751 ENC counts L -27 R -IR L 271 217-300 R 2989 2821-3077 B 182 158-200
+15:47:37.472 ENC counts L -27 R -270 mm L -2 R -22 err 2
+15:47:38.597 ENC counts L -27 R -270 mm L -2 R -22 err 2
+15:47:42.430 ENC counts L -54 R -
+15:48:38.942 ENC counts L +1212 R +1174 mm L +98 R +95 err 0
+15:48:39.952 ENC counts L +1212 R +1174 mm L +98 R +95 err 0
+15:48:42.008 ENC counts L +1212 R +1174 mm L +98 R +95 err 0
+15:48:43.763 ENC counts L +1212 R +1174 mm L +98 R +95 err 0
+15:48:44.937 ENC counts L +1212 R +1174 mm L +98 R +95 err 0
+15:48:46.025 ENC counts L +1212 R +1174 mm L +98 R +95 err 0
+15:48:46.961 ENC counts L +1212 R +1174 mm L +98 R +95 err 0
+15:48:47.881 ENC counts L +1212 R +1174 mm L +98 R +95 err 0
+15:48:48.882 ENC counts L +1212 RIR L 2494 2414-2668 R 260 228-288 B 177 157-196
+15:48:49.589 ENC counts L +1212 R +1082 mm L +98 R +87 err 0
+15:48:50.706 ENC counts L +1212 R +1082 mm L +98 R +87 err 0
+15:48:51.724 ENC counts L +1212 RMAP set: forward A, U-turn F, left B, right C
+15:48:53.637 ENC counts L +1212 RIR L 2358 334-2865 R 398 225-1350 B 180 157-203
+15:48:54.843 ENC counts L +1214 RIR L 283 243-333 R 1942 1824-2043 B 182 155-206
+15:48:55.546 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:48:56.611 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:48:57.753 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:48:58.878 ENC counts L +1213 RIR L 303 271-331 R 1945 1917-1968 B 181 161-202
+15:48:59.650 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:49:00.741 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:49:01.841 ENC counts L +1213 RIR L 329 296-355 R 1848 1819-1873 B 181 162-200
+15:49:02.609 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:49:03.621 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:49:05.744 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:49:06.966 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:49:08.002 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:49:08.897 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:49:09.959 ENC counts L +1213 RIR L 330 278-361 R 1723 1692-1768 B 185 157-203
+15:49:10.614 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:49:11.630 ENC counts L +1213 R +1061 mm L +98 R +86 err 0
+15:49:18.822  P -3 -3 -5 C -257 +183 +116
+15:49:19.542  P 38 -7 -6 C -266 +199 +81
+15:49:19.853  P 85 -10 -5 C -268 +245 +54
+15:49:21.422  P 135 -15 -6 C -265 +298 +58
+15:49:21.626  P 185 -20 -6 C -267 +342 +94
+15:49:22.364  P 288 -31 -6 C -249 +264 +198
+15:49:23.050  P 360 -39 -7 C -221 +162 +36
+15:49:25.614  P 604 -70 -8 C -147 +574 +215
+15:49:26.319  P 674 -78 -6 C -153 +494 +257
+15:49:27.292  P 764 -89 -6 C -179 +405 +190
+15:49:29.838  P 968 -116 5 C -84 +563 +42
+15:49:31.318  P 968 -116 22 C +121 +653 +50
+15:49:31.323  P 968 -117 41 C +352 +651 +47
+15:49:31.448  P 968 -117 60 C +557 +569 +38
+15:49:31.652  P 968 -117 78 C +724 +419 +32
+15:49:31.835  P 968 -117 97 C +841 +202 +18
+15:49:32.346  P 968 -117 116 C +873 -44 +4
+15:49:32.854  P 968 -117 135 C +818 -269 +2
+15:49:34.212  P 936 -97 147 C +727 -384 -40
+15:49:35.874  P 877 -59 149 C +711 -320 -39
+15:49:37.877  P 733 34 149 C +679 -347 +165
+15:49:39.509  P 657 83 148 C +644 -446 +183
+15:49:39.651  P 572 138 148 C +626 -524 -15
+15:49:40.356  P 436 225 147 C +721 -73 -47
+15:49:42.178  P 360 274 149 C +747 -193 +140
+15:49:56.532 ENC counts L +21892 RAMP flat reference: stored (car not still, n 3), start pitch +0.2 roll +0.1 deg
+15:49:58.763  P 77 -1 1 C -269 +253 +50
+15:49:59.478  P 243 3 2 C -257 +310 +195
+15:50:00.214  P 316 5 1 C -230 +174 +95
+15:50:03.298  P 614 7 0 C -147 +534 +245
+15:50:04.003  P 685 7 -1 C -190 +428 +242
+15:50:05.069  P 786 8 -2 C -210 +350 +130
+15:50:06.584  P 937 8 0 C -189 +480 +23
+15:50:06.798  P 950 8 9 C -117 +544 +39
+15:50:08.551  P 950 8 25 C +73 +634 +45
+15:50:08.553  P 949 7 44 C +308 +652 +45
+15:50:08.721  P 949 8 63 C +526 +590 +33
+15:50:08.860  P 949 8 82 C +703 +453 +21
+15:50:09.068  P 949 8 100 C +822 +251 +12
+15:50:09.574  P 950 7 120 C +877 +25 +4
+15:50:10.075  P 950 7 138 C +841 -220 -7
+15:50:11.527  P 918 22 153 C +731 -377 -35
+15:50:14.866  P 855 51 155 C +717 -312 -37
+15:50:15.649  P 771 90 156 C +712 -276 +62
+15:50:15.743  P 552 194 155 C +634 -516 +63
+15:50:16.457  P 487 222 154 C +654 -458 -130
+15:50:17.400  P 405 261 157 C +699 -175 -147
+15:50:18.319  P 325 300 155 C +739 -110 +116
+15:50:19.258  P 242 340 153 C +769 -236 +87
+15:50:27.152 ENC counts L +41452 IR L 235 199-261 R 3236 3218-3260 B 178 158-197
+15:50:27.864 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:28.995 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:29.998 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:31.161 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:32.252 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:33.355 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:34.466 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:35.584 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:36.604 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:38.522 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:40.855 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:41.467 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:44.213 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:44.510 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:45.728 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:46.774 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:47.864 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:48.982 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:50.101 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:51.234 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:52.343 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:53.490 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:54.681 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:55.700 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:57.815 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:50:59.562 ENC counts L +41452 R +49777 mm L +3342 R +4013 err 1
+15:51:03.027 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:04.138 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:05.256 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:06.374 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:07.508 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:08.637 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:09.732 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:10.850 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:12.164 ENC counts L +41494 IR L 272 241-308 R 1994 1973-2023 B 179 157-201
+15:51:12.981 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:14.110 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:15.215 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:16.337 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:17.548 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:18.571 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:19.702 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:20.863 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:21.973 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:23.063 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:24.162 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:25.292 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:26.611 ENC counts L +41494 IR L 281 248-308 R 1991 1965-2013 B 180 151-196
+15:51:27.314 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:28.338 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:29.338 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:30.365 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:31.470 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:32.487 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:33.549 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:34.530 ENC counts L +41494 R +49751 mm L +3345 R +4011 err 1
+15:51:42.028  P 1 -1 -4 C -276 +142 +83
+15:51:45.073  P 42 -3 -1 C -271 +211 +58
+15:51:45.152  P 90 -5 -5 C -282 +208 +42
+15:51:45.893  P 323 -15 -3 C -234 +176 +126
+15:51:46.614  P 396 -18 -3 C -188 +241 -97
+15:51:47.327  P 468 -21 -2 C -153 +497 -106
+15:51:58.640  P 0 0 1 C -274 +175 +60
+15:51:59.357  P 41 0 0 C -275 +216 +47
+15:51:59.666  P 89 1 1 C -269 +272 +43
+15:52:00.437  P 138 1 1 C -267 +322 +84
+15:52:00.701  P 187 3 1 C -271 +332 +147
+15:52:01.419  P 237 4 1 C -259 +292 +198
+15:52:01.727  P 288 5 1 C -235 +194 +147
+15:52:02.489  P 339 5 1 C -203 +177 -31
+15:52:02.790  P 389 6 1 C -177 +327 -132
+15:52:03.412  P 440 7 1 C -151 +507 -100
+15:52:03.688  P 490 7 0 C -140 +596 +29
+15:52:06.686  P 730 8 0 C -191 +388 +186
+15:52:07.376  P 803 8 1 C -180 +385 +87
+15:52:08.200  P 884 8 0 C -180 +437 +15
+15:52:08.447  P 934 9 0 C -189 +505 +45
+15:52:08.696  P 939 8 11 C -92 +572 +51
+15:52:09.207  P 939 8 28 C +111 +649 +48
+15:52:09.715  P 939 8 47 C +347 +657 +46
+15:52:10.215  P 938 8 66 C +558 +575 +37
+15:52:11.493  P 945 40 80 C +719 +551 -11
+15:52:12.221  P 960 108 73 C +621 +896 +79
+15:52:13.154  P 1001 182 49 C +117 +1045 +498
+15:52:14.095  P 1065 242 32 C -44 +734 +649
+15:52:17.189  P 1142 253 -17 C -358 +218 +552
+15:52:17.949  P 1205 42 -128 C +434 -884 +324
+15:52:19.179  P 1113 -31 -145 C +668 -626 +53
+15:52:21.075  P 953 -112 -156 C +732 -336 -55
+15:52:22.010  P 869 -149 -157 C +714 -286 +55
+15:52:33.408 ENC counts L +74984 R +78776 mm L +6045 R +6351 err 3
+15:52:35.270 ENC counts L +74984 R +78776 mm L +6045 R +6351 err 3
+15:52:36.355 ENC counts L +74984 R +78776 mm L +6045 R +6351 err 3
+15:52:37.487 ENC counts L +74984 R +78776 mm L +6045 R +6351 err 3
+15:52:38.605 ENC counts L +74984 R +78776 mm L +6045 R +6351 err 3
+15:52:40.968 ENC counts L +74984 R +78776 mm L +6045 R +6351 err 3
+15:52:43.987 ENC counts L +74870 R +78740 mm L +6036 R +6348 err 4
+15:52:45.796 ENC counts L +74871 R +78740 mm L +6036 R +6348 err 4
+15:52:46.820 ENC counts L +74871 R +78740 mm L +6036 R +6348 err 4
+15:52:47.829 ENC counts L +74871 R +78740 mm L +6036 R +6348 err 4
+15:52:50.679  P 0 0 0 C -264 +178 +66
+15:52:52.461  P 41 1 1 C -262 +238 +55
+15:52:52.557  P 89 0 -1 C -267 +266 +57
+15:52:52.963  P 137 1 1 C -255 +332 +88
+15:52:53.195  P 186 1 0 C -267 +337 +148
+15:52:53.911  P 258 1 -2 C -244 +236 +194
+15:52:54.627  P 329 1 0 C -211 +168 +7
+15:52:54.826  P 378 0 -1 C -182 +280 -126
+15:52:55.542  P 427 1 0 C -150 +479 -117
+15:52:55.750  P 478 0 -1 C -140 +593 +5
+15:52:56.519  P 528 -1 -1 C -133 +611 +146
+15:52:56.683  P 578 -2 -1 C -147 +563 +229
+15:53:00.874  P 939 -9 -4 C -195 +494 +48
+15:53:01.098  P 939 -9 -17 C -286 +365 +39
+15:53:01.373  P 939 -9 -35 C -371 +134 +28
+15:53:01.981  P 939 -9 -55 C -360 -128 +27
+15:53:02.498  P 939 -9 -73 C -249 -362 +11
+15:53:05.683  P 948 -159 -100 C +47 -348 +324
+15:53:06.286  P 927 -222 -114 C +196 -399 +469
+15:53:06.490  P 873 -299 -146 C +526 -461 +508
+15:53:07.513  P 789 -310 165 C +844 -54 +340
+15:53:08.434  P 731 -261 116 C +605 +499 +264
+15:53:09.357  P 730 -186 66 C +84 +553 +255
+15:53:19.553 ENC counts L +98280 IR L 257 224-287 R 2162 2139-2186 B 179 161-194
+15:53:20.236 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:21.259 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:22.290 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:23.276 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:24.304 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:26.180 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:27.331 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:28.338 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:29.352 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:30.371 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:31.688 ENC counts L +98280 IR L 256 222-284 R 2160 2138-2179 B 178 160-197
+15:53:32.400 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:33.433 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:34.456 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:35.527 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:36.449 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:37.584 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:38.479 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:39.542 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:40.522 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:41.526 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:42.580 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:43.561 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:44.590 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:45.599 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:46.654 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:54.971 ENC counts L +98280 R +93014 mm L +7923 R +7499 err 5
+15:53:55.203  P 0 0 -2 C -271 +146 +66
+15:53:55.553  P 147 -1 1 C -264 +319 +86
+15:53:56.892  P 218 0 0 C -265 +317 +188
+15:53:57.607  P 360 3 1 C -197 +199 -58
+15:53:59.430  P 430 4 3 C -149 +457 -128
+15:53:59.976  P 501 5 0 C -142 +604 +40
+15:54:00.179  P 550 6 1 C -132 +609 +169
+15:54:00.291  P 612 7 0 C -155 +532 +250
+15:54:01.046  P 696 7 1 C -179 +435 +232
+15:54:06.933  P 944 8 55 C +423 +628 +50
+15:54:06.936  P 944 8 73 C +621 +516 +37
+15:54:07.113  P 944 8 92 C +764 +350 +30
+15:54:07.330  P 944 8 111 C +854 +143 +19
+15:54:09.934  P 944 8 130 C +860 -105 +8
+15:54:09.937  P 944 8 149 C +770 -358 -11
+15:54:10.803  P 699 123 155 C +702 -320 +152
+15:54:11.591  P 627 157 153 C +674 -407 +190
+15:54:12.331  P 563 186 155 C +639 -499 +110
+15:54:15.091  P 473 228 154 C +664 -432 -146
+15:54:15.649  P 393 266 154 C +704 -126 -125
+15:54:23.629 ENC counts L +117246IR L 233 197-264 R 3284 3109-3478 B 176 151-206
+15:54:24.337 ENC counts L +117199 R +116398 mm L +9448 R +9384 err 5
+15:54:25.728 ENC counts L +117199 R +116398 mm L +944IR L 287 256-317 R 1819 1777-1872 B 181 166-202
+15:54:26.546 ENC counts L +117200 R +116397 mm L +9448 R +9384 err 5
+15:54:27.651 ENC counts L +117199 R +116397 mm L +9448 R +9384 err 5
+15:54:35.075  P 1 1 -2 C -277 +143 +67
+15:54:35.797  P 42 0 -1 C -283 +177 +48
+15:54:36.105  P 90 0 0 C -284 +245 +48
+15:54:36.834  P 139 0 1 C -278 +299 +78
+15:54:37.087  P 188 1 1 C -272 +334 +137
+15:54:37.766  P 237 1 2 C -264 +305 +199
+15:54:38.078  P 286 3 0 C -243 +187 +166
+15:54:39.978  P 335 3 2 C -214 +173 +23
+15:54:40.026  P 384 5 0 C -193 +254 -116
+15:54:40.516  P 434 6 3 C -147 +461 -127
+15:54:43.088  P 482 7 -1 C -158 +562 -16
+15:54:43.477  P 560 6 4 C -112 +612 +182
+15:54:47.770  P 1173 65 38 C +261 +974 +454
+15:54:48.637  P 1209 124 76 C +847 +684 +559
+15:54:49.311  P 1210 188 103 C +983 +270 +509
+15:54:50.334  P 1162 263 143 C +905 -201 +446
+15:54:51.248  P 1087 287 -175 C +581 -607 +554
+15:54:52.166  P 1010 258 -143 C +166 -917 +477
+15:54:53.191  P 933 198 -143 C +66 -843 +40
+15:55:05.519 ENC counts L +136127IR L 217 179-246 R 3642 3609-3662 B 214 195-233
+15:55:06.231 ENC counts L +136127 R +141920 mm L +10974 R +11441 err 5
+15:55:08.373 ENC counts L +136127 R +141920 mm L +10974 R +11441 err 5
+15:55:09.275 ENC counts L +136126 R +141920 mm L +10974 R +11441 err 5
+15:55:10.302 ENC counts L +136126 R +141920 mm L +10974 R +11441 err 5
+15:55:11.318 ENC counts L +136126 R +141920 mm L +10974 R +11441 err 5
+15:55:12.312 ENC counts L +136126 R +141920 mm L +10974 R +11441 err 5
+15:55:13.327 ENC counts L +136126 R +141920 mm L +10974 R +11441 err 5
+15:55:16.437 ENC counts L +136126 R +141920 mm L +10974 R +11441 err 5
+15:55:17.384 ENC counts L +136127 R +141920 mm L +10974 R +11441 err 5
+15:55:18.809 ENC counts L +136127 R +141920 mm L +109IR L 4042 4029-4059 R 4055 4041-4066 B 4054 4043-4065
+15:55:19.927 ENC counts L +136127 R +141920 mm L +109IR L 240 240-240 R 3019 3019-3019 B 196 196-196
+15:55:20.643 ENC counts L +136125 R +141886 mm L +10974 R +11438 err 6
+15:55:21.684 ENC counts L +136083 R +141885 mm L +10971 R +11438 err 7
+15:55:22.685 ENC counts L +136084 R +141878 mm L +10971 R +11438 err 7
+15:55:23.728 ENC counts L +136083 R +141851 mm L +10971 R +11436 err 7
+15:55:24.805 ENC counts L +136083 R +141851 mm L +10971 R +11436 err 7
+15:55:26.125 ENC counts L +136083IR L 253 220-281 R 1634 1618-1658 B 189 164-206
+15:55:26.841 ENC counts L +136083 R +141851 mm L +10971 R +11436 err 7
+15:55:34.251  P 1 1 -2 C -274 +152 +62
+15:55:35.816  P 42 0 1 C -273 +219 +50
+15:55:37.075  P 90 -1 -2 C -284 +225 +50
+15:55:37.569  P 186 0 -1 C -269 +315 +147
+15:55:39.598  P 336 0 2 C -203 +183 +3
+15:55:43.325  P 407 0 0 C -176 +3
+15:55:47.741  P 539 1 1 C -113 +615 +149
+15:55:48.327  P 609 1 0 C -154 +523 +249
+15:55:51.970  P 782 81 155 C +722 -268 +33
+15:55:52.175  P 682 129 156 C +679 -357 +169
+15:55:53.851  P 608 165 154 C +659 -434 +170
+15:55:54.480  P 544 195 152 C +663 -494 +64
+15:55:54.688  P 462 235 153 C +683 -387 -166
+15:55:55.731  P 370 279 154 C +723 -67 -55
+15:56:07.662 ENC counts L +154213 R +164306 mm L +12432 R +13246 err 7
+15:56:09.747 ENC counts L +154213 R +164306 mm L +12432 R +13246 err 7
+15:56:10.908 ENC counts L +154213 R +164306 mm L +12432 R +13246 err 7
+15:56:18.314  P 1 1 -2 C -276 +162 +60
+15:56:19.039  P 42 0 1 C -274 +223 +54
+15:56:19.349  P 91 -1 -3 C -286 +229 +50
+15:56:20.072  P 139 -1 1 C -266 +325 +85
+15:56:20.377  P 188 -2 -2 C -282 +312 +157
+15:56:21.105  P 237 -1 1 C -247 +300 +205
+15:56:21.302  P 286 -2 -2 C -241 +161 +157
+15:56:22.028  P 335 -2 1 C -205 +171 +7
+15:56:22.335  P 384 -3 -2 C -198 +261 -121
+15:56:23.061  P 433 -3 2 C -150 +484 -113
+15:56:23.398  P 482 -3 -3 C -169 +559 +1
+15:56:25.021  P 531 -4 2 C -106 +626 +128
+15:56:25.229  P 580 -4 -3 C -161 +546 +222
+15:56:25.963  P 689 -7 -1 C -185 +426 +237
+15:56:28.404  P 932 -9 -1 C -193 +482 +38
+15:56:29.253  P 1010 -11 1 C -188 +560 +117
+15:56:29.955  P 1080 -6 9 C -125 +728 +211
+15:56:30.996  P 1164 34 33 C +193 +976 +443
+15:56:31.929  P 1222 93 68 C +761 +740 +614
+15:56:34.015  P 1220 174 109 C +978 +135 +508
+15:56:34.771  P 1094 263 -173 C +531 -622 +545
+15:56:35.677  P 1016 231 -141 C +81 -900 +448
+15:56:45.236 ENC counts L +171018 R +187117 mm L +13787 R +15085 err 8
+15:56:47.002 ENC counts L +171018 R +187117 mm L +13787 R +15085 err 8
+15:56:50.133  P 1 0 1 C -275 +177 +55
+15:56:52.665  P 41 1 3 C -275 +234 +49
+15:56:52.667  P 90 3 1 C -279 +268 +59
+15:56:53.233  P 139 4 4 C -511 +351 +105
+15:56:53.470  P 265 9 1 C -234 +186 +164
+15:56:54.298  P 335 11 2 C -200 +200 -56
+15:56:54.970  P 406 13 4 C -149 +459 -121
+15:56:55.181  P 455 15 0 C -164 +556 -13
+15:56:55.906  P 504 16 3 C -107 +627 +115
+15:56:56.116  P 553 17 -1 C -163 +554 +213
+15:56:56.760  P 602 16 0 C -168 +500 +254
+15:56:56.996  P 653 17 0 C -183 +433 +247
+15:56:57.730  P 704 17 1 C -194 +385 +199
+15:57:01.312  P 934 25 3 C -186 +510 +58
+15:57:01.491  P 934 25 17 C -55 +607 +69
+15:57:01.698  P 934 25 35 C +172 +672 +69
+15:57:01.842  P 934 25 54 C +404 +654 +63
+15:57:02.053  P 934 25 73 C +613 +547 +52
+15:57:02.477  P 934 25 91 C +778 +360 +40
+15:57:02.954  P 934 25 110 C +870 +133 +26
+15:57:03.464  P 934 25 130 C +877 -115 +19
+15:57:03.947  P 933 25 149 C +795 -347 +3
+15:57:05.023  P 907 35 158 C +706 -432 -15
+15:57:06.965  P 837 68 146 C +782 -221 -45
+15:57:07.543  P 799 116 109 C +817 +332 +3
+15:57:21.571 ENC counts L +186116IR L 330 297-354 R 1756 1733-1777 B 250 232-272
+15:57:22.401 ENC counts L +186116IR L 322 279-377 R 1749 1722-1770 B 251 232-273
+15:57:23.085 ENC counts L +186116 R +202769 mm L +15004 R +16347 err 9
+15:57:24.186 ENC counts L +186116 R +202769 mm L +15004 R +16347 err 9
+15:57:26.097 ENC counts L +186116 R +202769 mm L +15004 R +16347 err 9
+15:57:28.454 ENC counts L +186116 R +202769 mm L +150IR L 4023 4023-4023 R 4042 4042-4042 B 4027 4027-4027
+15:57:29.674 ENC counts L +186116 R +202681 mm L +150IR L 4032 4032-4032 R 4066 4066-4066 B 4027 4027-4027
+15:57:30.812 ENC counts L +186116 R +202681 mm L +150IR L 4043 4043-4043 R 4072 4072-4072 B 4051 4051-4051
+15:57:32.933 ENC counts L +186116 R +202681 mm L +150IR L 4052 4052-4052 IR L 4028 3978-4078 R 4033 3988-4085 B 4053 4013-4093
+15:57:34.041 ENC counts L +186116 R +202682 mm L +150IR L 2740 2740-2740 R 3069 3069-3069 B 3103 3103-3103
+15:57:34.855 ENC counts L +186159 R +202630 mm L +15008 R +16335 err 11
+15:57:35.974 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:37.090 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:38.223 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:39.325 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:40.444 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:41.579 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:42.682 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:43.803 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:44.918 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:46.038 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:47.151 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:48.274 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:49.394 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:51.717 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:52.226 ENC counts L +186160 R +202524 mm L +15008 R +16327 err 12
+15:57:55.690 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:57:57.414 ENC counts L +186160IR L 261 222-309 R 673 635-706 B 207 179-229
+15:57:58.199 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:57:59.310 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:00.425 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:01.543 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:02.662 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:03.780 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:04.897 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:06.017 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:07.134 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:08.159 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:09.269 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:10.392 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:11.502 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:12.627 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:13.763 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:14.857 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:15.975 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:17.096 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:18.212 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:19.330 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:20.453 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:21.469 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:22.595 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:23.711 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:24.818 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:25.937 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:26.951 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:28.069 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:29.188 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:30.305 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:31.424 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:32.545 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:33.699 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:34.684 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:36.944 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:38.530 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:39.646 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:40.765 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:41.780 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:42.932 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:44.049 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:45.137 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:46.262 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:47.379 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:48.505 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:49.505 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:50.523 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:51.641 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:52.661 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:53.670 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:54.794 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:55.911 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:57.026 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:58.144 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:58:59.266 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:00.385 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:01.521 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:02.514 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:03.740 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:04.761 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:05.878 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:06.985 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:08.105 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:09.224 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:10.339 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:11.362 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:12.476 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:13.496 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:14.625 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:15.752 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:16.844 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:18.012 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:19.080 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:20.200 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:21.215 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:22.355 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:23.450 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:24.571 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:25.687 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:26.810 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:27.935 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:29.041 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:30.058 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:31.181 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:32.297 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:33.443 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:34.536 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:35.650 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:36.766 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:37.900 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:39.002 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:40.126 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:41.243 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:42.366 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:43.477 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:44.597 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:45.713 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:46.833 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:47.947 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:49.093 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:50.183 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:51.301 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:52.452 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:53.539 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:54.655 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:55.785 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:56.890 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:57.907 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+15:59:59.060 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:00.160 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:01.260 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:02.379 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:03.502 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:04.832 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:05.780 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:06.853 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:07.970 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:09.097 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:10.293 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:11.221 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:12.347 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:13.462 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:14.576 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:15.717 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:16.861 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12
+16:00:17.913 ENC counts L +186160 R +202523 mm L +15008 R +16327 err 12

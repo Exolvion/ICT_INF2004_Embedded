@@ -1,0 +1,41 @@
+# subsystem 5 lines of testing/system/logs/2026-11-02_dashboard.txt (tools/split_logs.py); the day log has them all.
+16:35:53.508  MISSION: obstacle at 63 mm, stopped to measure it
+16:35:53.814  AVOID: measuring, turning left to its edge
+16:35:54.628  AVOID: left edge 108 mm at 35 deg, turning right to the other edge
+16:56:03.302  MISSION: obstacle at 194 mm, stopped to measure it
+16:56:03.809  AVOID: measuring, turning left to its edge
+16:56:04.813  AVOID: left edge 121 mm at 26 deg, turning right to the other edge
+16:56:06.447  AVOID: face 294 mm ahead of the pivot; obstacle left 121 mm, right 103 mm; WIDTH ~224 mm
+16:56:06.963  AVOID: path right: out 253 mm, total 1150 mm, clear; left: out 271 mm, total 1185 mm, clear
+16:56:07.377  AVOID: going round the right: out 253 mm, along 644 mm, path 1150 mm
+16:56:07.880  OBST at 220 -4 h -1.3 face 294 left 121 right 103 depth 200 go R out 253 along 644 back 0
+16:56:08.489  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | li
+16:56:08.793  M 290 -------------...##########---------------
+16:56:09.097  M 310 ------------.-##----|--------------------
+16:56:09.314  AVOID: stepping out to the right
+16:56:11.399  AVOID: clear of its edge, turning back to the line heading
+16:56:13.997  AVOID: alongside the object for 644 mm
+16:56:22.226  AVOID: past the object, stepping back to the line
+16:56:24.605  AVOID: returning to the line
+17:16:28.203  MISSION: obstacle at 123 mm, stopped to measure it
+17:16:28.539  AVOID: measuring, turning left to its edge
+17:16:29.120  AVOID: left edge 40 mm at 25 deg, turning right to the other edge
+17:16:30.532  AVOID: face 223 mm ahead of the pivot; obstacle left 40 mm, right 32 mm; WIDTH ~73 mm
+17:16:51.980  MISSION: obstacle at 124 mm, stopped to measure it
+17:16:52.293  AVOID: measuring, turning left to its edge
+17:16:52.904  AVOID: left edge 53 mm at 27 deg, turning right to the other edge
+17:16:54.337  AVOID: face 224 mm ahead of the pivot; obstacle left 53 mm, right 32 mm; WIDTH ~85 mm
+17:16:54.827  AVOID: path right: out 182 mm, total 889 mm, clear; left: out 203 mm, total 929 mm, clear
+17:16:55.262  AVOID: going round the right: out 182 mm, along 524 mm, path 889 mm
+17:16:55.746  OBST at 264 4 h 1.4 face 224 left 53 right 32 depth 150 go R out 182 along 524 back 0
+17:16:56.359  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | li
+17:16:56.666  M 210 ----------------....#...-----------------
+17:16:56.974  M 230 ----------------..-###-.-----------------
+17:16:57.275  M 250 -----------------##-|-#------------------
+17:16:57.479  AVOID: stepping out to the right
+17:16:58.483  AVOID: clear of its edge, turning back to the line heading
+17:17:00.935  AVOID: alongside the object for 524 mm
+17:17:07.642  AVOID: past the object, stepping back to the line
+17:17:10.172  AVOID: returning to the line
+17:17:13.009  AVOID: on the line, straightening
+17:17:15.489  AVOID: back on course, driving straight

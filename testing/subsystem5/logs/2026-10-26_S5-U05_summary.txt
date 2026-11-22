@@ -1,0 +1,16 @@
+S5-U05 No echo, 2026-10-26, run by Siang Hong (written up 2026-11-23 from the saved recording)
+Build: build-target/mqtt (2d121bc + uncommitted: WIRING=1, SysTick SYST_CVR fix, encoder pin remap, left encoder sign -1), the same build as S5-U04
+Car: on the stand, INIT, motors locked (status "stop" is true in INIT, so it does not mark a change by itself).
+Method: ECHO unplugged for about 12 s, then plugged back in, with telemetry recorded throughout.
+Recording: 2026-10-26_S5-U05.jsonl, 598 decoded frames, car ms 41812 to 131412
+Result:
+  car ms 41812  rv 1, rg 195 mm, faults [], stop_source [], mask 0
+  car ms 57013  ECHO unplugged: rv 0, rg 0
+  car ms 57812  diagnostic: faults [NO_ECHO], mask 16384 (bit 14), stop_source [], status fault false
+  car ms 68812  ECHO back: rv 1, rg 200 mm, faults [], mask 0
+  state stays INIT throughout; no stop source and no fault latched at any point
+NO_ECHO appeared 0.8 s after the range went invalid and cleared with the first valid range after the
+plug went back in.
+Not checked: the car was already stopped (INIT), so the test shows that NO_ECHO adds no stop source and
+latches no fault, not how a moving car reacts.
+Result: PASS. NO_ECHO is reported in faults without a stop and clears by itself.

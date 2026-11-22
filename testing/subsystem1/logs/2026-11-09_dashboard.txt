@@ -1,0 +1,49 @@
+# subsystem 1 lines of testing/system/logs/2026-11-09_dashboard.txt (tools/split_logs.py); the day log has them all.
+16:30:02.974 [status] 1
+16:30:27.128 [sent] START 0xAA
+16:30:27.130 [command] command START (0xAA) on the broker
+16:30:28.969 [sent] STOP 0xA9
+16:30:28.971 [command] command STOP (0xA9) on the broker
+16:30:49.060 [sent] MAP forward Y, U-turn B, left C, right D (3888b1)
+16:30:49.061 [command] command 3 bytes, not a command (0x3888B1) on the broker
+16:30:54.885 [sent] START 0xAA
+16:30:54.887 [command] command START (0xAA) on the broker
+16:31:17.371 [sent] STOP 0xA9
+16:31:17.372 [command] command STOP (0xA9) on the broker
+16:34:15.645 [sent] START 0xAA
+16:34:15.646 [command] command START (0xAA) on the broker
+16:35:06.038 [status] 0
+16:35:06.082 [status] 1
+16:35:07.878 [sent] START 0xAA
+16:35:07.920 [command] command START (0xAA) on the broker
+16:35:37.015 [sent] START 0xAA
+16:35:37.016 [command] command START (0xAA) on the broker
+16:36:41.665 [status] 0
+16:36:41.758 [status] 1
+16:36:53.106 [status] 0
+16:36:53.202 [status] 1
+16:37:01.785 [status] 0
+16:37:01.896 [status] 1
+16:41:22.441 [sent] STOP 0xA9
+16:41:22.442 [command] command STOP (0xA9) on the broker
+16:41:22.672 [sent] STOP 0xA9
+16:41:22.673 [command] command STOP (0xA9) on the broker
+16:50:13.938 [status] 0
+16:51:08.130 [status] 1
+16:51:41.287 [sent] START 0xAA
+16:51:41.328 [command] command START (0xAA) on the broker
+16:51:51.519 [sent] STOP 0xA9
+16:51:51.564 [command] command STOP (0xA9) on the broker
+16:55:02.081 [sent] START 0xAA
+16:55:02.082 [command] command START (0xAA) on the broker
+16:55:15.725 [sent] STOP 0xA9
+16:55:15.725 [command] command STOP (0xA9) on the broker
+17:01:59.318 [status] 0
+17:02:36.649 [status] 1
+17:05:21.249 [status] 0
+17:05:21.370 [status] 1
+17:06:24.330 [status] 0
+17:06:24.434 [status] 1
+17:07:09.404 [status] 0
+17:07:09.492 [status] 1
+17:25:54.257 [status] 0

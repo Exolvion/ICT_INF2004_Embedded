@@ -1,6 +1,6 @@
 # Subsystem 5 — test log
 
-**Subsystem:** Obstacles: sonar, servo, bypass; Safety and Vehicle (Buddy 5, Siang Hong)  ·  **Student ID:** 2503147  ·  **Code:** `app_program/subsystem5/` (`scanner.c/.h`, `vehicle.c/.h`), the shared `app_program/robot_app.c` (Safety, Vehicle and Scan tasks) and the sonar, servo and button parts of `app_program/board.c`
+**Subsystem:** Obstacles: sonar, servo, bypass; Safety and Vehicle (Buddy 5, Siang Hong)  ·  **Student ID:** 2503147  ·  **Code:** `app_program/subsystem5/` (`scanner.c/.h`, `vehicle.c/.h`), the shared `app_program/robot_app.c` (Safety, Vehicle and Scan tasks) and the sonar, servo and button parts of `app_program/board.c`; since 22 Nov 2026 also `mission_avoid.c/.h` (the mission's go-around), `robot_scan.c/.h` (Scan task); the mission's core `mission.c`, `mission_board.c`
 
 See `testing/README.md` for how to run tests and record results, and
 `TESTING.md` for the set-up. P2 = after TESTING.md section 4; bench = with a
@@ -31,3 +31,4 @@ Add a new row for every run. Never edit or delete old rows.
 | Date | Test ID | Commit | Tester | Result | Log / evidence | Notes |
 |---|---|---|---|---|---|---|
 | YYYY-MM-DD | S5-U01 | `abc1234` | | PASS / FAIL | `logs/YYYY-MM-DD_S5-U01.txt` | |
+| 2026-10-26 | S5-U05 | `2d121bc` + uncommitted | Siang Hong | PASS | `logs/2026-10-26_S5-U05_summary.txt`, `logs/2026-10-26_S5-U05.jsonl` | Car on the stand in INIT. ECHO unplugged about 12 s: `NO_ECHO` in faults 0.8 s after the range went invalid, no stop source, no fault latched; cleared with the first valid range. A moving car was not tested. Written up 2026-11-23 from the recording |

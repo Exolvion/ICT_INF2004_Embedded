@@ -202,7 +202,7 @@ action and symbol, `sw`/`sn`/`ss` obstacle width, nearest and clear side,
 ### 4.1 Work on a branch
 
 ```bash
-git switch -c commissioning
+git switch -c car-setup
 ```
 
 Flag changes and measured values are committed here with a note of their
@@ -377,7 +377,11 @@ S2-U10 with it (10 runs each).
 | GP21 again | IDLE | START |
 
 Hard faults (tilt, collision, stall, encoder, IMU) clear only with a power
-cycle.
+cycle in the original supervisor (`ROBOT_APP_MISSION 0`). In the mission
+build (the default) a STOP or lift goes back to IDLE by itself once the car
+stands still and level, TILT and ENCODER are soft, and RESET (GP21 in
+FAULT, or MQTT) clears a hard fault too while the car is stationary
+(`app_program/robot_app.c`).
 
 ### 6.3 Order
 
@@ -502,3 +506,4 @@ Phase: **P2** after section 4, **bench** in section 5, **P4** after section
 | SYS-10 | P4 | Full course against bands A–D |
 | SYS-11 | P4 | 10-minute continuous run |
 | SYS-12 | P4 | Task timing, interrupt time, stack high-water |
+| SYS-13 | auto | Mission in the robot app, host sim |

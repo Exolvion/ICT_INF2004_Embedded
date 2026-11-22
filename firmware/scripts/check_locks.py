@@ -30,10 +30,15 @@ REPO = Path(__file__).resolve().parents[2]
 # file (from the repository root) -> watched shared names, functions exempt
 # from the lock rule
 RULES = {
-    "app_program/robot_app.c": {
+    # The robot app's core and its task files (split 22 Nov 2026): the same
+    # shared record, the same rule in every part.
+    **{f"app_program/{name}": {
         "watched": ("g_shared",),
         "exempt": ("robot_app_init",),
-    },
+    } for name in ("robot_app.c", "robot_app_private.h",
+                   "subsystem1/robot_comm.c", "subsystem2/robot_motion.c",
+                   "subsystem3/robot_line.c", "subsystem4/robot_imu.c",
+                   "subsystem5/robot_scan.c")},
     "app_program/board.c": {
         "watched": ("g_encoder_word", "g_encoder_totals", "g_encoder_errors",
                     "g_echo_word", "g_motor_directions"),

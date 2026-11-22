@@ -75,8 +75,66 @@ typedef struct
     uint32_t          stop_source : 2;
 } robot_app_diagnostic_t;
 
+/** The eight application tasks, in priority order (app_main.c). */
+#define ROBOT_APP_TASKS (8U)
+
+/** SYS-12 evidence for one task since the last robot_app_timing_restart():
+ * its longest step and how many periods it skipped (a step that ran past
+ * its next release).
+ */
+typedef struct
+{
+    uint32_t worst_us;
+    uint32_t skipped;
+} robot_app_task_time_t;
+
 /** Initialize all application state before starting any application task. */
 bool robot_app_init (void);
+
+/** Copy each task's timing (Safety, Motion, Line, Vehicle, IMU, Scan, Comm,
+ * Telemetry); NULL has no effect.
+ */
+void robot_app_timing (robot_app_task_time_t p_output[ROBOT_APP_TASKS]);
+
+/** Start a new timing window: each task clears its own record at its next
+ * step.
+ */
+void robot_app_timing_restart (void);
+
+/** The IMU task's evidence since the last robot_app_timing_restart(), for
+ * the mission's end report. Counts saturate at 255.
+ */
+typedef struct
+{
+    uint32_t failed     : 8;   /* reads that failed on the I2C bus */
+    uint32_t saturated  : 8;   /* samples with an axis at the 12-bit limit */
+    uint32_t late       : 8;   /* fresh samples past terrain's dt bound */
+    uint32_t refused    : 8;   /* other samples terrain refused */
+    uint32_t longest_ms : 16;  /* longest gap between two fresh samples */
+    uint32_t slowest_us : 16;  /* longest accelerometer read, wall time */
+    uint32_t failed_us  : 16;  /* how long the last failed read took */
+} robot_app_imu_evidence_t;
+
+/** Copy the IMU evidence (robot_app_imu_evidence_t); NULL has no effect. */
+void robot_app_imu_evidence (robot_app_imu_evidence_t * p_output);
+
+/** Owners whose health Safety checks, in the order Motion, Line, Vehicle,
+ * IMU, Scan, Comm (gates 20, 20, 100 in the mission else 40, 100, 100 and,
+ * for the watchdog feed only, 100 ms).
+ */
+#define ROBOT_APP_OWNERS (6U)
+
+/** Safety's evidence since the last robot_app_timing_restart(): each
+ * owner's longest health gap, ms, held at 65535. The one over its gate is
+ * the OWNER_TIMEOUT.
+ */
+typedef struct
+{
+    uint16_t longest_ms[ROBOT_APP_OWNERS];
+} robot_app_owner_evidence_t;
+
+/** Copy the owner evidence; NULL has no effect. */
+void robot_app_owner_evidence (robot_app_owner_evidence_t * p_output);
 
 /** Copy the first cause since boot/approved reset, the active mask and the
  * stop sources; NULL has no effect.

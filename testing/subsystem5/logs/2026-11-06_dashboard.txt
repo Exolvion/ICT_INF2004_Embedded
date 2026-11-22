@@ -1,0 +1,4 @@
+# subsystem 5 lines of testing/system/logs/2026-11-06_dashboard.txt (tools/split_logs.py); the day log has them all.
+15:48:32.445  MISSION: obstacle at 64 mm, stopped to measure it
+15:48:32.838  AVOID: line checks: dark from L 1520 (run 195-2844) R 1751 (run 210-3292)
+15:49:29.907  BEAMS back 0: 0/64

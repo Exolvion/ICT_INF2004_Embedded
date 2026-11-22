@@ -1,0 +1,563 @@
+# subsystem 5 lines of testing/system/logs/2026-11-19_dashboard.txt (tools/split_logs.py); the day log has them all.
+13:49:58.313  MISSION: obstacle at 118 mm, stopped to measure it
+13:49:58.383  AVOID: line checks: dark from L 1612 (run 149-3075) R 1936 (run 196-3676)
+13:49:58.675  AVOID: measuring, turning left to its edge
+13:49:59.097  AVOID: left edge 89 mm at 46 deg, turning right to the other edge
+13:49:59.782  AVOID: measuring turns checked: line -0.2 deg off the wheels' heading (2 seen), reset; C +808 -274 +387
+13:50:00.417  AVOID: face 188 mm ahead of the pivot; obstacle left 89 mm, right 38 mm; WIDTH ~127 mm (median of 3, 1 spread s
+13:50:00.868  AVOID: path right: out 188 mm, total 865 mm, clear; left: out 239 mm, total 967 mm, clear
+13:50:01.457  AVOID: going round the right (sweep out 188 mm); first turning 30 deg to creep out to its left edge
+13:50:01.941  AVOID: creeping out to find its left edge, the sonar square to its face
+13:50:02.377  AVOID: still on its face 43 mm out, no room to creep on: backing up 150 mm (1 of 2)
+13:50:03.128  BEAMS back 0: 0/118 0/116 2/117 3/117 5/117 7/117 9/117 12/113 14/118 17/118
+13:50:03.688  BEAMS back 1: 20/119 22/121 25/134 28/140 30/133 33/135 36/145 40/0 43/0 46/0
+13:50:04.393  BEAMS back 0: -1/116 -4/116 -7/120 -10/121 -12/122 -15/122 -18/128 -21/146 -25/0 -27/0
+13:50:04.837  AVOID: backed up to 134 mm behind the first stop, creeping out again
+13:50:05.223  BEAMS back 0: -30/0
+13:50:05.585  AVOID: creeping out to find its left edge, the sonar square to its face
+13:50:06.563  AVOID: far (left) edge 75 mm out (last echo 72 mm out, 239 mm), backing to the creep's start
+13:50:07.981  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+13:50:09.418  AVOID: creeping out to find its right edge, the sonar square to its face
+13:50:10.050  AVOID: edge 44 mm out (last echo 41 mm out, 274 mm): out 194 mm, along 614 mm
+13:50:12.414  AVOID: WIDTH 86 mm by the creeps (left 59, right 28; raw 118, less 16 an edge)
+13:50:13.160  OBST at 1105 398 h 84.1 face 188 left 59 right 28 depth 150 go R out 194 along 614 back 126
+13:50:13.471  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | li
+13:50:13.777  M 170 ---------------...#.|...-----------------
+13:50:16.508  M 190 ----------------#######------------------
+13:50:16.510  M 210 ----------------##--|-#------------------
+13:50:16.684  AVOID: stepping out to the right
+13:50:16.989  AVOID: clear of its edge, turning back to the line heading
+13:50:17.405  AVOID: alongside the object for 579 mm
+13:51:04.116  MISSION: obstacle at 118 mm, stopped to measure it
+13:51:04.533  AVOID: line checks: dark from L 1610 (run 151-3069) R 1893 (run 190-3596)
+13:51:04.707  AVOID: measuring, turning left to its edge
+13:51:05.321  AVOID: left edge 70 mm at 40 deg, turning right to the other edge
+13:51:05.965  AVOID: measuring turns checked: line -2.1 deg off the wheels' heading (2 seen), reset; C +801 -270 +393
+13:51:06.751  AVOID: face 188 mm ahead of the pivot; obstacle left 70 mm, right 39 mm; WIDTH ~110 mm (median of 3, 0 spread s
+13:51:07.194  AVOID: path right: out 189 mm, total 867 mm, clear; left: out 220 mm, total 929 mm, clear
+13:51:07.735  AVOID: going round the right (sweep out 189 mm); first turning 30 deg to creep out to its left edge
+13:51:08.121  AVOID: creeping out to find its left edge, the sonar square to its face
+13:51:08.658  AVOID: still on its face 44 mm out, no room to creep on: backing up 150 mm (1 of 2)
+13:51:09.278  BEAMS back 0: 0/118 0/118 2/115 4/115 5/116 8/116 10/117 12/117 15/117 17/122
+13:51:09.891  AVOID: backed up to 133 mm behind the first stop, creeping out again
+13:51:10.569  BEAMS back 1: 20/123 22/129 25/134 28/131 30/142 34/0 37/0 40/0 -2/115 -4/115
+13:51:10.956  AVOID: creeping out to find its left edge, the sonar square to its face
+13:51:11.783  BEAMS back 1: -7/120 -10/121 -13/121 -16/122 -18/126 -21/140 -26/0 -28/0 -31/0
+13:51:12.203  AVOID: far (left) edge 73 mm out (last echo 71 mm out, 235 mm), backing to the creep's start
+13:51:13.312  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+13:51:14.343  AVOID: creeping out to find its right edge, the sonar square to its face
+13:51:14.954  AVOID: edge 43 mm out (last echo 40 mm out, 281 mm): out 193 mm, along 617 mm
+13:51:15.470  AVOID: WIDTH 84 mm by the creeps (left 57, right 27; raw 116, less 16 an edge)
+13:51:15.936  OBST at 957 422 h 86.0 face 188 left 57 right 27 depth 150 go R out 193 along 617 back 129
+13:51:16.613  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | li
+13:51:16.888  M 190 ----------------#######------------------
+13:51:17.197  M 210 ----------------##--|-#------------------
+13:51:17.439  M 230 ----------------#---|--------------------
+13:51:17.657  AVOID: stepping out to the right
+13:51:18.537  AVOID: clear of its edge, turning back to the line heading
+13:51:21.097  AVOID: alongside the object for 617 mm
+13:51:30.283  AVOID: past the object, stepping back to the line
+13:51:30.942  AVOID: returning to the line
+13:51:31.563  AVOID: line crossed -33 mm off the wheels' guess, car at -1.7 deg to it (dark L 13 R 14 mm)
+13:51:32.249  AVOID: on the line, straightening (IR peak L 3432 R 3585), line heading moved +1.9
+13:51:34.230  AVOID: turn check: line -5.9 deg off the wheels' turn (dark +7.2), turning onto it; C +640 -191 +82
+13:51:34.423  AVOID: back on course, driving straight
+14:12:59.395  MISSION: obstacle at 122 mm, stopped to measure it
+14:12:59.688  AVOID: line checks: dark from L 1766 (run 150-3382) R 1868 (run 169-3566)
+14:13:00.215  AVOID: measuring, turning left to its edge
+14:13:01.328  BEAMS back 0: 0/122 0/119 2/116 3/116 5/117 7/117 9/112 11/118 14/114
+14:13:02.224  BEAMS back 1: 16/123 19/119 21/125 24/131 27/127 30/1300 33/149 35/1244 38/1265 41/1095
+14:13:02.422  AVOID: left edge 49 mm at 44 deg, turning right to the other edge
+14:13:03.240  BEAMS back 1: 44/1236 -2/120 -5/124 -7/142 -10/993
+14:13:03.557  AVOID: measuring turns checked: line +0.3 deg off the wheels' heading (2 seen), reset; C -179 +39 +258
+14:13:04.249  AVOID: face 192 mm ahead of the pivot; obstacle left 49 mm, right 0 mm; WIDTH ~49 mm (median of 3, 9 spread ski
+14:13:04.681  AVOID: path right: out 150 mm, total 792 mm, clear; left: out 199 mm, total 891 mm, clear
+14:13:05.288  AVOID: going round the right (sweep out 150 mm); first turning 30 deg to creep out to its left edge
+14:13:05.689  AVOID: creeping out to find its left edge, the sonar square to its face
+14:13:06.301  AVOID: still on its face 47 mm out, no room to creep on: backing up 150 mm (1 of 2)
+14:13:06.818  BEAMS back 1: -13/203 -16/1063 -19/3088 -22/1921 -24/706
+14:13:08.404  AVOID: backed up to 129 mm behind the first stop, creeping out again
+14:13:09.288  AVOID: creeping out to find its left edge, the sonar square to its face
+14:13:09.888  AVOID: far (left) edge 47 mm out (last echo 47 mm out, 100 mm), backing to the creep's start
+14:13:10.865  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+14:13:11.579  AVOID: creeping out to find its right edge, the sonar square to its face
+14:13:12.142  AVOID: no echo off its face creeping at 30 deg (the sonar 36 mm out is past its edge), creeping at 20 deg
+14:23:55.371  MISSION: obstacle at 126 mm, stopped to measure it
+14:23:55.765  AVOID: line checks: dark from L 1687 (run 156-3217) R 1901 (run 163-3638)
+14:23:56.186  AVOID: measuring, turning left to its edge
+14:23:56.480  AVOID: left edge 0 mm at 6 deg, turning right to the other edge
+14:23:57.113  AVOID: measuring turns checked: line +3.6 deg off the wheels' heading (1 seen), reset; C +168 +700 +172
+14:23:57.817  AVOID: face 196 mm ahead of the pivot; obstacle left 0 mm, right 0 mm; WIDTH ~0 mm (median of 3, 0 spread skipp
+14:23:58.223  AVOID: path right: out 150 mm, total 796 mm, clear; left: out 150 mm, total 796 mm, clear
+14:23:58.977  AVOID: going round the right (sweep out 150 mm); first turning 30 deg to creep out to its left edge
+14:23:59.282  AVOID: creeping out to find its left edge, the sonar square to its face
+14:23:59.922  AVOID: no echo off its face creeping at 30 deg (the sonar 34 mm out is past its edge), creeping at 20 deg
+14:24:00.344  AVOID: creeping out to find its left edge, the sonar square to its face
+14:24:06.726  AVOID: no echo off its face creeping at 20 deg (the sonar 28 mm out is past its edge), creeping at 10 deg
+14:24:08.791  AVOID: creeping out to find its left edge, the sonar square to its face
+14:24:09.296  AVOID: far (left) edge 34 mm out or more (last echo none), backing to the creep's start
+14:24:09.701  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+14:24:10.083  AVOID: creeping out to find its right edge, the sonar square to its face
+14:24:12.949  AVOID: no echo off its face creeping at 30 deg (the sonar 36 mm out is past its edge), creeping at 20 deg
+14:24:13.246  AVOID: creeping out to find its right edge, the sonar square to its face
+14:24:13.992  AVOID: no echo off its face creeping at 20 deg (the sonar 28 mm out is past its edge), creeping at 10 deg
+14:24:14.484  AVOID: creeping out to find its right edge, the sonar square to its face
+14:24:14.675  AVOID: edge 36 mm out (last echo none): out 186 mm, along 488 mm
+14:24:15.296  AVOID: WIDTH 69 mm or more by the creeps (left 34, right 36; raw 69, less 16 an edge)
+14:24:15.529  AVOID: something else in the way that far out, stopped
+14:24:16.063  OBST at -2308 260 h -133.1 face 196 left 34? right 36? depth 150 go none out 0 along 488 back -8
+14:24:16.736  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | li
+14:24:16.919  M 190 ------------------.-#.-------------------
+14:24:17.700  M 550 ------------------.-|+.------------------
+15:07:55.209  MISSION: obstacle at 117 mm, stopped to measure it
+15:07:55.651  AVOID: line checks: dark from L 1565 (run 165-2964) R 1884 (run 168-3600)
+15:07:56.163  AVOID: measuring, turning left to its edge
+15:07:57.171  BEAMS back 0: 0/117 0/114 2/114 3/116 5/115 7/111 9/111 12/112 14/111
+15:07:57.479  BEAMS back 0: 17/111 19/112 22/108 25/114 27/119 30/119 33/120 36/130 39/133
+15:07:57.900  AVOID: left edge 105 mm at 51 deg, turning right to the other edge
+15:07:58.303  BEAMS back 0: 42/147 45/0 48/0 51/0
+15:07:58.753  BEAMS back 0: -1/114
+15:07:58.935  BEAMS back 0: -4/119
+15:07:59.113  BEAMS back 0: -7/124
+15:08:00.046  AVOID: measuring turns checked: line -2.0 deg off the wheels' heading (2 seen), reset; C +755 -54 +339
+15:08:00.547  AVOID: face 187 mm ahead of the pivot; obstacle left 105 mm, right 12 mm; WIDTH ~117 mm (median of 3, 2 spread 
+15:08:01.063  AVOID: path right: out 162 mm, total 811 mm, clear; left: out 255 mm, total 998 mm, clear
+15:08:01.680  AVOID: going round the right (sweep out 162 mm); first turning 30 deg to creep out to its left edge
+15:08:02.311  AVOID: creeping out to find its left edge, the sonar square to its face
+15:08:02.625  AVOID: still on its face 43 mm out, no room to creep on: backing up 150 mm (1 of 2)
+15:08:03.233  BEAMS back 0: -10/129 -13/126 -17/2997 -19/863 -22/816 -25/1239
+15:08:04.541  AVOID: backed up to 135 mm behind the first stop, creeping out again
+15:08:05.400  AVOID: creeping out to find its left edge, the sonar square to its face
+15:08:07.638  AVOID: far (left) edge 104 mm out (last echo 102 mm out, 177 mm), backing to the creep's start
+15:08:10.239  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+15:08:12.944  AVOID: creeping out to find its right edge, the sonar square to its face
+15:08:13.562  AVOID: edge 48 mm out (last echo 46 mm out, 270 mm): out 198 mm, along 607 mm
+15:08:14.041  AVOID: WIDTH 121 mm by the creeps (left 88, right 32; raw 153, less 16 an edge)
+15:08:14.630  OBST at -2045 -985 h -15.4 face 187 left 88 right 32 depth 150 go R out 198 along 607 back 120
+15:08:15.195  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | li
+15:08:15.475  M 170 ---------------#####|..------------------
+15:08:15.782  M 190 ---------------##-#####------------------
+15:08:16.146  M 210 ---------------#----|-#------------------
+15:08:16.294  AVOID: stepping out to the right
+15:08:16.598  AVOID: clear of its edge, turning back to the line heading
+15:08:19.693  AVOID: alongside the object for 597 mm
+15:50:31.331  MISSION: obstacle at 107 mm, stopped to measure it
+15:50:31.697  AVOID: line checks: dark from L 1742 (run 152-3331) R 1962 (run 198-3726)
+15:50:32.000  AVOID: measuring, turning left to its edge
+15:50:32.417  AVOID: left edge 0 mm at 19 deg, turning right to the other edge
+15:50:34.770  AVOID: measuring turns checked: line not seen, heading by the wheels; C +546 +450 -124
+15:50:36.170  AVOID: face 179 mm ahead of the pivot; obstacle left 0 mm, right 0 mm; WIDTH ~0 mm (median of 3, 3 spread skipp
+15:50:36.299  AVOID: path right: out 150 mm, total 779 mm, clear; left: out 150 mm, total 779 mm, clear
+15:50:36.907  AVOID: going round the right (sweep out 150 mm); first turning 30 deg to creep out to its left edge
+15:50:37.326  AVOID: creeping out to find its left edge, the sonar square to its face
+15:50:39.625  AVOID: no echo off its face creeping at 30 deg (the sonar 33 mm out is past its edge), creeping at 20 deg
+15:50:40.088  AVOID: creeping out to find its left edge, the sonar square to its face
+15:50:40.714  AVOID: no echo off its face creeping at 20 deg (the sonar 24 mm out is past its edge), creeping at 10 deg
+15:50:41.775  AVOID: creeping out to find its left edge, the sonar square to its face
+15:50:42.186  AVOID: far (left) edge 33 mm out or more (last echo none), backing to the creep's start
+15:50:43.772  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+15:50:44.230  AVOID: creeping out to find its right edge, the sonar square to its face
+15:50:46.482  AVOID: no echo off its face creeping at 30 deg (the sonar 35 mm out is past its edge), creeping at 20 deg
+15:50:46.736  AVOID: creeping out to find its right edge, the sonar square to its face
+15:50:47.275  AVOID: no echo off its face creeping at 20 deg (the sonar 27 mm out is past its edge), creeping at 10 deg
+15:50:47.767  AVOID: creeping out to find its right edge, the sonar square to its face
+15:50:48.091  AVOID: edge 35 mm out (last echo none): out 185 mm, along 469 mm
+15:50:48.606  AVOID: WIDTH 68 mm or more by the creeps (left 33, right 35; raw 68, less 16 an edge)
+15:50:49.117  OBST at 354 -261 h -84.7 face 177 left 33? right 35? depth 150 go R out 185 along 469 back -8
+15:50:49.964  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | li
+15:50:50.139  M 170 ------------------.-#..------------------
+15:50:52.267  M 670 --------------------|.+------------------
+15:50:52.270  AVOID: stepping out to the right
+15:50:52.396  AVOID: clear of its edge, turning back to the line heading
+15:50:52.631  AVOID: alongside the object for 469 mm
+15:50:52.904  AVOID: past the object, stepping back to the line
+15:50:53.096  AVOID: returning to the line
+16:53:54.768  MISSION: obstacle at 126 mm, stopped to measure it
+16:53:54.902  AVOID: line checks: dark from L 1823 (run 161-3484) R 1923 (run 190-3655)
+16:53:56.783  AVOID: measuring, turning left to its edge
+16:53:59.991  AVOID: left edge 59 mm at 38 deg, turni
+16:54:04.393  AVOID: measuring turns checked: line not seen, heading by the wheels; C +648 -83 +186
+16:54:04.953  AVOID: face 199 mm ahead of the pivot; obstacle left 59 mm, right 0 mm; WIDTH ~59 mm (median of 3, 2 spread ski
+16:54:05.440  AVOID: path right: out 150 mm, total 799 mm, clear; left: out 209 mm, total 917 mm, clear
+16:54:08.321  AVOID: going round the right (sweep out 150 mm); first turning 30 deg to creep out to its left edge
+16:54:12.572  AVOID: creeping out to find its left edge, the sonar square to its face
+16:54:15.507  AVOID: no echo off its face creeping at 30 deg (the sonar 35 mm out is past its edge), creeping at 20 deg
+16:54:15.781  AVOID: creeping out to find its left edge, the sonar square to its face
+16:54:16.362  AVOID: no echo off its face creeping at 20 deg (the sonar 29 mm out is past its edge), creeping at 10 deg
+16:54:16.763  AVOID: creeping out to find its left edge, the sonar square to its face
+16:54:17.510  AVOID: far (left) edge 35 mm out or more (last echo none), backing to the creep's start
+16:54:17.878  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+16:54:18.251  AVOID: creeping out to find its right edge, the sonar square to its face
+16:54:18.859  AVOID: no echo off its face creeping at 30 deg (the sonar 34 mm out is past its edge), creeping at 20 deg
+16:54:19.290  AVOID: creeping out to find its right edge, the sonar square to its face
+16:54:19.880  AVOID: no echo off its face creeping at 20 deg (the sonar 28 mm out is past its edge), creeping at 10 deg
+16:54:20.351  AVOID: creeping out to find its right edge, the sonar square to its face
+16:54:20.739  AVOID: edge 34 mm out (last echo none): out 184 mm, along 501 mm
+16:54:21.506  AVOID: WIDTH 69 mm or more by the creeps (left 35, right 34; raw 69, less 16 an edge)
+16:54:22.110  OBST at 845 146 h -175.6 face 196 left 35? right 34? depth 150 go R out 184 along 501 back 5
+16:54:22.587  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | li
+16:54:24.523  M 190 -----------------##.#.-------------------
+16:54:24.596  M 210 ------------------.##.-------------------
+16:54:24.935  M 330 ------------------#.|.-------------------
+16:54:25.101  M 350 ------------------##|.-------------------
+16:54:25.292  AVOID: stepping out to the right
+16:54:25.599  AVOID: clear of its edge, turning back to the line heading
+16:54:25.812  AVOID: alongside the object for 502 mm
+16:54:26.196  AVOID: past the object, stepping back to the line
+16:54:26.380  AVOID: returning to the line
+17:14:29.264  MISSION: obstacle at 117 mm, stopped to measure it
+17:14:29.537  AVOID: line checks: dark from L 1668 (run 163-3172) R 1900 (run 174-3626)
+17:14:29.730  AVOID: measuring, turning left to its edge
+17:14:30.104  AVOID: left edge 84 mm at 45 deg, turning right to the other edge
+17:14:30.767  BEAMS back 0: 0/117 1/114 2/115 4/116 6/117 8/116 10/117 13/112 15/118 18/117
+17:14:31.442  BEAMS back 1: 20/119 23/119 26/125 28/139 31/136 34/141 38/0 40/1630 43/991 45/1624
+17:14:32.081  AVOID: measuring turns checked: line -2.1 deg off the wheels' heading (2 seen), reset; C +776 -171 +417
+17:14:32.693  AVOID: face 187 mm ahead of the pivot; obstacle left 84 mm, right 33 mm; WIDTH ~116 mm (median of 3, 1 spread s
+17:14:33.991  AVOID: path right: out 183 mm, total 852 mm, clear; left: out 234 mm, total 954 mm, clear
+17:14:34.491  AVOID: going round the right (sweep out 183 mm); first turning 30 deg to creep out to its left edge
+17:14:34.919  AVOID: creeping out to find its left edge, the sonar square to its face
+17:14:35.375  AVOID: still on its face 44 mm out, no room to creep on: backing up 150 mm (1 of 2)
+17:14:36.102  BEAMS back 0: -2/113 -5/114 -8/119 -11/124 -13/130 -17/130 -19/145 -23/0 -26/0 -29/0
+17:14:36.725  AVOID: backed up to 133 mm behind the first stop, creeping out again
+17:14:37.621  AVOID: creeping out to find its left edge, the sonar square to its face
+17:14:41.191  AVOID: far (left) edge 98 mm out (last echo 96 mm out, 189 mm), backing to the creep's start
+17:14:42.429  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+17:14:43.302  AVOID: creeping out to find its right edge, the sonar square to its face
+17:14:47.226  AVOID: edge 82 mm out (last echo 80 mm out, 208 mm): out 232 mm, along 545 mm
+17:14:47.504  AVOID: WIDTH 148 mm by the creeps (left 82, right 66; raw 180, less 16 an edge)
+17:14:48.024  OBST at 1870 -847 h 163.9 face 187 left 82 right 66 depth 150 go R out 232 along 545 back 58
+17:14:48.679  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | li
+17:14:48.976  M 170 ---------------..##.|....----------------
+17:14:49.488  M 190 ---------------##########----------------
+17:14:49.653  M 210 ---------------##---|---#----------------
+17:14:49.888  M 230 ---------------.----|---#----------------
+17:14:50.071  AVOID: stepping out to the right
+17:14:50.515  AVOID: clear of its edge, turning back to the line heading
+17:14:51.197  AVOID: alongside the object for 546 mm
+17:14:58.359  AVOID: past the object, stepping back to the line
+17:14:59.195  AVOID: returning to the line
+17:14:59.828  AVOID: the object is still in the way at 128 mm, going on along it by 150 mm
+19:45:56.822  MISSION: obstacle at 105 mm, stopped to measure it
+19:45:56.892  AVOID: line checks: dark from L 1854 (run 171-3537) R 1909 (run 192-3626)
+19:45:56.894  BEAMS back 0: 0/105
+19:45:57.333  AVOID: measuring, turning left to its edge
+19:45:57.393  BEAMS back 3: 0/118
+19:45:57.478  BEAMS back 3: 1/102
+19:45:57.480  BEAMS back 4: 2/106
+19:45:57.574  BEAMS back 5: 3/98
+19:45:57.641  BEAMS back 5: 3/97
+19:45:57.742  BEAMS back 6: 4/103
+19:45:57.807  BEAMS back 6: 5/99
+19:45:57.873  BEAMS back 6: 5/76
+19:45:57.949  BEAMS back 7: 6/0
+19:45:58.021  BEAMS back 8: 7/0
+19:45:58.076  AVOID: left edge 5 mm at 10 deg, turning right to the other edge
+19:45:58.077  BEAMS back 7: 10/0
+19:45:58.483  BEAMS back 11: 0/0
+19:45:58.569  BEAMS back 12: -2/0
+19:45:58.638  BEAMS back 13: -4/0
+19:45:58.709  AVOID: measuring turns checked: line not seen, heading by the wheels; C -159 -316 +151
+19:45:58.711  AVOID: face 186 mm ahead of the pivot; obstacle left 5 mm, right 0 mm; WIDTH ~5 mm (median of 3, 2 spread skipp
+19:45:58.897  AVOID: path right: out 150 mm, total 786 mm, clear; left: out 155 mm, total 796 mm, clear
+19:45:58.899  AVOID: going round the right (sweep out 150 mm); first turning 30 deg to creep out to its left edge
+19:45:59.001  BEAMS back 11: -9/0
+19:45:59.794  AVOID: creeping out to find its left edge, the sonar square to its face
+19:45:59.997  AVOID: far (left) edge 36 mm out (last echo 35 mm out, 87 mm), backing to the creep's start
+19:46:00.199  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+19:47:15.135  MISSION: obstacle at 121 mm, stopped to measure it
+19:47:15.188  AVOID: line checks: dark from L 1847 (run 171-3522) R 1957 (run 213-3700)
+19:47:15.189  BEAMS back 0: 0/121
+19:47:15.692  AVOID: measuring, turning left to its edge
+19:47:15.778  BEAMS back 0: 2/115
+19:47:15.780  BEAMS back 0: 4/118
+19:47:15.889  BEAMS back 0: 5/120
+19:47:15.951  BEAMS back 0: 7/121
+19:47:16.004  BEAMS back 0: 9/117
+19:47:16.067  BEAMS back 0: 11/133
+19:47:16.183  BEAMS back 0: 13/172
+19:47:16.184  BEAMS back 0: 16/1009
+19:47:16.251  BEAMS back 0: 18/926
+19:47:16.363  BEAMS back 0: 21/179
+19:47:16.453  BEAMS back 0: 24/177
+19:47:16.514  BEAMS back 0: 26/164
+19:47:16.590  BEAMS back 0: 30/182
+19:47:16.593  BEAMS back 0: 34/185
+19:47:16.663  BEAMS back 0: 38/186
+19:47:16.765  BEAMS back -1: 41/189
+19:47:16.821  BEAMS back 0: 44/195
+19:47:16.877  BEAMS back 1: 47/207
+19:47:16.981  BEAMS back 2: 48/208
+19:47:16.983  BEAMS back 3: 49/210
+19:47:17.073  BEAMS back 4: 51/210
+19:47:17.199  BEAMS back 3: 53/204
+19:47:17.201  BEAMS back 2: 57/205
+19:47:17.281  BEAMS back 2: 60/208
+19:47:17.383  BEAMS back 2: 64/227
+19:47:17.489  BEAMS back 2: 68/0
+19:47:17.558  BEAMS back 2: 70/235
+19:47:18.644  BEAMS back 1: 73/237
+19:47:18.647  BEAMS back 1: 76/252
+19:47:18.649  BEAMS back 1: 79/747
+19:47:18.807  AVOID: left edge 267 mm at 80 deg (still on it at the turn limit: unseen), turning right
+19:47:19.933  BEAMS back 3: -1/1392
+19:47:19.998  BEAMS back 4: -6/1142
+19:47:20.000  BEAMS back 4: -9/1122
+19:47:20.091  AVOID: measuring turns checked: line not seen, heading by the wheels; C +725 +84 +555
+19:47:20.093  AVOID: face 195 mm ahead of the pivot; obstacle left 267 mm (edge unseen), right 0 mm; WIDTH ~267 mm or more (m
+19:47:20.283  AVOID: an edge is past the sweep, backing up 150 mm to see more (1 of 2)
+19:47:20.284  BEAMS back 4: -13/1114
+20:18:24.829  MISSION: obstacle at 127 mm, stopped to measure it
+20:18:24.887  AVOID: line checks: dark from L 1778 (run 176-3380) R 1946 (run 199-3693)
+20:18:24.889  BEAMS back 0: 0/127
+20:18:25.346  AVOID: measuring, turning left to its edge
+20:18:25.401  BEAMS back 1: 0/124
+20:18:25.461  BEAMS back 1: 2/126
+20:18:25.463  BEAMS back 1: 4/126
+20:18:25.561  BEAMS back 1: 5/126
+20:18:25.662  BEAMS back 1: 7/127
+20:18:25.723  BEAMS back 1: 10/122
+20:18:25.787  BEAMS back 2: 12/127
+20:18:25.869  BEAMS back 2: 15/127
+20:18:25.935  BEAMS back 2: 17/128
+20:18:26.039  BEAMS back 2: 20/133
+20:18:26.094  BEAMS back 2: 22/130
+20:18:26.096  BEAMS back 2: 25/140
+20:18:26.176  BEAMS back 2: 28/151
+20:18:26.306  BEAMS back 2: 31/185
+20:18:26.307  BEAMS back 2: 33/161
+20:18:26.379  BEAMS back 2: 36/169
+20:18:26.499  BEAMS back 2: 39/1239
+20:18:26.557  BEAMS back 2: 41/1220
+20:18:26.660  BEAMS back 2: 44/1245
+20:18:26.738  AVOID: left edge 44 mm at 47 deg, turning right to the other edge
+20:18:26.739  BEAMS back 2: 47/1069
+20:18:27.913  BEAMS back 2: -1/122
+20:18:28.047  BEAMS back 2: -4/125
+20:18:28.177  BEAMS back 2: -7/126
+20:18:28.259  BEAMS back 2: -10/127
+20:18:28.261  BEAMS back 1: -13/136
+20:18:28.342  BEAMS back 1: -16/136
+20:18:28.412  BEAMS back 1: -18/141
+20:18:28.489  BEAMS back 1: -21/147
+20:18:28.554  BEAMS back 1: -24/148
+20:18:28.632  BEAMS back 1: -27/0
+20:18:28.756  BEAMS back 1: -30/0
+20:18:28.814  AVOID: measuring turns checked: line -3.1 deg off the wheels' heading (2 seen), reset; C -170 -21 +248
+20:18:28.895  AVOID: face 198 mm ahead of the pivot; obstacle left 44 mm, right 50 mm; WIDTH ~94 mm (median of 3, 6 spread sk
+20:18:28.896  AVOID: path right: out 200 mm, total 899 mm, clear; left: out 194 mm, total 886 mm, clear
+20:18:28.976  AVOID: going round the left (sweep out 194 mm); first turning 30 deg to creep out to its right edge
+20:18:28.978  AVOID: creeping out to find its right edge, the sonar square to its face
+20:18:28.979  BEAMS back 1: -33/0
+20:18:29.405  AVOID: still on its face 50 mm out, no room to creep on: backing up 150 mm (1 of 2)
+20:18:32.933  AVOID: backed up to 126 mm behind the first stop, creeping out again
+20:18:33.878  AVOID: creeping out to find its right edge, the sonar square to its face
+20:18:35.539  AVOID: far (right) edge 95 mm out (last echo 92 mm out, 213 mm), backing to the creep's start
+20:18:37.684  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+20:18:39.259  AVOID: creeping out to find its left edge, the sonar square to its face
+20:18:41.488  AVOID: edge 93 mm out (last echo 90 mm out, 214 mm): out 243 mm, along 544 mm
+20:18:41.490  AVOID: WIDTH 155 mm by the creeps (left 77, right 79; raw 187, less 16 an edge)
+20:18:41.555  OBST at 1102 -580 h -13.0 face 197 left 77 right 79 depth 150 go L out 243 along 544 back 47
+20:18:41.557  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | li
+20:18:41.663  M 190 ---------------.#########.---------------
+20:18:41.883  M 210 ---------------##---|####.---------------
+20:18:41.885  M 230 --------------------|----#---------------
+20:18:44.655  AVOID: stepping out to the left
+20:18:44.860  AVOID: clear of its edge, turning back to the line heading
+20:18:47.129  AVOID: alongside the object for 545 mm
+20:18:52.718  AVOID: past the object, stepping back to the line
+20:18:57.332  AVOID: returning to the line
+20:18:58.536  AVOID: line crossed 2 mm off the wheels' guess, car at -10.5 deg to it (dark L 16 R 18 mm)
+20:18:59.677  AVOID: on the line, straightening (IR peak L 3472 R 3574), line heading moved +10.4
+20:19:02.426  AVOID: turn check: line +3.3 deg off the wheels' turn (dark +6.5), turning onto it; C -96 +709 +313
+20:19:02.427  AVOID: back on course, driving straight
+20:35:59.621  MISSION: obstacle at 120 mm, stopped to measure it
+20:35:59.775  AVOID: line checks: dark from L 1886 (run 188-3583) R 1902 (run 206-3598)
+20:35:59.776  BEAMS back 0: 0/120
+20:36:00.106  AVOID: measuring, turning left to its edge
+20:36:00.210  BEAMS back 0: -1/117
+20:36:00.262  BEAMS back 0: 2/117
+20:36:00.327  BEAMS back 0: 3/118
+20:36:00.416  BEAMS back 0: 5/123
+20:36:00.467  BEAMS back 0: 7/124
+20:36:00.534  BEAMS back 0: 9/124
+20:36:00.623  BEAMS back 1: 12/126
+20:36:00.679  BEAMS back 1: 15/130
+20:36:00.734  BEAMS back 1: 17/133
+20:36:00.825  BEAMS back 1: 20/140
+20:36:00.924  BEAMS back 1: 23/0
+20:36:00.975  BEAMS back 1: 25/980
+20:36:01.034  BEAMS back 1: 28/183
+20:36:01.035  BEAMS back 1: 31/1078
+20:36:01.130  BEAMS back 1: 34/1157
+20:36:01.247  BEAMS back 1: 36/1176
+20:36:01.311  AVOID: left edge 35 mm at 39 deg, turning right to the other edge
+20:36:01.361  BEAMS back 1: 39/1152
+20:36:02.574  BEAMS back 0: -3/112
+20:36:02.672  BEAMS back 0: -5/117
+20:36:02.674  BEAMS back 0: -9/111
+20:36:02.788  BEAMS back 0: -11/117
+20:36:02.789  BEAMS back 0: -14/116
+20:36:02.791  BEAMS back 0: -17/117
+20:36:02.871  BEAMS back 0: -20/117
+20:36:02.951  BEAMS back 0: -23/127
+20:36:03.005  BEAMS back 0: -26/131
+20:36:03.104  BEAMS back 0: -29/132
+20:36:03.180  BEAMS back 0: -31/142
+20:36:03.239  BEAMS back 0: -35/0
+20:36:03.296  BEAMS back 0: -38/0
+20:36:03.449  AVOID: measuring turns checked: line -6.2 deg off the wheels' heading (2 seen), reset; C -232 +92 +96
+20:36:03.450  AVOID: face 190 mm ahead of the pivot; obstacle left 35 mm, right 74 mm; WIDTH ~109 mm (median of 3, 4 spread skipped)
+20:36:03.510  AVOID: path right: out 224 mm, total 937 mm, clear; left: out 185 mm, total 860 mm, clear
+20:36:03.511  AVOID: going round the left (sweep out 185 mm); first turning 30 deg to creep out to its right edge
+20:36:03.614  BEAMS back 0: -41/0
+20:36:03.615  AVOID: creeping out to find its right edge, the sonar square to its face
+20:36:04.078  AVOID: still on its face 46 mm out, no room to creep on: backing up 150 mm (1 of 2)
+20:36:07.580  AVOID: backed up to 132 mm behind the first stop, creeping out again
+20:36:08.462  AVOID: creeping out to find its right edge, the sonar square to its face
+20:36:09.817  AVOID: far (right) edge 81 mm out (last echo 79 mm out, 239 mm), backing to the creep's start
+20:36:11.601  AVOID: back from the far edge (0 mm off the start), turning 30 deg to creep out to the way round's edge
+20:36:13.114  AVOID: creeping out to find its left edge, the sonar square to its face
+20:36:15.718  AVOID: edge 104 mm out (last echo 102 mm out, 191 mm): out 254 mm, along 515 mm
+20:36:15.720  AVOID: WIDTH 154 mm by the creeps (left 88, right 65; raw 186, less 16 an edge)
+20:36:15.898  OBST at 772 843 h 77.3 face 190 left 88 right 65 depth 150 go L out 254 along 515 back 25
+20:36:15.900  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | line
+20:36:15.954  M 170 ---------------.....|.#...---------------
+20:36:15.955  M 190 ---------------.#########----------------
+20:36:15.956  M 210 ---------------####-|--##----------------
+20:36:15.956  M 230 ---------------#----|---#----------------
+20:36:17.160  AVOID: stepping out to the left
+20:36:19.164  AVOID: clear of its edge, turning back to the line heading
+20:36:21.509  AVOID: alongside the object for 516 mm
+20:36:26.692  AVOID: past the object, stepping back to the line
+20:36:28.984  AVOID: returning to the line
+20:36:30.577  AVOID: line crossed 2 mm off the wheels' guess, car at +1.8 deg to it (dark L 15 R 19 mm)
+20:36:31.744  AVOID: on the line, straightening (IR peak L 3371 R 3476), line heading moved -1.7
+20:36:34.111  AVOID: turn check: line +3.8 deg off the wheels' turn (dark +7.1), turning onto it; C -124 +556 +486
+20:36:34.112  AVOID: back on course, driving straight
+20:48:08.943  MISSION: obstacle at 118 mm, stopped to measure it
+20:48:09.006  AVOID: line checks: dark from L 1840 (run 172-3507) R 1908 (run 206-3609)
+20:48:09.007  BEAMS back 0: 0/118
+20:48:09.407  AVOID: measuring, turning left to its edge
+20:48:09.519  BEAMS back 1: 1/112
+20:48:09.574  BEAMS back 1: 3/119
+20:48:09.662  BEAMS back 1: 5/118
+20:48:09.724  BEAMS back 1: 7/118
+20:48:09.785  BEAMS back 1: 9/122
+20:48:09.868  BEAMS back 1: 12/120
+20:48:09.927  BEAMS back 1: 14/120
+20:48:09.994  BEAMS back 1: 17/120
+20:48:10.072  BEAMS back 1: 19/124
+20:48:10.148  BEAMS back 1: 22/125
+20:48:10.212  BEAMS back 1: 24/127
+20:48:10.331  BEAMS back 1: 27/128
+20:48:10.394  BEAMS back 1: 30/142
+20:48:10.396  BEAMS back 1: 32/139
+20:48:10.475  BEAMS back 1: 35/145
+20:48:10.537  BEAMS back 1: 39/0
+20:48:10.608  BEAMS back 1: 41/179
+20:48:10.684  BEAMS back 1: 44/0
+20:48:10.742  AVOID: left edge 88 mm at 47 deg, turning right to the other edge
+20:48:10.743  BEAMS back 1: 47/0
+20:48:12.626  BEAMS back 0: -2/113
+20:48:12.627  BEAMS back 0: -5/118
+20:48:12.708  BEAMS back 1: -8/123
+20:48:12.709  BEAMS back 1: -11/131
+20:48:12.711  BEAMS back 1: -14/140
+20:48:12.712  BEAMS back 1: -17/818
+20:48:12.764  BEAMS back 1: -19/834
+20:48:12.765  BEAMS back 1: -22/834
+20:48:12.848  AVOID: measuring turns checked: line -0.3 deg off the wheels' heading (2 seen), reset; C -189 +94 +146
+20:48:12.914  AVOID: face 188 mm ahead of the pivot; obstacle left 88 mm, right 13 mm; WIDTH ~100 mm (median of 3, 3 spread skipped)
+20:48:12.968  AVOID: path right: out 163 mm, total 814 mm, clear; left: out 238 mm, total 964 mm, clear
+20:48:12.969  AVOID: going round the right (sweep out 163 mm); first turning 30 deg to creep out to its left edge
+20:48:12.970  BEAMS back 0: -25/843
+20:48:18.225  AVOID: creeping out to find its left edge, the sonar square to its face
+20:48:18.291  AVOID: still on its face 44 mm out, no room to creep on: backing up 150 mm (1 of 2)
+20:48:18.575  AVOID: backed up to 134 mm behind the first stop, creeping out again
+20:48:19.049  AVOID: creeping out to find its left edge, the sonar square to its face
+20:48:22.248  AVOID: still on its face 130 mm out, no room to creep on: backing up 150 mm (2 of 2)
+20:48:25.460  AVOID: backed up to 133 mm behind the first stop, creeping out again
+20:48:27.518  AVOID: creeping out to find its left edge, the sonar square to its face
+20:48:27.593  AVOID: far (left) edge 144 mm out (last echo 142 mm out, 272 mm), backing to the creep's start
+20:48:29.996  AVOID: back from the far edge (24 mm off the start), turning 30 deg to creep out to the way round's edge
+20:48:31.688  AVOID: creeping out to find its right edge, the sonar square to its face
+20:48:33.014  AVOID: edge 43 mm out (last echo 41 mm out, 357 mm): out 193 mm, along 681 mm
+20:48:33.016  AVOID: WIDTH 155 mm by the creeps (left 128, right 27; raw 187, less 16 an edge)
+20:48:33.088  OBST at 730 819 h 79.2 face 188 left 128 right 27 depth 150 go R out 193 along 681 back 193
+20:48:33.090  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | line
+20:48:33.140  M 170 -------------.#.....|....----------------
+20:48:33.142  M 190 -------------#########...----------------
+20:48:33.143  M 210 -------------#------|##-.----------------
+20:48:33.144  M 230 -------------#------|-#-..---------------
+20:48:34.472  AVOID: stepping out to the right
+20:48:36.361  AVOID: clear of its edge, turning back to the line heading
+20:48:38.680  AVOID: alongside the object for 681 mm
+20:48:45.640  AVOID: past the object, stepping back to the line
+20:48:47.996  AVOID: returning to the line
+20:48:49.063  AVOID: line crossed -25 mm off the wheels' guess, car at 0.0 deg to it (dark L 14 R 16 mm)
+20:48:50.302  AVOID: on the line, straightening (IR peak L 3477 R 3585), line heading moved +0.0
+20:48:52.743  AVOID: turn check: line -5.4 deg off the wheels' turn (dark +7.5), turning onto it; C -132 +633 +426
+20:48:52.745  AVOID: back on course, driving straight
+21:01:28.536  MISSION: obstacle at 123 mm, stopped to measure it
+21:01:28.540  AVOID: line checks: dark from L 1836 (run 177-3494) R 1951 (run 203-3698)
+21:01:28.598  BEAMS back 0: 0/123
+21:01:28.988  AVOID: measuring, turning left to its edge
+21:01:29.061  BEAMS back 1: 1/117
+21:01:29.109  BEAMS back 1: 3/122
+21:01:29.194  BEAMS back 1: 5/121
+21:01:29.252  BEAMS back 1: 7/122
+21:01:29.317  BEAMS back 1: 9/121
+21:01:29.397  BEAMS back 1: 11/122
+21:01:29.452  BEAMS back 1: 13/123
+21:01:29.508  BEAMS back 1: 16/124
+21:01:29.604  BEAMS back 1: 18/129
+21:01:29.662  BEAMS back 1: 21/130
+21:01:29.716  BEAMS back 1: 24/136
+21:01:29.780  BEAMS back 1: 27/141
+21:01:29.827  BEAMS back 1: 30/143
+21:01:29.923  BEAMS back 1: 33/160
+21:01:29.985  BEAMS back 1: 35/172
+21:01:30.042  BEAMS back 1: 38/1022
+21:01:30.150  BEAMS back 1: 41/610
+21:01:30.219  BEAMS back 1: 45/0
+21:01:30.290  AVOID: left edge 71 mm at 47 deg, turning right to the other edge
+21:01:30.292  BEAMS back 1: 47/797
+21:01:31.634  BEAMS back 1: -1/120
+21:01:31.686  BEAMS back 1: -3/122
+21:01:31.688  BEAMS back 1: -6/121
+21:01:31.765  BEAMS back 1: -9/121
+21:01:31.866  BEAMS back 1: -12/127
+21:01:31.933  BEAMS back 1: -15/131
+21:01:31.993  BEAMS back 1: -18/133
+21:01:32.071  BEAMS back 1: -21/143
+21:01:32.147  BEAMS back 1: -24/149
+21:01:32.202  BEAMS back 1: -27/164
+21:01:32.278  BEAMS back 1: -30/0
+21:01:32.338  BEAMS back 1: -33/0
+21:01:32.391  AVOID: measuring turns checked: line -3.1 deg off the wheels' heading (2 seen), reset; C -188 +33 +151
+21:01:32.393  AVOID: face 194 mm ahead of the pivot; obstacle left 71 mm, right 61 mm; WIDTH ~132 mm (median of 3, 4 spread skipped)
+21:01:32.543  AVOID: path right: out 211 mm, total 916 mm, clear; left: out 221 mm, total 935 mm, clear
+21:01:32.545  AVOID: going round the right (sweep out 211 mm); first turning 30 deg to creep out to its left edge
+21:01:32.603  BEAMS back 1: -36/0
+21:01:34.114  AVOID: creeping out to find its left edge, the sonar square to its face
+21:01:34.611  AVOID: still on its face 47 mm out, no room to creep on: backing up 150 mm (1 of 2)
+21:01:38.209  AVOID: backed up to 129 mm behind the first stop, creeping out again
+21:01:38.956  AVOID: creeping out to find its left edge, the sonar square to its face
+21:01:41.802  AVOID: far (left) edge 125 mm out (last echo 123 mm out, 149 mm), backing to the creep's start
+21:01:45.675  AVOID: back from the far edge (6 mm off the start), turning 30 deg to creep out to the way round's edge
+21:01:46.301  AVOID: creeping out to find its right edge, the sonar square to its face
+21:01:47.390  AVOID: edge 54 mm out (last echo 52 mm out, 256 mm): out 204 mm, along 584 mm
+21:01:47.458  AVOID: WIDTH 148 mm by the creeps (left 109, right 38; raw 180, less 16 an edge)
+21:01:47.460  OBST at 705 849 h 78.9 face 193 left 109 right 38 depth 150 go R out 204 along 584 back 91
+21:01:47.608  AVOID MAP 20 mm cells, rows with a hit as M x cells, left at left: # obstacle, + other, . free, - unknown, | line
+21:01:47.610  M 190 --------------#########..----------------
+21:01:47.611  M 210 --------------#-----|-##-----------------
+21:01:49.002  AVOID: stepping out to the right
+21:01:50.833  AVOID: clear of its edge, turning back to the line heading
+21:01:53.227  AVOID: alongside the object for 585 mm
+21:01:59.112  AVOID: past the object, stepping back to the line
+21:02:01.492  AVOID: returning to the line
+21:02:02.786  AVOID: line crossed -20 mm off the wheels' guess, car at 0.0 deg to it (dark L 14 R 16 mm)
+21:02:03.825  AVOID: on the line, straightening (IR peak L 3418 R 3583), line heading moved +0.0
+21:02:06.313  AVOID: turn check: line -5.3 deg off the wheels' turn (dark +8.5), turning onto it; C -131 +630 +430
+21:02:06.315  AVOID: back on course, driving straight

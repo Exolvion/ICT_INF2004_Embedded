@@ -70,3 +70,4 @@ bool navmap_feed (navmap_rx_t * p_state, const uint8_t * p_data,
 #endif /* NAVMAP_H */
 
 /* End of file. */
+

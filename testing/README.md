@@ -68,6 +68,28 @@ Test IDs never change and are never reused, even if a test is dropped.
    the commit you tested (`git rev-parse --short HEAD`), who ran it,
    PASS/FAIL, and the log file. Commit the log and the table together.
 
+## Day logs split per subsystem
+
+The dashboard writes one log per day with every subsystem's lines mixed
+(`testing/system/logs/<date>_dashboard.txt`, and the broker's
+`<date>_broker.txt`). `python3 tools/split_logs.py` (or `... <date>` for one
+day) sorts each line into the subsystem it is about, by its tag:
+
+| Subsystem | Lines |
+|---|---|
+| 1 | telemetry frames (`[frame status/perception/diagnostic]`), `[sent]`, `[command]`, `[status]`, MAP, MQTT; the whole broker log |
+| 2 | ENC, P (pose), PID, pivot and drive lines |
+| 3 | IR, NAV, CODE, Decoder 1/2, D0, CAR, RAW/R rows, REC, centre/gaps, AUTO-CENTRE, CAL, barcodes |
+| 4 | ACC, MAG, RAMP/ramp:, SIDE, LIFT/lift:, IMU |
+| 5 | AVOID, OBST, M (map rows), BEAMS, scan, front sonar |
+
+It writes `testing/subsystemN/logs/<date>_dashboard.txt` (and
+`<date>_broker.txt` for subsystem 1), each with a first line naming its
+source. A line without a time follows the line before it. Run-level lines
+(MISSION, DRIVE start, the end report's task timing and owner health) stay
+only in the day log, which is never changed: it is the full record. Re-run
+after new logs.
+
 ## Videos of tests and demos
 
 A manual test (a motor, a sensor reacting, the car on the track) is best

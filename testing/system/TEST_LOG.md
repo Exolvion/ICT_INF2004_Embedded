@@ -23,7 +23,8 @@ Define a test here before running it. Test IDs never change.
 | SYS-09 | STOP, RESET, START | FR11 | manual | Drive; STOP; RESET (GP21); START (GP21) | Stops; RESET only when eligible; a separate START needed |
 | SYS-10 | Full course against Briefing p.8 bands A–D | FR1–FR9 | manual | Full course runs | Detection and reacquisition 100 / 95 / 90 / 80 %; width error ≤ 10 / 20 / 30 / 40 %; bypass < 3 / 5 / 7 / 10 s |
 | SYS-11 | 10-minute continuous run | NFR4 | manual | Run the course for 10 minutes with telemetry saved | No resets; no unexpected faults |
-| SYS-12 | Task timing, interrupt time, stack high-water | NFR3, NFR4 | manual | Needs instrumentation (ChangeRequirement/README.md section 12) | No missed release; ISR and masked time ≤ 20 µs (proposed); stack margin ≥ 25 % (proposed) |
+| SYS-12 | Task timing, interrupt time, stack high-water | NFR3, NFR4 | manual | Task timing: every run's end report has a TASKS line (each task's longest step and skipped periods since START; ROBOT_APP_MISSION). ISR, masked time and stack high-water still need instrumentation (ChangeRequirement/README.md section 12) | No missed release; ISR and masked time ≤ 20 µs (proposed); stack margin ≥ 25 % (proposed) |
+| SYS-13 | Mission in the robot app, host sim | FR1–FR8, FR11 | auto | `bash firmware/robot/sim/make.sh`, then `firmware/robot/sim/robot_sim junction`, `corner`, `long 22`, `ramp 10 100 50 4` (`SIM_FROM=0.05`), `obstacle`; `python3 tools/dashboard/bench_codec.py check` on each output | Card read by both decoders; corner a turn, LEFT at the crossing; card at 22 m read; side hump 7 mm; obstacle measured, passed and rejoined; every frame matches its line |
 
 *Method:* **auto** = run by `scripts/dev.sh`, result in the saved log;
 **manual** = a person observes the result (telemetry, console, meter, video).

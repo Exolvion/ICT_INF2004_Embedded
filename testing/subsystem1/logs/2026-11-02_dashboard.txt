@@ -1,0 +1,31 @@
+# subsystem 1 lines of testing/system/logs/2026-11-02_dashboard.txt (tools/split_logs.py); the day log has them all.
+16:06:29.558 [status] 1
+16:07:05.463 [status] 0
+16:07:05.512 [status] 1
+16:32:02.380 [status] 0
+16:33:02.071 [status] 1
+16:34:33.664 [status] 0
+16:34:33.811 [status] 1
+16:35:45.356 [sent] START 0xAA
+16:35:45.359 [command] command START (0xAA) on the broker
+16:36:02.406 [status] 0
+16:36:02.742 [status] 1
+16:53:12.366 [status] 0
+16:54:09.758 [status] 1
+16:56:33.621 [status] 0
+16:56:33.741 [status] 1
+17:12:21.255 [status] 0
+17:12:21.410 [status] 1
+17:12:49.997 [status] 0
+17:13:01.371 [status] 1
+17:16:20.106 [sent] START 0xAA
+17:16:20.114 [command] command START (0xAA) on the broker
+17:16:36.526 [status] 0
+17:16:36.617 [status] 1
+17:17:21.760 [status] 0
+17:17:21.850 [status] 1
+17:19:42.254 [status] 0
+17:19:42.707 [status] 1
+17:23:18.461 [status] 0
+19:32:53.533 [sent] START 0xAA
+19:32:53.547 [command] command START (0xAA) on the broker

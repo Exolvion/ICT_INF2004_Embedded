@@ -1,0 +1,385 @@
+# subsystem 1 lines of testing/system/logs/2026-10-29_dashboard.txt (tools/split_logs.py); the day log has them all.
+20:49:21.503 [command] command NEXT_TEST (0xAF) on the broker
+20:49:31.532 [command] command NEXT_TEST (0xAF) on the broker
+20:49:33.237 [command] command NEXT_TEST (0xAF) on the broker
+20:49:46.119 [command] command START (0xAA) on the broker
+20:57:17.164 [status] 0
+20:57:19.549 [status] 1
+21:16:25.606 [sent] STOP 0xA9
+21:16:25.617 [command] command STOP (0xA9) on the broker
+21:16:25.924 [sent] STOP 0xA9
+21:16:25.930 [command] command STOP (0xA9) on the broker
+21:17:05.960 [sent] STOP 0xA9
+21:17:05.962 [command] command STOP (0xA9) on the broker
+21:17:06.452 [sent] STOP 0xA9
+21:17:06.454 [command] command STOP (0xA9) on the broker
+21:25:20.633 [status] 0
+21:25:57.134 [status] 1
+21:26:23.433 [status] 0
+21:26:40.649 [status] 1
+21:27:34.536 [command] command NEXT_TEST (0xAF) on the broker
+21:27:38.290 [command] command NEXT_TEST (0xAF) on the broker
+21:27:43.153 [command] command NEXT_TEST (0xAF) on the broker
+21:28:10.409 [command] command NEXT_TEST (0xAF) on the broker
+21:28:15.031 [command] command NEXT_TEST (0xAF) on the broker
+21:28:42.110 [command] command NEXT_TEST (0xAF) on the broker
+21:29:08.940 [command] command NEXT_TEST (0xAF) on the broker
+21:29:12.813 [command] command NEXT_TEST (0xAF) on the broker
+21:29:16.101 [command] command NEXT_TEST (0xAF) on the broker
+21:29:19.212 [command] command NEXT_TEST (0xAF) on the broker
+21:29:46.804 [command] command NEXT_TEST (0xAF) on the broker
+21:30:13.810 [command] command NEXT_TEST (0xAF) on the broker
+21:30:17.458 [command] command NEXT_TEST (0xAF) on the broker
+21:30:31.344 [command] command NEXT_TEST (0xAF) on the broker
+21:30:58.707 [command] command NEXT_TEST (0xAF) on the broker
+21:31:19.371 [command] command NEXT_GAINS (0xAD) on the broker
+21:31:45.560 [command] command NEXT_GAINS (0xAD) on the broker
+21:31:53.771 [status] 0
+21:31:55.057 [status] 1
+21:32:22.964 [command] command NEXT_GAINS (0xAD) on the broker
+21:33:33.104 [command] command NEXT_GAINS (0xAD) on the broker
+21:33:38.058 [sent] NEXT_GAINS 0xAD
+21:33:38.063 [command] command NEXT_GAINS (0xAD) on the broker
+21:33:55.779 [sent] NEXT_GAINS 0xAD
+21:33:55.784 [command] command NEXT_GAINS (0xAD) on the broker
+21:35:04.959 [status] 0
+21:35:16.772 [status] 1
+21:36:10.006 [command] command NEXT_TEST (0xAF) on the broker
+21:36:13.503 [command] command NEXT_TEST (0xAF) on the broker
+21:36:16.216 [command] command NEXT_TEST (0xAF) on the broker
+21:36:18.727 [command] command NEXT_TEST (0xAF) on the broker
+21:36:21.458 [command] command NEXT_TEST (0xAF) on the broker
+21:36:24.168 [command] command NEXT_TEST (0xAF) on the broker
+21:37:44.077 [command] command NEXT_TEST (0xAF) on the broker
+21:38:04.750 [command] command NEXT_TEST (0xAF) on the broker
+21:38:36.953 [command] command NEXT_TEST (0xAF) on the broker
+21:39:10.112 [command] command NEXT_TEST (0xAF) on the broker
+21:39:43.140 [command] command NEXT_TEST (0xAF) on the broker
+21:40:16.311 [command] command NEXT_TEST (0xAF) on the broker
+21:40:48.398 [command] command NEXT_TEST (0xAF) on the broker
+21:41:23.280 [command] command NEXT_TEST (0xAF) on the broker
+21:41:55.590 [command] command NEXT_TEST (0xAF) on the broker
+21:42:41.956 [command] command NEXT_TEST (0xAF) on the broker
+21:43:03.232 [command] command NEXT_TEST (0xAF) on the broker
+21:43:05.620 [command] command NEXT_TEST (0xAF) on the broker
+21:43:08.636 [command] command NEXT_TEST (0xAF) on the broker
+21:43:11.405 [command] command NEXT_TEST (0xAF) on the broker
+21:43:13.813 [command] command NEXT_TEST (0xAF) on the broker
+21:43:16.474 [command] command NEXT_TEST (0xAF) on the broker
+21:43:18.897 [command] command NEXT_TEST (0xAF) on the broker
+21:43:21.594 [command] command NEXT_TEST (0xAF) on the broker
+21:43:23.901 [command] command NEXT_TEST (0xAF) on the broker
+21:43:26.978 [command] command NEXT_TEST (0xAF) on the broker
+21:43:29.316 [command] command NEXT_TEST (0xAF) on the broker
+21:43:32.090 [command] command NEXT_TEST (0xAF) on the broker
+21:43:34.638 [command] command NEXT_TEST (0xAF) on the broker
+21:43:37.255 [command] command NEXT_TEST (0xAF) on the broker
+21:43:39.851 [command] command NEXT_TEST (0xAF) on the broker
+21:43:42.185 [command] command NEXT_TEST (0xAF) on the broker
+21:44:08.201 [command] command NEXT_GAINS (0xAD) on the broker
+21:44:10.607 [command] command NEXT_GAINS (0xAD) on the broker
+21:44:13.212 [command] command NEXT_GAINS (0xAD) on the broker
+21:44:16.096 [command] command NEXT_GAINS (0xAD) on the broker
+21:45:02.974 [command] command NEXT_GAINS (0xAD) on the broker
+21:45:30.324 [sent] STOP 0xA9
+21:45:30.326 [command] command STOP (0xA9) on the broker
+21:46:08.889 [sent] START 0xAA
+21:46:08.891 [command] command START (0xAA) on the broker
+21:46:13.457 [command] command previous gains (0xAC) on the broker
+21:46:50.719 [sent] NEXT_GAINS 0xAD
+21:46:50.721 [command] command NEXT_GAINS (0xAD) on the broker
+21:47:57.422 [sent] NEXT_GAINS 0xAD
+21:47:57.427 [command] command NEXT_GAINS (0xAD) on the broker
+21:48:47.528 [sent] STOP 0xA9
+21:48:47.533 [command] command STOP (0xA9) on the broker
+21:50:19.232 [sent] NEXT_GAINS 0xAD
+21:50:19.234 [command] command NEXT_GAINS (0xAD) on the broker
+21:50:19.623 [sent] NEXT_GAINS 0xAD
+21:50:19.624 [command] command NEXT_GAINS (0xAD) on the broker
+21:50:19.843 [sent] NEXT_GAINS 0xAD
+21:50:19.844 [command] command NEXT_GAINS (0xAD) on the broker
+21:50:38.933 [sent] NEXT_GAINS 0xAD
+21:50:38.937 [command] command NEXT_GAINS (0xAD) on the broker
+21:50:39.148 [sent] NEXT_GAINS 0xAD
+21:50:39.151 [command] command NEXT_GAINS (0xAD) on the broker
+21:50:40.009 [sent] NEXT_GAINS 0xAD
+21:50:40.012 [command] command NEXT_GAINS (0xAD) on the broker
+21:50:40.167 [sent] NEXT_GAINS 0xAD
+21:50:40.170 [command] command NEXT_GAINS (0xAD) on the broker
+21:50:40.321 [sent] NEXT_GAINS 0xAD
+21:50:40.325 [command] command NEXT_GAINS (0xAD) on the broker
+21:50:40.467 [sent] NEXT_GAINS 0xAD
+21:50:40.471 [command] command NEXT_GAINS (0xAD) on the broker
+21:50:40.690 [sent] NEXT_GAINS 0xAD
+21:50:40.693 [command] command NEXT_GAINS (0xAD) on the broker
+21:51:25.502 [sent] START 0xAA
+21:51:25.507 [command] command START (0xAA) on the broker
+22:02:37.424 [status] 0
+14:06:20.081 [status] 1
+14:07:05.105 [command] command NEXT_TEST (0xAF) on the broker
+14:07:07.555 [command] command NEXT_TEST (0xAF) on the broker
+14:07:10.305 [command] command NEXT_TEST (0xAF) on the broker
+14:07:12.665 [command] command NEXT_TEST (0xAF) on the broker
+14:07:15.118 [command] command NEXT_TEST (0xAF) on the broker
+14:07:18.052 [command] command NEXT_TEST (0xAF) on the broker
+14:07:21.361 [command] command NEXT_TEST (0xAF) on the broker
+14:07:23.846 [command] command NEXT_TEST (0xAF) on the broker
+14:07:26.359 [command] command NEXT_TEST (0xAF) on the broker
+14:07:29.065 [command] command NEXT_TEST (0xAF) on the broker
+14:07:31.879 [command] command NEXT_TEST (0xAF) on the broker
+14:07:34.696 [command] command NEXT_TEST (0xAF) on the broker
+14:07:37.150 [command] command NEXT_TEST (0xAF) on the broker
+14:07:39.280 [command] command NEXT_TEST (0xAF) on the broker
+14:07:41.706 [command] command NEXT_TEST (0xAF) on the broker
+14:07:44.426 [command] command NEXT_GAINS (0xAD) on the broker
+14:07:46.710 [command] command NEXT_GAINS (0xAD) on the broker
+14:07:49.469 [command] command NEXT_GAINS (0xAD) on the broker
+14:07:52.276 [command] command NEXT_GAINS (0xAD) on the broker
+14:09:04.135 [command] command START (0xAA) on the broker
+14:12:21.830 [sent] STOP 0xA9
+14:12:21.832 [command] command STOP (0xA9) on the broker
+14:27:46.950 [command] command START (0xAA) on the broker
+14:47:22.549 [status] 0
+14:47:53.989 [status] 1
+14:48:18.749 [command] command NEXT_TEST (0xAF) on the broker
+14:48:20.999 [command] command NEXT_TEST (0xAF) on the broker
+14:48:23.179 [command] command NEXT_TEST (0xAF) on the broker
+14:48:25.359 [command] command NEXT_TEST (0xAF) on the broker
+14:48:27.508 [command] command NEXT_TEST (0xAF) on the broker
+14:48:29.765 [command] command NEXT_TEST (0xAF) on the broker
+14:48:32.024 [command] command NEXT_TEST (0xAF) on the broker
+14:48:34.420 [command] command NEXT_TEST (0xAF) on the broker
+14:48:36.629 [command] command NEXT_TEST (0xAF) on the broker
+14:48:38.728 [command] command NEXT_TEST (0xAF) on the broker
+14:48:40.904 [command] command NEXT_TEST (0xAF) on the broker
+14:48:43.053 [command] command NEXT_TEST (0xAF) on the broker
+14:48:45.361 [command] command NEXT_TEST (0xAF) on the broker
+14:48:47.537 [command] command NEXT_TEST (0xAF) on the broker
+14:48:49.835 [command] command NEXT_TEST (0xAF) on the broker
+14:48:51.977 [command] command NEXT_GAINS (0xAD) on the broker
+14:48:54.031 [command] command NEXT_GAINS (0xAD) on the broker
+14:48:56.208 [command] command NEXT_GAINS (0xAD) on the broker
+14:48:58.373 [command] command NEXT_GAINS (0xAD) on the broker
+14:49:26.438 [command] command previous gains (0xAC) on the broker
+14:49:29.102 [command] command NEXT_GAINS (0xAD) on the broker
+14:49:42.137 [command] command START (0xAA) on the broker
+14:52:45.698 [command] command START (0xAA) on the broker
+14:58:14.353 [command] command START (0xAA) on the broker
+15:03:59.379 [command] command START (0xAA) on the broker
+15:05:10.327 [sent] NEXT_TEST 0xAF
+15:05:10.329 [command] command NEXT_TEST (0xAF) on the broker
+15:05:15.443 [sent] NEXT_TEST 0xAF
+15:05:15.445 [command] command NEXT_TEST (0xAF) on the broker
+15:05:21.125 [sent] NEXT_TEST 0xAF
+15:05:21.127 [command] command NEXT_TEST (0xAF) on the broker
+15:46:18.505 [status] 0
+15:46:44.659 [status] 1
+15:47:59.781 [command] command NEXT_TEST (0xAF) on the broker
+15:48:01.783 [command] command NEXT_TEST (0xAF) on the broker
+15:48:03.691 [command] command NEXT_TEST (0xAF) on the broker
+15:48:05.674 [command] command NEXT_TEST (0xAF) on the broker
+15:48:07.705 [command] command NEXT_TEST (0xAF) on the broker
+15:48:09.677 [command] command NEXT_TEST (0xAF) on the broker
+15:48:11.636 [command] command NEXT_TEST (0xAF) on the broker
+15:48:13.562 [command] command NEXT_TEST (0xAF) on the broker
+15:48:15.493 [command] command NEXT_TEST (0xAF) on the broker
+15:48:17.436 [command] command NEXT_TEST (0xAF) on the broker
+15:48:19.346 [command] command NEXT_TEST (0xAF) on the broker
+15:48:21.331 [command] command NEXT_TEST (0xAF) on the broker
+15:48:23.273 [command] command NEXT_TEST (0xAF) on the broker
+15:48:25.231 [command] command NEXT_TEST (0xAF) on the broker
+15:48:27.170 [command] command NEXT_TEST (0xAF) on the broker
+15:48:29.086 [command] command NEXT_TEST (0xAF) on the broker
+15:48:31.059 [command] command NEXT_TEST (0xAF) on the broker
+15:48:33.044 [command] command NEXT_GAINS (0xAD) on the broker
+15:48:35.045 [command] command NEXT_GAINS (0xAD) on the broker
+15:48:37.080 [command] command NEXT_GAINS (0xAD) on the broker
+15:48:39.034 [command] command NEXT_GAINS (0xAD) on the broker
+15:48:51.332 [command] command START (0xAA) on the broker
+15:49:12.460 [command] command START (0xAA) on the broker
+15:51:05.015 [command] command STOP (0xA9) on the broker
+16:15:05.780 [status] 0
+16:16:14.547 [command] command NEXT_TEST (0xAF) on the broker
+16:16:17.465 [command] command NEXT_TEST (0xAF) on the broker
+16:16:20.073 [command] command NEXT_TEST (0xAF) on the broker
+16:16:22.732 [command] command NEXT_TEST (0xAF) on the broker
+16:16:23.253 [status] 1
+16:16:25.056 [command] command NEXT_TEST (0xAF) on the broker
+16:16:27.501 [command] command NEXT_TEST (0xAF) on the broker
+16:16:29.886 [command] command NEXT_TEST (0xAF) on the broker
+16:16:32.101 [command] command NEXT_TEST (0xAF) on the broker
+16:16:34.419 [command] command NEXT_TEST (0xAF) on the broker
+16:16:36.717 [command] command NEXT_TEST (0xAF) on the broker
+16:16:39.540 [command] command NEXT_TEST (0xAF) on the broker
+16:16:42.133 [command] command NEXT_TEST (0xAF) on the broker
+16:16:45.062 [command] command NEXT_TEST (0xAF) on the broker
+16:16:47.693 [command] command NEXT_TEST (0xAF) on the broker
+16:16:50.210 [command] command NEXT_TEST (0xAF) on the broker
+16:16:52.747 [command] command NEXT_TEST (0xAF) on the broker
+16:16:55.466 [command] command NEXT_TEST (0xAF) on the broker
+16:16:57.965 [command] command NEXT_GAINS (0xAD) on the broker
+16:17:00.474 [command] command NEXT_GAINS (0xAD) on the broker
+16:17:03.200 [command] command NEXT_GAINS (0xAD) on the broker
+16:17:06.165 [command] command NEXT_GAINS (0xAD) on the broker
+16:17:34.196 [command] command NEXT_TEST (0xAF) on the broker
+16:17:38.496 [command] command NEXT_TEST (0xAF) on the broker
+16:17:42.667 [command] command NEXT_TEST (0xAF) on the broker
+16:17:46.973 [command] command NEXT_TEST (0xAF) on the broker
+16:17:50.960 [command] command NEXT_GAINS (0xAD) on the broker
+16:17:55.360 [command] command NEXT_GAINS (0xAD) on the broker
+16:17:59.689 [command] command NEXT_GAINS (0xAD) on the broker
+16:18:04.192 [command] command NEXT_GAINS (0xAD) on the broker
+16:20:15.900 [command] command previous gains (0xAC) on the broker
+16:20:20.244 [command] command NEXT_GAINS (0xAD) on the broker
+16:20:41.610 [command] command previous gains (0xAC) on the broker
+16:20:46.523 [command] command NEXT_GAINS (0xAD) on the broker
+16:21:00.906 [sent] START 0xAA
+16:21:00.911 [command] command START (0xAA) on the broker
+16:21:02.951 [command] command NEXT_GAINS (0xAD) on the broker
+16:21:09.704 [command] command NEXT_GAINS (0xAD) on the broker
+16:21:25.763 [sent] STOP 0xA9
+16:21:25.766 [command] command STOP (0xA9) on the broker
+16:21:44.850 [sent] START 0xAA
+16:21:44.852 [command] command START (0xAA) on the broker
+16:22:40.165 [sent] STOP 0xA9
+16:22:40.170 [command] command STOP (0xA9) on the broker
+16:51:02.730 [status] 0
+16:51:23.410 [status] 1
+16:51:54.676 [status] 0
+16:52:13.401 [status] 1
+16:52:30.009 [command] command NEXT_TEST (0xAF) on the broker
+16:52:34.662 [command] command NEXT_TEST (0xAF) on the broker
+16:52:38.710 [command] command NEXT_TEST (0xAF) on the broker
+16:52:42.724 [command] command NEXT_TEST (0xAF) on the broker
+16:52:46.547 [command] command NEXT_TEST (0xAF) on the broker
+16:52:51.395 [command] command NEXT_TEST (0xAF) on the broker
+16:52:55.965 [command] command NEXT_TEST (0xAF) on the broker
+16:52:59.605 [command] command NEXT_TEST (0xAF) on the broker
+16:53:03.488 [command] command NEXT_TEST (0xAF) on the broker
+16:53:07.341 [command] command NEXT_TEST (0xAF) on the broker
+16:53:11.206 [command] command NEXT_TEST (0xAF) on the broker
+16:53:15.244 [command] command NEXT_TEST (0xAF) on the broker
+16:53:19.782 [command] command NEXT_TEST (0xAF) on the broker
+16:53:24.025 [command] command NEXT_TEST (0xAF) on the broker
+16:53:28.307 [command] command NEXT_TEST (0xAF) on the broker
+16:53:32.134 [command] command NEXT_TEST (0xAF) on the broker
+16:53:35.963 [command] command NEXT_TEST (0xAF) on the broker
+16:53:49.697 [command] command NEXT_GAINS (0xAD) on the broker
+16:53:55.337 [command] command NEXT_GAINS (0xAD) on the broker
+16:54:00.807 [command] command NEXT_GAINS (0xAD) on the broker
+16:54:06.470 [command] command NEXT_GAINS (0xAD) on the broker
+16:54:23.285 [command] command previous gains (0xAC) on the broker
+16:54:28.813 [command] command NEXT_GAINS (0xAD) on the broker
+16:55:22.791 [sent] START 0xAA
+16:55:22.793 [command] command START (0xAA) on the broker
+17:19:42.154 [command] command START (0xAA) on the broker
+17:47:31.425 [status] 0
+17:48:24.206 [status] 1
+17:51:57.320 [command] command NEXT_TEST (0xAF) on the broker
+17:52:01.436 [command] command NEXT_TEST (0xAF) on the broker
+17:52:06.086 [command] command NEXT_TEST (0xAF) on the broker
+17:52:10.010 [command] command NEXT_TEST (0xAF) on the broker
+17:52:14.646 [command] command NEXT_TEST (0xAF) on the broker
+17:52:19.289 [command] command NEXT_TEST (0xAF) on the broker
+17:52:23.793 [command] command NEXT_TEST (0xAF) on the broker
+17:52:28.336 [command] command NEXT_TEST (0xAF) on the broker
+17:52:32.201 [command] command NEXT_TEST (0xAF) on the broker
+17:52:36.107 [command] command NEXT_TEST (0xAF) on the broker
+17:52:40.420 [command] command NEXT_TEST (0xAF) on the broker
+17:52:44.526 [command] command NEXT_TEST (0xAF) on the broker
+17:52:48.992 [command] command NEXT_TEST (0xAF) on the broker
+17:52:53.357 [command] command NEXT_TEST (0xAF) on the broker
+17:52:57.740 [command] command NEXT_TEST (0xAF) on the broker
+17:53:01.515 [command] command NEXT_TEST (0xAF) on the broker
+17:53:05.126 [command] command NEXT_TEST (0xAF) on the broker
+17:53:24.312 [command] command NEXT_GAINS (0xAD) on the broker
+17:53:29.500 [command] command NEXT_GAINS (0xAD) on the broker
+17:53:34.743 [command] command NEXT_GAINS (0xAD) on the broker
+17:53:40.240 [command] command NEXT_GAINS (0xAD) on the broker
+17:53:45.417 [command] command previous gains (0xAC) on the broker
+17:53:50.469 [command] command NEXT_GAINS (0xAD) on the broker
+17:55:21.972 [sent] START 0xAA
+17:55:21.975 [command] command START (0xAA) on the broker
+17:57:25.822 [sent] START 0xAA
+17:57:25.825 [command] command START (0xAA) on the broker
+17:59:07.898 [command] command START (0xAA) on the broker
+17:59:15.957 [sent] START 0xAA
+17:59:15.960 [command] command START (0xAA) on the broker
+18:00:08.952 [command] command STOP (0xA9) on the broker
+18:00:48.992 [command] command START (0xAA) on the broker
+18:02:17.998 [sent] START 0xAA
+18:02:18.005 [command] command START (0xAA) on the broker
+18:06:31.702 [status] 0
+19:24:54.986 [status] 1
+19:25:21.360 [command] command START (0xAA) on the broker
+19:32:13.640 [status] 0
+19:32:51.453 [status] 1
+19:34:10.258 [command] command START (0xAA) on the broker
+19:36:07.662 [command] command START (0xAA) on the broker
+19:39:43.461 [status] 0
+19:49:03.403 [status] 1
+19:49:33.313 [status] 0
+19:49:55.573 [status] 1
+19:55:07.912 [command] command START (0xAA) on the broker
+20:04:42.220 [status] 0
+20:05:13.490 [status] 1
+20:05:48.606 [command] command START (0xAA) on the broker
+20:09:03.601 [command] command START (0xAA) on the broker
+20:12:25.753 [command] command START (0xAA) on the broker
+20:18:28.510 [command] command START (0xAA) on the broker
+20:23:54.768 [command] command START (0xAA) on the broker
+20:24:25.381 [command] command START (0xAA) on the broker
+20:31:44.551 [status] 0
+20:35:12.904 [status] 1
+20:35:37.478 [status] 0
+20:35:38.609 [status] 1
+20:37:39.236 [command] command START (0xAA) on the broker
+20:39:37.020 [command] command START (0xAA) on the broker
+20:40:13.837 [command] command START (0xAA) on the broker
+20:44:13.070 [command] command START (0xAA) on the broker
+20:47:32.749 [command] command START (0xAA) on the broker
+20:53:26.317 [status] 0
+20:54:41.962 [status] 1
+20:54:59.780 [command] command START (0xAA) on the broker
+20:55:54.746 [command] command START (0xAA) on the broker
+20:59:44.611 [status] 0
+21:00:54.548 [status] 1
+21:01:34.775 [command] command START (0xAA) on the broker
+21:06:28.465 [command] command START (0xAA) on the broker
+21:07:51.638 [command] command START (0xAA) on the broker
+21:25:47.896 [status] 0
+21:26:46.894 [status] 1
+21:27:16.906 [status] 0
+21:27:40.164 [status] 1
+21:28:16.363 [command] command START (0xAA) on the broker
+21:31:03.676 [status] 0
+21:31:51.420 [status] 1
+21:32:43.941 [command] command START (0xAA) on the broker
+21:36:29.419 [status] 0
+21:36:30.582 [status] 1
+21:36:56.634 [command] command START (0xAA) on the broker
+21:39:38.306 [status] 0
+21:39:39.459 [status] 1
+21:43:51.143 [status] 0
+21:44:34.258 [status] 1
+21:44:49.864 [command] command START (0xAA) on the broker
+21:50:17.598 [status] 0
+21:50:39.855 [status] 1
+21:51:02.510 [status] 0
+21:51:27.123 [status] 1
+21:51:50.205 [command] command START (0xAA) on the broker
+21:56:29.345 [command] command START (0xAA) on the broker
+21:57:39.043 [command] command START (0xAA) on the broker
+22:02:48.703 [command] command START (0xAA) on the broker
+22:04:15.441 [command] command START (0xAA) on the broker
+22:04:52.280 [command] command START (0xAA) on the broker
+22:10:01.683 [command] command START (0xAA) on the broker
+22:22:58.417 [status] 0
+22:23:59.531 [status] 1
+22:24:23.371 [status] 0
+22:24:44.781 [status] 1
+22:25:00.850 [command] command START (0xAA) on the broker
+22:25:56.087 [command] command START (0xAA) on the broker
+22:28:37.876 [status] 0
+22:28:55.667 [status] 1
+22:29:28.994 [status] 0

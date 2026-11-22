@@ -7,7 +7,9 @@ copy=${1:-$(cd -- "$here/../../../.." && pwd -P)}
 work=$here/proj
 rm -rf "$work"; mkdir -p "$work"
 cp -r "$copy/app_program" "$work/"
-cp "$copy/firmware/bench/bench.h" "$copy/firmware/bench/bench_main.c" "$work/"
+cp "$copy/firmware/bench/bench.h" "$work/"
+# The bench mission, frozen as one file (firmware/bench/bench_main.c).
+cp "$copy/firmware/bench/bench_main.c" "$work/bench_main.c"
 # The bench copy's robot_config.h edits (build.sh), motion image.
 python3 - "$work/app_program/robot_config.h" <<'PY'
 import re, sys
@@ -17,7 +19,7 @@ for name, value in (("ROBOT_CALIBRATION_CONFIRMED", "1"), ("ROBOT_SERVO_CONFIRME
                     ("ROBOT_SERVO_MAX_US", "2500U")):
     t, n = re.subn(rf'(?m)^#define {name} \S+$', f'#define {name} {value}', t)
     assert n == 1, name
-open(p, 'w').write('#define BENCH_ROBOT_MAX_DUTY 0.35\n#define BENCH_ROBOT_SERVO_MIN_US 1390U\n'
+open(p, 'w').write('#define BENCH_IMAGE 1\n#define BENCH_ROBOT_MAX_DUTY 0.35\n#define BENCH_ROBOT_SERVO_MIN_US 1390U\n'
                    '#define BENCH_ROBOT_SERVO_MAX_US 2240U\n#define BENCH_MOTION 1\n' + t)
 PY
 a=$work/app_program

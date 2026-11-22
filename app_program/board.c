@@ -444,7 +444,13 @@ bool board_read_ir (uint16_t samples[3])
         deadline = board_time_us() + BOARD_ADC_TIMEOUT_US;
         while (0U == (adc_hw->cs & ADC_CS_READY_BITS))
         {
-            if (board_time_us() >= deadline)
+            /* A preemption between the READY test and the clock read can
+             * pass the deadline after the ~2 us conversion has finished
+             * (22 Nov: one OPTICAL_SAMPLE in a run), so only READY still
+             * clear after the deadline is a timeout.
+             */
+            if ((board_time_us() >= deadline) &&
+                (0U == (adc_hw->cs & ADC_CS_READY_BITS)))
             {
                 return false;
             }

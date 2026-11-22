@@ -7,8 +7,13 @@
 #ifndef ROBOT_CONFIG_H
 #define ROBOT_CONFIG_H
 
-/* Independent gates prevent guessed calibration from energising actuators. */
-#define ROBOT_CALIBRATION_CONFIRMED 0
+/* Independent gates prevent guessed calibration from energising actuators.
+ * CALIBRATION 1 (22 Nov 2026): the wheel, IR and accelerometer values below
+ * drove the car on the track for the whole bench MISSION campaign (6-22 Nov,
+ * testing/system/logs/2026-11-*_dashboard.txt; the bench image opened this
+ * gate in its own copy). The robot app now runs that mission.
+ */
+#define ROBOT_CALIBRATION_CONFIRMED 1
 #define ROBOT_CALIBRATION_VERSION 2U
 #define ROBOT_SERVO_CONFIRMED 1
 #define ROBOT_BARCODE_CONFIRMED 0
@@ -174,9 +179,17 @@
 #define ROBOT_LINE_SENSOR_FORWARD_M 0.130
 #define ROBOT_SENSOR_AXLE_OFFSET_M 0.060
 
-/* Sensor transport and conservative initial thresholds, still unmeasured. */
+/* Sensor transport and conservative initial thresholds, still unmeasured.
+ * The SDK's I2C timeout is one wall-clock deadline for the whole transfer,
+ * so it must outlast the higher-priority tasks that can preempt the IMU
+ * task mid-transfer: 2 ms failed a healthy read at START on the car (22 Nov:
+ * Vehicle and Motion steps of 2-5 ms; a decode holds 10 ms between yields).
+ * Reads then took up to 19.8 ms of wall time in a run (the end report's
+ * "slowest read", 22:33), and the mission's slowest step reaches 40 ms, so
+ * 50 ms. A stuck bus fails the IMU step's first call after 50 ms.
+ */
 #define ROBOT_I2C_HZ 100000U
-#define ROBOT_I2C_TIMEOUT_US 2000U
+#define ROBOT_I2C_TIMEOUT_US 50000U
 #define ROBOT_ECHO_TIMEOUT_US 30000U
 #define ROBOT_TRIGGER_INTERVAL_US 65000U
 #define ROBOT_TRIGGER_PULSE_US 10U

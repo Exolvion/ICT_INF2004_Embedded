@@ -1,0 +1,390 @@
+# subsystem 1 lines of testing/system/logs/2026-11-14_dashboard.txt (tools/split_logs.py); the day log has them all.
+17:29:24.746 [sent] START 0xAA
+17:29:24.748 [command] command START (0xAA) on the broker
+17:29:57.351 [sent] START 0xAA
+17:29:57.353 [command] command START (0xAA) on the broker
+17:30:11.675 [sent] STOP 0xA9
+17:30:11.676 [command] command STOP (0xA9) on the broker
+17:30:24.453 [sent] START 0xAA
+17:30:24.454 [command] command START (0xAA) on the broker
+17:30:32.432 [sent] START 0xAA
+17:30:32.433 [command] command START (0xAA) on the broker
+17:30:45.732 [sent] STOP 0xA9
+17:30:45.734 [command] command STOP (0xA9) on the broker
+17:31:12.876 [sent] START 0xAA
+17:31:12.920 [command] command START (0xAA) on the broker
+17:31:27.687 [sent] STOP 0xA9
+17:31:27.732 [command] command STOP (0xA9) on the broker
+17:32:06.442 [sent] MAP forward A, U-turn Y, left V, right B (00d7b0)
+17:32:06.484 [command] command 3 bytes, not a command (0x00D7B0) on the broker
+17:32:23.329 [sent] MAP forward A, U-turn Y, left V, right B (00d7b0)
+17:32:23.330 [command] command 3 bytes, not a command (0x00D7B0) on the broker
+17:32:25.780 MAP set: forward A, U-turn Y, left V, right B
+17:32:45.805 MAP set: forward A, U-turn Y, left V, right B
+17:32:47.013 [sent] START 0xAA
+17:32:47.056 [command] command START (0xAA) on the broker
+17:33:11.851 [sent] STOP 0xA9
+17:33:11.852 [command] command STOP (0xA9) on the broker
+17:35:25.323 [status] 0
+17:35:25.594 [status] 1
+17:41:09.774 [status] 0
+17:41:10.870 [status] 1
+18:14:51.843 [status] 0
+18:18:27.959 [sent] MAP forward A, U-turn Y, left V, right B (00d7b0)
+18:18:27.960 [command] command 3 bytes, not a command (0x00D7B0) on the broker
+18:18:41.775 [status] 1
+18:18:46.666 [sent] MAP forward A, U-turn Y, left V, right B (00d7b0)
+18:18:46.708 [command] command 3 bytes, not a command (0x00D7B0) on the broker
+18:18:48.224 MAP set: forward A, U-turn Y, left V, right B
+18:18:51.430 [sent] START 0xAA
+18:18:51.431 [command] command START (0xAA) on the broker
+18:19:03.464 [sent] STOP 0xA9
+18:19:03.465 [command] command STOP (0xA9) on the broker
+18:20:00.586 [sent] START 0xAA
+18:20:00.587 [command] command START (0xAA) on the broker
+18:21:54.248 [sent] STOP 0xA9
+18:21:54.292 [command] command STOP (0xA9) on the broker
+18:24:52.700 [sent] MAP forward A, U-turn Y, left V, right B (00d7b0)
+18:24:52.702 [command] command 3 bytes, not a command (0x00D7B0) on the broker
+18:25:04.994 [sent] MAP forward A, U-turn Y, left V, right B (00d7b0)
+18:25:04.996 [command] command 3 bytes, not a command (0x00D7B0) on the broker
+18:25:12.052 MAP set: forward A, U-turn Y, left V, right B
+18:25:15.928 [sent] START 0xAA
+18:25:15.972 [command] command START (0xAA) on the broker
+18:25:31.259 MAP set: forward A, U-turn Y, left V, right B
+18:29:23.151 [sent] START 0xAA
+18:29:23.196 [command] command START (0xAA) on the broker
+18:29:39.397 [sent] STOP 0xA9
+18:29:39.398 [command] command STOP (0xA9) on the broker
+18:30:13.928 [sent] START 0xAA
+18:30:13.929 [command] command START (0xAA) on the broker
+18:32:14.559 [status] 0
+18:32:31.590 [status] 1
+18:32:42.412 [sent] MAP forward A, U-turn Y, left V, right B (00d7b0)
+18:32:42.456 [command] command 3 bytes, not a command (0x00D7B0) on the broker
+18:32:42.797 MAP set: forward A, U-turn Y, left V, right B
+18:32:45.904 [sent] START 0xAA
+18:32:45.905 [command] command START (0xAA) on the broker
+18:33:43.867 [sent] START 0xAA
+18:33:43.869 [command] command START (0xAA) on the broker
+18:34:11.253 [sent] START 0xAA
+18:34:11.254 [command] command START (0xAA) on the broker
+18:35:20.484 [sent] START 0xAA
+18:35:20.484 [command] command START (0xAA) on the broker
+18:35:35.594 [sent] STOP 0xA9
+18:35:35.595 [command] command STOP (0xA9) on the broker
+18:35:50.648 [sent] START 0xAA
+18:35:50.649 [command] command START (0xAA) on the broker
+18:36:41.314 [sent] START 0xAA
+18:36:41.315 [command] command START (0xAA) on the broker
+18:36:53.017 [sent] STOP 0xA9
+18:36:53.018 [command] command STOP (0xA9) on the broker
+18:37:36.034 [sent] START 0xAA
+18:37:36.035 [command] command START (0xAA) on the broker
+18:37:50.113 [sent] STOP 0xA9
+18:37:50.156 [command] command STOP (0xA9) on the broker
+18:38:17.781 [sent] START 0xAA
+18:38:17.824 [command] command START (0xAA) on the broker
+18:38:28.398 [sent] STOP 0xA9
+18:38:28.399 [command] command STOP (0xA9) on the broker
+18:39:34.215 [sent] START 0xAA
+18:39:34.260 [command] command START (0xAA) on the broker
+18:40:02.731 [sent] STOP 0xA9
+18:40:02.776 [command] command STOP (0xA9) on the broker
+18:40:55.600 [sent] MAP forward Y, U-turn A, left V, right B (18d4b0)
+18:40:55.601 [command] command 3 bytes, not a command (0x18D4B0) on the broker
+18:40:56.691 MAP set: forward Y, U-turn A, left V, right B
+18:41:03.759 [sent] START 0xAA
+18:41:03.804 [command] command START (0xAA) on the broker
+18:41:37.184 [sent] STOP 0xA9
+18:41:37.185 [command] command STOP (0xA9) on the broker
+18:44:29.597 [sent] START 0xAA
+18:44:29.640 [command] command START (0xAA) on the broker
+18:45:22.926 [sent] START 0xAA
+18:45:22.968 [command] command START (0xAA) on the broker
+18:46:27.041 [sent] START 0xAA
+18:46:27.042 [command] command START (0xAA) on the broker
+18:46:52.470 [sent] STOP 0xA9
+18:46:52.471 [command] command STOP (0xA9) on the broker
+18:47:58.476 [status] 0
+18:48:19.058 [status] 1
+18:48:52.776 [sent] START 0xAA
+18:48:52.777 [command] command START (0xAA) on the broker
+18:49:33.425 [sent] START 0xAA
+18:49:33.468 [command] command START (0xAA) on the broker
+19:03:33.137 [status] 0
+19:13:50.215 [status] 1
+19:14:03.519 [sent] MAP forward Y, U-turn A, left V, right B (18d4b0)
+19:14:03.520 [command] command 3 bytes, not a command (0x18D4B0) on the broker
+19:14:04.958 MAP set: forward Y, IR L 233 190-258 R 3148 3129-3167 B 244 230-254
+19:14:11.538 [sent] START 0xAA
+19:14:11.580 [command] command START (0xAA) on the broker
+19:15:46.327 [sent] START 0xAA
+19:15:46.368 [command] command START (0xAA) on the broker
+19:16:44.818 [sent] START 0xAA
+19:16:44.860 [command] command START (0xAA) on the broker
+19:17:23.825 [sent] RESET 0xAB
+19:17:23.868 [command] command RESET (0xAB) on the broker
+19:17:26.432 [sent] START 0xAA
+19:17:26.433 [command] command START (0xAA) on the broker
+19:17:53.179 [sent] RESET 0xAB
+19:17:53.180 [command] command RESET (0xAB) on the broker
+19:17:54.369 [sent] START 0xAA
+19:17:54.412 [command] command START (0xAA) on the broker
+19:18:32.761 [sent] START 0xAA
+19:18:32.762 [command] command START (0xAA) on the broker
+19:20:01.036 [sent] START 0xAA
+19:20:01.037 [command] command START (0xAA) on the broker
+19:20:35.861 [sent] START 0xAA
+19:20:35.862 [command] command START (0xAA) on the broker
+19:20:49.166 [sent] STOP 0xA9
+19:20:49.167 [command] command STOP (0xA9) on the broker
+19:21:26.608 [sent] START 0xAA
+19:21:26.609 [command] command START (0xAA) on the broker
+19:21:47.338 [sent] STOP 0xA9
+19:21:47.339 [command] command STOP (0xA9) on the broker
+19:22:46.047 [sent] START 0xAA
+19:22:46.048 [command] command START (0xAA) on the broker
+19:23:02.824 [sent] STOP 0xA9
+19:23:02.868 [command] command STOP (0xA9) on the broker
+19:23:14.113 [sent] START 0xAA
+19:23:14.114 [command] command START (0xAA) on the broker
+19:23:43.536 [sent] START 0xAA
+19:23:43.537 [command] command START (0xAA) on the broker
+19:24:01.266 [sent] STOP 0xA9
+19:24:01.308 [command] command STOP (0xA9) on the broker
+19:30:43.806 [status] 0
+19:30:54.303 [status] 1
+19:31:19.522 [sent] MAP forward V, U-turn A, left Y, right B (15e0b0)
+19:31:19.564 [command] command 3 bytes, not a command (0x15E0B0) on the broker
+19:31:20.857 MAP set: forward V, U-turn A, left Y, right B
+19:31:25.474 [sent] START 0xAA
+19:31:25.475 [command] command START (0xAA) on the broker
+19:32:13.777 [sent] START 0xAA
+19:32:13.778 [command] command START (0xAA) on the broker
+19:32:48.110 [sent] START 0xAA
+19:32:48.152 [command] command START (0xAA) on the broker
+19:34:33.018 [sent] START 0xAA
+19:34:33.019 [command] command START (0xAA) on the broker
+19:35:23.293 [sent] START 0xAA
+19:35:23.294 [command] command START (0xAA) on the broker
+19:35:45.473 [sent] STOP 0xA9
+19:35:45.474 [command] command STOP (0xA9) on the broker
+19:36:05.079 [sent] START 0xAA
+19:36:05.080 [command] command START (0xAA) on the broker
+19:36:15.990 [sent] STOP 0xA9
+19:36:16.032 [command] command STOP (0xA9) on the broker
+19:36:39.898 [sent] START 0xAA
+19:36:39.940 [command] command START (0xAA) on the broker
+19:36:50.881 [sent] STOP 0xA9
+19:36:50.882 [command] command STOP (0xA9) on the broker
+19:37:06.661 [sent] START 0xAA
+19:37:06.662 [command] command START (0xAA) on the broker
+19:37:20.341 [sent] STOP 0xA9
+19:37:20.342 [command] command STOP (0xA9) on the broker
+19:37:59.093 [sent] START 0xAA
+19:37:59.094 [command] command START (0xAA) on the broker
+19:38:13.349 [sent] STOP 0xA9
+19:38:13.350 [command] command STOP (0xA9) on the broker
+19:42:27.702 [sent] START 0xAA
+19:42:27.703 [command] command START (0xAA) on the broker
+19:42:58.193 [sent] STOP 0xA9
+19:42:58.194 [command] command STOP (0xA9) on the broker
+19:45:52.222 [status] 0
+22:20:53.858 [sent] START 0xAA
+22:21:25.944 [command] command START (0xAA) on the broker
+22:21:32.275 [status] 0
+22:21:32.384 [status] 1
+22:21:36.997 [sent] START 0xAA
+22:21:36.998 [command] command START (0xAA) on the broker
+22:22:11.994 [sent] STOP 0xA9
+22:22:11.996 [command] command STOP (0xA9) on the broker
+22:42:18.518 [status] 0
+22:42:25.770 [status] 1
+22:42:33.506 [sent] START 0xAA
+22:42:33.507 [command] command START (0xAA) on the broker
+22:43:12.492 [sent] STOP 0xA9
+22:43:12.493 [command] command STOP (0xA9) on the broker
+22:43:49.302 [sent] START 0xAA
+22:43:49.303 [command] command START (0xAA) on the broker
+22:44:29.614 [sent] STOP 0xA9
+22:44:29.615 [command] command STOP (0xA9) on the broker
+22:44:57.095 [sent] START 0xAA
+22:44:57.096 [command] command START (0xAA) on the broker
+22:45:47.424 [sent] START 0xAA
+22:45:47.426 [command] command START (0xAA) on the broker
+22:46:45.094 [sent] STOP 0xA9
+22:46:45.136 [command] command STOP (0xA9) on the broker
+22:47:00.607 [sent] START 0xAA
+22:47:00.608 [command] command START (0xAA) on the broker
+22:48:02.647 [sent] START 0xAA
+22:48:02.648 [command] command START (0xAA) on the broker
+22:48:43.394 [sent] STOP 0xA9
+22:48:43.395 [command] command STOP (0xA9) on the broker
+22:50:46.651 [sent] START 0xAA
+22:50:46.696 [command] command START (0xAA) on the broker
+22:50:56.374 [sent] STOP 0xA9
+22:50:56.375 [command] command STOP (0xA9) on the broker
+22:52:23.435 [sent] START 0xAA
+22:52:23.436 [command] command START (0xAA) on the broker
+22:52:34.044 [sent] STOP 0xA9
+22:52:34.045 [command] command STOP (0xA9) on the broker
+22:54:30.194 [sent] START 0xAA
+22:54:30.195 [command] command START (0xAA) on the broker
+22:54:44.704 [sent] STOP 0xA9
+22:54:44.705 [command] command STOP (0xA9) on the broker
+23:08:56.850 [status] 0
+23:08:57.291 [status] 1
+23:13:08.386 [status] 0
+23:13:26.754 [status] 1
+23:13:36.304 [sent] START 0xAA
+23:13:36.305 [command] command START (0xAA) on the broker
+23:13:46.288 [sent] STOP 0xA9
+23:13:46.289 [command] command STOP (0xA9) on the broker
+23:13:59.778 [sent] START 0xAA
+23:13:59.824 [command] command START (0xAA) on the broker
+23:14:15.320 [sent] STOP 0xA9
+23:14:15.364 [command] command STOP (0xA9) on the broker
+23:14:32.077 [sent] START 0xAA
+23:14:32.078 [command] command START (0xAA) on the broker
+23:15:01.377 [sent] STOP 0xA9
+23:15:01.420 [command] command STOP (0xA9) on the broker
+23:15:22.026 [sent] START 0xAA
+23:15:22.027 [command] command START (0xAA) on the broker
+23:15:56.384 [sent] START 0xAA
+23:15:56.385 [command] command START (0xAA) on the broker
+23:16:12.518 [sent] STOP 0xA9
+23:16:12.519 [command] command STOP (0xA9) on the broker
+23:16:51.695 [sent] START 0xAA
+23:16:51.696 [command] command START (0xAA) on the broker
+23:17:21.516 [sent] STOP 0xA9
+23:17:21.560 [command] command STOP (0xA9) on the broker
+23:17:45.951 [sent] STOP 0xA9
+23:17:45.952 [command] command STOP (0xA9) on the broker
+23:17:47.889 [sent] START 0xAA
+23:17:47.890 [command] command START (0xAA) on the broker
+23:18:03.471 [sent] STOP 0xA9
+23:18:03.472 [command] command STOP (0xA9) on the broker
+23:39:16.054 [status] 0
+23:39:28.899 [status] 0
+23:39:28.947 [status] 1
+23:39:37.761 [sent] START 0xAA
+23:39:37.762 [command] command START (0xAA) on the broker
+23:40:59.028 [status] 0
+23:41:05.465 [status] 1
+23:41:07.105 [sent] START 0xAA
+23:41:07.148 [command] command START (0xAA) on the broker
+23:41:56.741 [sent] STOP 0xA9
+23:41:56.784 [command] command STOP (0xA9) on the broker
+23:42:09.693 [sent] START 0xAA
+23:42:09.736 [command] command START (0xAA) on the broker
+23:42:39.694 [sent] STOP 0xA9
+23:42:39.695 [command] command STOP (0xA9) on the broker
+23:42:47.757 [sent] START 0xAA
+23:42:47.758 [command] command START (0xAA) on the broker
+23:43:25.830 [sent] STOP 0xA9
+23:43:25.872 [command] command STOP (0xA9) on the broker
+23:50:01.179 [status] 0
+23:50:15.319 [status] 1
+23:50:25.938 [status] 0
+23:50:26.008 [status] 1
+23:50:33.912 [sent] START 0xAA
+23:50:33.956 [command] command START (0xAA) on the broker
+23:51:03.417 [sent] STOP 0xA9
+23:51:03.418 [command] command STOP (0xA9) on the broker
+23:51:13.677 [sent] START 0xAA
+23:51:13.678 [command] command START (0xAA) on the broker
+23:51:51.120 [sent] START 0xAA
+23:51:51.120 [command] command START (0xAA) on the broker
+23:52:47.929 [sent] START 0xAA
+23:52:47.930 [command] command START (0xAA) on the broker
+23:53:32.815 [sent] STOP 0xA9
+23:53:32.860 [command] command STOP (0xA9) on the broker
+23:53:58.924 [sent] MAP forward V, U-turn Y, left D, right B (158fb0)
+23:53:58.925 [command] command 3 bytes, not a command (0x158FB0) on the broker
+23:53:59.456 MAP set: forward V, U-turn Y, left D, right B
+23:54:04.874 [sent] START 0xAA
+23:54:04.875 [command] command START (0xAA) on the broker
+23:54:21.407 [sent] STOP 0xA9
+23:54:21.452 [command] command STOP (0xA9) on the broker
+23:55:23.299 [sent] START 0xAA
+23:55:23.299 [command] command START (0xAA) on the broker
+23:55:40.030 [sent] STOP 0xA9
+23:55:40.072 [command] command STOP (0xA9) on the broker
+23:56:08.562 [sent] START 0xAA
+23:56:08.604 [command] command START (0xAA) on the broker
+23:56:58.946 [sent] START 0xAA
+23:56:58.947 [command] command START (0xAA) on the broker
+23:57:22.111 [sent] STOP 0xA9
+23:57:22.112 [command] command STOP (0xA9) on the broker
+23:58:13.954 [sent] START 0xAA
+23:58:13.955 [command] command START (0xAA) on the broker
+23:58:38.063 [sent] STOP 0xA9
+23:58:38.108 [command] command STOP (0xA9) on the broker
+00:00:21.918 [sent] START 0xAA
+00:00:21.919 [command] command START (0xAA) on the broker
+00:00:46.401 [sent] STOP 0xA9
+00:00:46.402 [command] command STOP (0xA9) on the broker
+00:10:24.010 [status] 0
+00:10:44.656 [status] 1
+00:10:51.281 [sent] START 0xAA
+00:10:51.282 [command] command START (0xAA) on the broker
+00:11:08.194 [sent] STOP 0xA9
+00:11:08.195 [command] command STOP (0xA9) on the broker
+00:11:25.096 [sent] START 0xAA
+00:11:25.096 [command] command START (0xAA) on the broker
+00:11:32.630 [sent] STOP 0xA9
+00:11:32.631 [command] command STOP (0xA9) on the broker
+00:11:41.813 [sent] START 0xAA
+00:11:41.814 [command] command START (0xAA) on the broker
+00:12:12.459 [sent] MAP forward V, U-turn Y, left D, right B (158fb0)
+00:12:12.460 [command] command 3 bytes, not a command (0x158FB0) on the broker
+00:12:14.204 MAP set: forward V, U-turn Y, left D, right B
+00:12:20.715 [sent] START 0xAA
+00:12:20.716 [command] command START (0xAA) on the broker
+00:12:46.851 [sent] STOP 0xA9
+00:12:46.896 [command] command STOP (0xA9) on the broker
+00:13:09.285 [sent] START 0xAA
+00:13:09.328 [command] command START (0xAA) on the broker
+00:13:36.205 [sent] STOP 0xA9
+00:13:36.206 [command] command STOP (0xA9) on the broker
+00:21:17.810 [status] 0
+00:21:29.344 [status] 1
+00:21:35.961 [sent] START 0xAA
+00:21:36.004 [command] command START (0xAA) on the broker
+00:22:21.241 [sent] START 0xAA
+00:22:21.242 [command] command START (0xAA) on the broker
+00:25:57.702 [status] 0
+00:26:11.124 [status] 1
+00:26:18.878 [sent] START 0xAA
+00:26:18.879 [command] command START (0xAA) on the broker
+00:33:41.131 [status] 0
+00:33:54.432 [status] 1
+00:34:02.620 [status] 0
+00:34:02.731 [status] 1
+00:34:09.851 [sent] START 0xAA
+00:34:09.896 [command] command START (0xAA) on the broker
+00:34:48.821 [sent] STOP 0xA9
+00:34:48.822 [command] command STOP (0xA9) on the broker
+00:35:08.138 [sent] START 0xAA
+00:35:08.139 [command] command START (0xAA) on the broker
+00:35:11.023 [sent] STOP 0xA9
+00:35:11.068 [command] command STOP (0xA9) on the broker
+00:35:13.418 [sent] MAP forward V, U-turn Y, left D, right B (158fb0)
+00:35:13.419 [command] command 3 bytes, not a command (0x158FB0) on the broker
+00:35:14.177 MAP set: forward V, U-turn Y, left D, right B
+00:35:18.397 [sent] START 0xAA
+00:35:18.398 [command] command START (0xAA) on the broker
+00:35:35.242 [sent] STOP 0xA9
+00:35:35.243 [command] command STOP (0xA9) on the broker
+00:35:47.857 [sent] START 0xAA
+00:35:47.857 [command] command START (0xAA) on the broker
+00:36:03.731 [sent] STOP 0xA9
+00:36:03.732 [command] command STOP (0xA9) on the broker
+00:36:32.822 [sent] START 0xAA
+00:36:32.823 [command] command START (0xAA) on the broker
+00:36:46.733 [sent] STOP 0xA9
+00:36:46.776 [command] command STOP (0xA9) on the broker
+00:36:57.216 [sent] START 0xAA
+00:36:57.260 [command] command START (0xAA) on the broker
+00:39:56.830 [status] 0

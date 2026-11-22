@@ -469,20 +469,19 @@ static void mqttnet_test_frame_triple (struct netif * p_interface)
                         "perception frame queued");
     mqttnet_test_check(net_mqtt_send(diagnostic, sizeof(diagnostic)),
                         "diagnostic frame queued");
+    /* Up to NET_MQTT_IPC_TX_BURST (16) frames per poll interval since
+     * 22 Nov (the mission's bursts; one per interval before).
+     */
     clock_ms = 32300U;
-    net_mqtt_poll(p_interface);
-    mqttnet_test_check((3U == publications) && (2U == tx_count),
-                        "one FIFO frame transmitted per poll interval");
-    clock_ms = 32400U;
-    net_mqtt_poll(p_interface);
-    mqttnet_test_check((4U == publications) && (1U == tx_count),
-                        "second distinct frame remains and transmits");
-    clock_ms = 32500U;
     net_mqtt_poll(p_interface);
     mqttnet_test_check((5U == publications) && (0U == tx_count) &&
                         mqttnet_test_published(diagnostic,
                                                sizeof(diagnostic)),
-                        "third diagnostic frame remains and transmits");
+                        "all three FIFO frames transmitted in one interval");
+    clock_ms = 32400U;
+    net_mqtt_poll(p_interface);
+    mqttnet_test_check((5U == publications) && (0U == tx_count),
+                        "an empty queue publishes nothing more");
 }
 
 /** @brief Failure retry delays and connection watchdog remain bounded. */
@@ -554,12 +553,15 @@ static void mqttnet_test_backpressure (struct netif * p_interface)
     publish_result = ERR_OK;
     clock_ms = 32700U;
     net_mqtt_poll(p_interface);
-    mqttnet_test_check(mqttnet_test_published(first, sizeof(first)) &&
-                        (1U == tx_count), "retry transmits original frame");
+    /* The kept frame goes first, then the next in the same burst. */
+    mqttnet_test_check((publications == original_publications + 3U) &&
+                        mqttnet_test_published(second, sizeof(second)) &&
+                        (0U == tx_count),
+                        "retry transmits original frame, then the next");
     clock_ms = 32800U;
     net_mqtt_poll(p_interface);
-    mqttnet_test_check(mqttnet_test_published(second, sizeof(second)) &&
-                        (0U == tx_count), "next FIFO frame follows retry");
+    mqttnet_test_check((publications == original_publications + 3U) &&
+                        (0U == tx_count), "nothing left after the retry");
 }
 
 /** @brief MQTT retry elapsed-time arithmetic survives the 32-bit wrap. */

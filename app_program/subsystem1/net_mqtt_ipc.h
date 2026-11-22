@@ -14,11 +14,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/** The robot's largest frame is 17 bytes; the bench image sends text lines
- * through the same queue, so 64 (a 4-byte multiple): a 120-character line
- * is 2 frames, not 6 (19 Nov: the text link ran at ~150 characters/s).
+/** Telemetry slots. The mission's minimum-bit frames (mission.c
+ * BENCH_FRAME_BYTES) are up to 64 bytes and come in bursts, so 64-byte
+ * slots, 8 deep, up to 16 sent per 100 ms (19 Nov: one per 100 ms held the
+ * link to ~150 characters/s). The robot's own status, perception and
+ * diagnostic frames (at most 17 bytes, telemetry.h) share them. Until 22 Nov
+ * the robot app alone had 20-byte slots, 4 deep, one per 100 ms (the
+ * Post-Tribunal 1 sizes), and only the bench image these (build.sh still
+ * defines NET_MQTT_IPC_BENCH; it changes nothing now).
  */
 #define NET_MQTT_IPC_TX_MAX 64U
+#define NET_MQTT_IPC_TX_DEPTH 8U
+#define NET_MQTT_IPC_TX_BURST 16U
 #define NET_MQTT_IPC_RX_MAX 1U
 #define NET_MQTT_IPC_STOP_BYTE 0xA9U
 /** A junction map (navmap.h) is 3 bytes; net_mqtt.c checks it. */

@@ -7,3 +7,4 @@ int main (void);
 #endif /* TEST_NAVMAP_MAIN_H */
 
 /* End of file. */
+

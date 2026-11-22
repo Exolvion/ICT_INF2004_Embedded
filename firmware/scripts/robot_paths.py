@@ -33,14 +33,23 @@ PORTABLE_SOURCES = tuple(APP / name for name in (
 ))
 PORTABLE_HEADERS = tuple(path.with_suffix(".h") for path in PORTABLE_SOURCES)
 
+# The robot app: its core and one task file per subsystem (split 22 Nov
+# 2026, tools/reorg/split_c.py), sharing robot_app_private.h.
+ROBOT_APP_PARTS = tuple(APP / name for name in (
+    "robot_app.c", "subsystem1/robot_comm.c", "subsystem2/robot_motion.c",
+    "subsystem3/robot_line.c", "subsystem4/robot_imu.c",
+    "subsystem5/robot_scan.c",
+))
+
 # Board, kernel and radio adapters: built only for the target.
 TARGET_SOURCES = tuple(APP / name for name in (
-    "app_main.c", "app_cfg.c", "board.c", "robot_app.c",
+    "app_main.c", "app_cfg.c", "board.c",
     "subsystem1/net_mqtt.c", "subsystem1/net_mqtt_ipc.c",
     "subsystem3/course_cfg.c",
-))
+)) + ROBOT_APP_PARTS
 TARGET_HEADERS = tuple(APP / name for name in (
-    "app_main.h", "app_cfg.h", "board.h", "robot_app.h", "robot_config.h",
+    "app_main.h", "app_cfg.h", "board.h", "robot_app.h",
+    "robot_app_private.h", "robot_config.h",
     "subsystem1/net_mqtt.h", "subsystem1/net_mqtt_ipc.h",
     "subsystem3/course_cfg.h",
 ))

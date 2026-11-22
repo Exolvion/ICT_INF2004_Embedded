@@ -1,0 +1,84 @@
+# subsystem 1 lines of testing/system/logs/2026-11-06_dashboard.txt (tools/split_logs.py); the day log has them all.
+15:19:44.970 [sent] RESET 0xAB
+15:19:44.972 [command] command RESET (0xAB) on the broker
+15:22:34.402 [sent] MAP forward A, U-turn F, left B, right C (a004b1)
+15:22:34.403 [command] command 3 bytes, not a command (0xA004B1) on the broker
+15:23:49.891 [status] 0
+15:29:39.843 [sent] MAP forward A, U-turn F, left B, right C (a004b1)
+15:29:39.846 [command] command 3 bytes, not a command (0xA004B1) on the broker
+15:29:50.890 [sent] MAP forward A, U-turn F, left B, right C (a004b1)
+15:29:50.892 [command] command 3 bytes, not a command (0xA004B1) on the broker
+15:30:43.401 [status] 1
+15:30:59.225 [status] 0
+15:30:59.449 [status] 1
+15:31:54.121 [status] 0
+15:32:01.314 [status] 1
+15:32:14.305 [sent] MAP forward A, U-turn F, left B, right C (a004b1)
+15:32:14.350 [command] command 3 bytes, not a command (0xA004B1) on the broker
+15:32:15.682 MAP set: forward A, IR L 548 548-548 R 1570 1570-1570 B 187 187-187
+15:38:22.436 [status] 0
+15:38:28.346 [status] 1
+15:38:38.569 [sent] MAP forward A, U-turn F, left B, right C (a004b1)
+15:38:38.571 [command] command 3 bytes, not a command (0xA004B1) on the broker
+15:38:39.710 MAP set: forward A, IR L 268 231-294 R 1080 1042-1103 B 199 180-220
+15:39:37.745 [status] 0
+15:39:37.884 [status] 1
+15:40:03.378 [status] 0
+15:40:03.508 [status] 1
+15:40:37.599 [status] 0
+15:40:37.667 [status] 1
+15:40:59.966 [sent] MAP forward A, U-turn F, left B, right C (a004b1)
+15:40:59.969 [command] command 3 bytes, not a command (0xA004B1) on the broker
+15:41:04.992 MAP set: forward A, U-turn F, left B, right C
+15:41:13.200 [status] 0
+15:41:13.396 [status] 1
+15:47:09.638 [status] 0
+15:47:13.940 [status] 1
+15:47:25.739 [status] 0
+15:47:28.786 [status] 1
+15:47:36.688 [sent] MAP forward A, U-turn F, left B, right C (a004b1)
+15:47:36.738 [command] command 3 bytes, not a command (0xA004B1) on the broker
+15:47:37.933 MAP set: forward A, IR L 205 166-230 R 2848 2761-2987 B 317 221-520
+15:48:01.809 [status] 0
+15:48:23.162 [sent] MAP forward A, U-turn F, left B, right C (a004b1)
+15:48:23.165 [command] command 3 bytes, not a command (0xA004B1) on the broker
+15:48:31.822 [status] 1
+15:48:50.791 [sent] MAP forward A, U-turn F, left B, right C (a004b1)
+15:48:50.794 [command] command 3 bytes, not a command (0xA004B1) on the broker
+15:51:09.755 [sent] MAP forward B, U-turn F, left A, right C (a100b1)
+15:51:09.805 [command] command 3 bytes, not a command (0xA100B1) on the broker
+15:51:11.156 MAP set: forward B, U-turn F, left A, right C
+15:51:24.550 [sent] MAP forward B, U-turn F, left A, right C (a100b1)
+15:51:24.553 [command] command 3 bytes, not a command (0xA100B1) on the broker
+15:51:25.596 MAP set: forward B, U-turn F, left A, right C
+15:51:33.576 [sent] START 0xAA
+15:51:33.621 [command] command START (0xAA) on the broker
+15:51:46.869 [sent] STOP 0xA9
+15:51:46.871 [command] command STOP (0xA9) on the broker
+15:51:52.487 [sent] START 0xAA
+15:51:52.489 [command] command START (0xAA) on the broker
+15:52:25.304 [sent] MAP forward B, U-turn F, left A, right Z (a180bc)
+15:52:25.306 [command] command 3 bytes, not a command (0xA180BC) on the broker
+15:52:31.477 MAP set: forward B, U-turn F, left A, right Z
+15:52:37.231 [sent] MAP forward B, U-turn F, left A, right Z (a180bc)
+15:52:37.273 [command] command 3 bytes, not a command (0xA180BC) on the broker
+15:52:38.900 MAP set: forward B, U-turn F, left A, right Z
+15:52:46.638 [sent] START 0xAA
+15:52:46.685 [command] command START (0xAA) on the broker
+15:53:29.771 [sent] MAP forward B, U-turn Y, left A, right Z (0183bc)
+15:53:29.774 [command] command 3 bytes, not a command (0x0183BC) on the broker
+15:53:30.676 MAP set: forward B, U-turn Y, left A, right Z
+15:53:50.729 [sent] START 0xAA
+15:53:50.731 [command] command START (0xAA) on the broker
+15:54:26.295 [sent] START 0xAA
+15:54:26.337 [command] command START (0xAA) on the broker
+15:55:23.544 [sent] MAP forward B, U-turn Y, left A, right Z (0183bc)
+15:55:23.546 [command] command 3 bytes, not a command (0x0183BC) on the broker
+15:55:25.112 MAP set: forward B, U-turn Y, left A, right Z
+15:55:26.586 [sent] START 0xAA
+15:55:26.587 [command] command START (0xAA) on the broker
+15:56:10.133 [sent] START 0xAA
+15:56:10.135 [command] command START (0xAA) on the broker
+15:56:46.829 [sent] START 0xAA
+15:56:46.832 [command] command START (0xAA) on the broker
+16:00:41.069 [status] 0
