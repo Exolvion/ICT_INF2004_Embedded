@@ -33,3 +33,5 @@ Add a new row for every run. Never edit or delete old rows.
 | Date | Test ID | Commit | Tester | Result | Log / evidence | Notes |
 |---|---|---|---|---|---|---|
 | YYYY-MM-DD | S2-U01 | `abc1234` | | PASS / FAIL | `logs/YYYY-MM-DD_S2-U01.txt` | |
+| 2026-10-27 | S2-U05 | not recorded (diagnostic image `encoder_diag_mqtt.uf2`) | Siang Hong | PASS | `logs/2026-10-27_S2-U05_summary.txt`, `logs/2026-10-27_S2-U05_raw.txt` | 10 hand turns per wheel, twice each: mean 2532.7 counts per turn (x4 quadrature), left and right within 0.1 % |
+| 2026-10-27 | S2-U06 | not recorded | Siang Hong | PASS | `logs/2026-10-27_S2-U06_tape.txt` | Tape: wheel diameter 65 mm (radius 32.5 mm), track width 130 mm; about 1 mm resolution |

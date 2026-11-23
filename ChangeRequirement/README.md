@@ -1,8 +1,8 @@
 # Change Requirement 1: minimum-bit data representation
 
-Source: [Change Requirement.docx](<../References/Change Requirement.docx>).
-Team decisions: [Tribunal 1, Version B](../Tribunal1/IS29_Imm-Tribunal1.docx)
-and the [Post-Tribunal](../Tribunal1/IS29_Post-Tribunal1.docx).
+Source: the course's Change Requirement document. Team decisions: the
+Tribunal 1 documents (Version B, written right after the live session, and
+the Post-Tribunal), submitted separately.
 
 This folder is the Week 13 evidence for the change: the data representation
 table, RAM and message sizes before and after, and the correctness and
@@ -200,6 +200,12 @@ per frame and 8 B per command.
 | g_stop_storage: Pending STOP, 1 deep | 8 | 8 | +0 (+0 %) |
 | g_pending_tx: Radio's frame being sent | 257 | 20 | -237 (-92 %) |
 
+The final firmware (23 Nov) keeps these rules but has larger frame slots,
+because the mission's report frames are up to 64 B and come in bursts
+(section 11b): the telemetry queue is 8 deep at 68 B a slot (544 B), and
+`g_pending_tx` is 64 B. A fourth buffer, `g_map_storage` (2 deep, 8 B a
+slot), carries the 3-byte letter-to-move junction map.
+
 ## 7. RAM before and after
 
 Measured from the linker map, ELF sections and DWARF type sizes of the
@@ -351,36 +357,182 @@ Code size from the linker map, stack frame from -fstack-usage, in measurement-on
 | Encoder ISR word 6+6-bit deltas, 16-bit totals | As planned, plus board_encoders_discard() at the end of init (tested by boot_counts) | Edges counted during boot could saturate a 6-bit delta and latch a false hard ENCODER fault |
 | RX_MAX 32 -> 1 B with the existing slot formula | Slot = (MAX + 3) / 4 + 1 words, pinned by compile-time checks | The old formula left no room for the 4-byte kernel header (gap 7) |
 
+## 11a. The bench image's frames, 22 Nov 2026
+
+Until 22 Nov the car ran the mission in the bench image
+(`firmware/bench/bench_main.c`), not the robot app (section 11b moved it
+into the robot app). Its commands and junction map already used minimum bits; its
+live log went over MQTT as text. It now sends one minimum-bit frame per line
+(first byte 0xBD; robot frame type 3, reserved here), and the dashboard
+decodes it back to the same line. Design, field widths, the frame table and
+the evidence are in [`firmware/bench/FRAMES.md`](../firmware/bench/FRAMES.md).
+In the host sim, all 4466 frames decode to exactly the line the firmware
+built; measured over those runs the frames are 53.9% of the text bytes (the
+live status line 70 -> 17 B). The same frames are now sent by the robot
+app's mission, so its telemetry queue is 8 x 64 B too (section 11b).
+
+## 11b. The mission in the robot app, 22 Nov 2026
+
+The demo firmware is now the robot app: the course template's
+`usermain`, the eight periodic tasks of `app_main.c` and the Wi-Fi task. The
+car-tested mission (line following, the two barcode decoders and their vote,
+the junction map and probe, the hump, the obstacle go-around, the end
+report) moved from `firmware/bench/bench_main.c` to
+`app_program/subsystem5/mission.c` and is the Vehicle task's controller
+(`ROBOT_APP_MISSION 1`, the default). The bench image still builds, from
+its frozen one-file copy (`firmware/bench/bench_main.c`,
+`firmware/bench/build.sh`), as the fallback.
+
+Every sensor and output stays with its owner task; the owners hand the
+mission their samples through bit-packed records under `app_main_lock()`:
+
+| Task | Period | Owns | For the mission |
+|---|---|---|---|
+| Safety | 2 ms | STOP button, fault mask, watchdog | latches STOP, TILT, COLLISION and owner timeouts; a latched stop ends the run |
+| Motion | 5 ms | encoders, motors, PID | runs the mission's request (renewed every Vehicle step, within the 50 ms lease); shares its snapshot and the duties (2 x 10 bits) |
+| Line | 2 ms | IR | pushes each sample with the wheels' 16-bit totals (`mission_ir_t`, 69 bits) |
+| Vehicle | **5 ms** | the mission | line follower, barcode store and decoders, junction moves, go-around, frames |
+| IMU | 10 ms | accelerometer | tilt and collision (terrain.c); pushes each fresh sample (`mission_accel_t`, 48 bits) for the hump and lift checks |
+| Scan | 2 ms | sonar, servo | sets the pulse and triggers on request; hands back that trigger's echo (`robot_app_sonar_t`, 40 bits) |
+| Comm | 5 ms | MQTT commands | STOP, START, RESET |
+| Telemetry | 200 ms | status 5 Hz, perception and diagnostic 1 Hz | unchanged; the mission's frames share the queue |
+
+Changes from the Week 6 design and the Post-Tribunal sizes, each for a
+measured reason:
+
+- **Remote START and RESET** (FR10 kept them local): the team runs the demo
+  from the dashboard. A START after a soft stop first asks for the approved
+  reset (FR11).
+- **Back to IDLE after a stop, and RESET clears hard faults** (22 Nov; was:
+  FAULT until RESET, a hard fault until a reboot): once a run has ended, a
+  soft stop (STOP from the button or MQTT, a lift, TILT or
+  TILT_UNAVAILABLE) clears itself through the same approved reset when the
+  car stands still and level, so the car waits in IDLE for START. A hard
+  fault stays in FAULT until RESET (MQTT, or GP21 in FAULT), which may now
+  clear it too: no run under way, the car stationary, STOP released, and no
+  new stop since the request. TILT and ENCODER (an encoder edge error) are
+  soft in a run as well: they still brake and end the run at once, and
+  encoder errors that keep coming keep the car in FAULT.
+- **Noise control on every sample-driven stop** (22 Nov; was: the first
+  bad sample latched): a level rises 2 per bad sample and falls 1 per good
+  one, and the stop latches only on a bad sample that brings it to its
+  limit, so a bad sample now and then (under one in three) never stops a
+  run. IR read 5 in a row (10 ms; the mission keeps the last good sample
+  meanwhile), accelerometer read 3 (30 ms), encoder edge errors 3 (15 ms),
+  refused motion request or controller error 3, unprepared motor output 3,
+  COLLISION 2 samples (20 ms), OWNER_TIMEOUT 3 checks (6 ms), TILT 100 ms,
+  GP20 STOP held 6 ms. STALL (500 ms) and TILT_UNAVAILABLE (500 ms) were
+  already time windows. The original supervisor keeps the latch on the
+  first bad sample. The robot sim's SIM_*_AT/_N bursts and SIM_*_SCATTER
+  noise check both sides of every limit.
+- **Source layout** (23 Nov): the
+  robot app and its mission are split by subsystem
+  (`tools/reorg/split_c.py`), with no change in behaviour. Every robot sim
+  output is byte-identical before and after, and the host and app tests
+  pass.
+  - `robot_app.c` keeps the shared record, locks, fault latch, Safety and
+    Vehicle; the other task steps are in `subsystemN/robot_{comm,motion,
+    line,imu,scan}.c`.
+  - `subsystem5/mission.c` keeps the mission's core; its parts are in
+    `subsystemN/mission_*.c`.
+  - Each part has its own header; the shared internals are in
+    `robot_app_private.h` and `mission_private.h`.
+  - The bench image builds from its frozen one-file copy,
+    `firmware/bench/bench_main.c`.
+  - The frame decoder moved to `tools/dashboard/bench_codec.py`.
+  - The day logs are split per subsystem by `tools/split_logs.py`.
+- **Lift stop** (22 Nov car runs): all six "lifted (IMU)" stops that night
+  came with the REC rows showing the car on the floor, following the line.
+  Two changes. (1) The mission takes each queued accelerometer sample at
+  the time the IMU task read it, and every queued sample each step
+  (bench_ramp_time): at the step's own time a long step bunched the
+  integrals. (2) The IMU height stop is 150 mm in the robot app (the team's
+  choice; 80 mm on the bench), about twice the most height a run that was
+  not lifted reached (77 mm). The bench's IR rule (all three dark for
+  80 mm of wheel travel) is unchanged; it caught the night's one real lift,
+  when the mission's stop for the "junction" held the IMU's integrals
+  through the lift.
+- **ADC ready race** (board.c): a preemption after the READY test could
+  pass the 100 us deadline after the conversion finished; only READY still
+  clear after the deadline fails the read now.
+- **I2C timeout 50 ms** (was 2 ms): the SDK's timeout is one wall-clock
+  deadline per transfer, and the higher-priority tasks preempting the IMU
+  task mid-transfer failed a healthy read at START (22 Nov car runs).
+- **Telemetry queue 8 x 64 B, up to 16 frames per 100 ms** (was 4 x 20 B,
+  one per 100 ms): the mission's frames are up to 64 B and come in bursts.
+  The robot's own frames are unchanged.
+- **Vehicle every 5 ms** (was 10 ms) with an **8 KiB stack** (was 4 KiB): the
+  steering, holds and timings were tuned in the bench loop at about one step
+  per 5-7 ms, and its decoders nest deeper.
+- **TILT_UNAVAILABLE after 500 ms without a usable tilt** (was any one
+  sample): the accelerometer gives tilt only while the car is quasi-static,
+  and a motor reversal shakes it for up to ~150 ms (the sim's SIM_SHAKE,
+  from the car). The TILT limit itself (0.60 rad) is checked on every valid
+  sample and latches soft (above).
+- **ROBOT_CALIBRATION_CONFIRMED 1**: the calibration that drove the bench
+  mission on the track for 6-22 Nov.
+- **Boot ROM maths** (23 Nov): float and double maths call the RP2040 boot
+  ROM (`board_boot_maths()`, `ROBOT_ROM_MATHS`). With the template's libgcc
+  soft-float and newlib libm, Motion took 34 % of the CPU.
+- **I2C at 400 kHz** (23 Nov; was 100 kHz): the IMU task busy-waits on the
+  bus, and at 100 kHz it took 3.0 ms of each 10 ms step, 15 % of the CPU.
+- **A junction waits for every decoder** (23 Nov): the car stands on the
+  junction until Decoder 1, Decoder 2 and D0 have all finished with the
+  card, even when two already agree (`bench_nav_wait`, guarded by
+  `BENCH_NAV_WAIT_MS`, 30 s). While only Decoder 2 is left and neither of
+  the others has a letter, it gets most of the CPU (`BENCH_FIT_BOOST_US`,
+  20 ms a step).
+
+Evidence (host): the robot sim (`firmware/robot/sim`, robot_app.c built
+with the host tests' strict flags and `-Werror`, the eight steps on a 1 ms
+scheduler, START and STOP over the simulated MQTT) reads the card in every
+scenario with both decoders, calls the corner a turn and turns LEFT at the
+crossing, reads a card at 22 m, measures the side hump at 7 mm and goes
+round the obstacle and back on course; every one of its frames decodes to
+exactly its line (`bench_codec.py check`). A 60 ms jolt and a 150 ms
+shake no longer stop a run; a lift ends it as "lifted (IMU)". The original
+supervisor's host tests run unchanged with `ROBOT_APP_MISSION 0`. The end
+report's tasks line gives each task's longest step and skipped periods for
+the run (section 12, task timing). The car runs of 23 Nov are in section 12.
+
 ## 12. Open items and limits
 
-Everything above is host or build evidence. The car is not assembled yet,
-so nothing here was measured on the robot. These measurements are planned
-for the Week 10 bring-up; the limits marked *proposed* still need team
-agreement.
+Sections 1–11 are host and build evidence. The final firmware (image n,
+the MQTT build of this tree) then ran on the course track on 23 Nov 2026,
+with every frame decoded by the dashboard throughout;
+the runs are in [`testing/system/TEST_LOG.md`](../testing/system/TEST_LOG.md)
+(SYS-08 to SYS-12) and
+[`testing/integration/TEST_LOG.md`](../testing/integration/TEST_LOG.md).
+The table gives each measurement planned at Tribunal 1 and where it stands;
+the limits marked *proposed* were never agreed.
 
-| Measurement | Method | Pass criterion | Owner |
-|---|---|---|---|
-| GPIO ISR time | Toggle a spare GPIO at ISR entry and exit; logic analyser while both wheels run at 0.15 m/s and the sonar pings | Worst case reported for the old and new image; *proposed* limit 20 us (an echo edge timestamp late by 1 us is 0.17 mm of range) | B2 + B5 |
-| Interrupt-masked time | Same GPIO method around the five longest `app_main_lock()` regions (snapshot copy, motion commit, Vehicle publish, fault latch, encoder read-and-clear) | Not longer than the old image; *proposed* limit 20 us | All |
-| Task timing | Read the 1 MHz timer at each release and completion in `robot_app_periodic()`; per-task worst step time, worst lateness and missed releases printed over UART after a 10-minute scripted run (follow, barcode, scan and bypass, 1 Hz frames, IMU timeout) | No missed release; every worst step shorter than its period | All |
-| Remote STOP latency | 100 STOP bytes under full load; GPIO toggle at STOP validation and at `board_motor_brake()` | Median, p99 and maximum reported for the old text build and the new build | B1 + B2 |
-| Stack high-water | Paint each task stack at creation; read the untouched depth over UART after the scripted run | At least 25 % margin per task (*proposed*) before any stack size is cut | All |
-| Frame sizes on the broker | `mosquitto_sub -v` capture during the scripted run | Matches section 8 | B1 |
-| WIFI_LOSS | Switch the access point off mid-run, then stop the broker | Bit set without stopping the car; will payload `0` on the broker; bit clears after SUBACK | B1 |
-| NO_ECHO | Unplug ECHO; then an open corridor | Bit follows the first silent ping; FOLLOW holds in RANGE_WAIT, SUPERVISOR after 1 s | B5 |
-| Fault injection | Hold a wheel, unplug an encoder channel, pull the IMU I2C lines | Expected mask bit, first cause and stop behaviour in the diagnostic frame | B2 + B4 |
+| Measurement | Method | Pass criterion | Owner | Status, 23 Nov 2026 |
+|---|---|---|---|---|
+| GPIO ISR time | Toggle a spare GPIO at ISR entry and exit; logic analyser while both wheels run at 0.15 m/s and the sonar pings | Worst case reported for the old and new image; *proposed* limit 20 us (an echo edge timestamp late by 1 us is 0.17 mm of range) | B2 + B5 | Not measured |
+| Interrupt-masked time | Same GPIO method around the five longest `app_main_lock()` regions (snapshot copy, motion commit, Vehicle publish, fault latch, encoder read-and-clear) | Not longer than the old image; *proposed* limit 20 us | All | Not measured |
+| Task timing | Read the 1 MHz timer at each release and completion in `robot_app_periodic()`; per-task worst step time, worst lateness and missed releases printed after a run | No missed release; every worst step shorter than its period | All | Measured in every run (the end report's tasks line). Safety, Motion and Telemetry never skipped a period; Line, Vehicle, IMU, Scan and Comm did (SYS-12) |
+| Remote STOP latency | 100 STOP bytes under full load; GPIO toggle at STOP validation and at `board_motor_brake()` | Median, p99 and maximum reported for the old text build and the new build | B1 + B2 | Not done as planned. 12 STOPs from the dashboard each ended the run; the report line reached the laptop 0.15–3.1 s after the broker had the STOP, including its own trip back (INT-01) |
+| Stack high-water | Paint each task stack at creation; read the untouched depth after a run | At least 25 % margin per task (*proposed*) before any stack size is cut | All | Not measured |
+| Frame sizes on the broker | `mosquitto_sub -v` capture during a run | Matches section 8 | B1 | The broker log of each day (`testing/system/logs/*_broker.txt`) records every frame; not compared with section 8 one by one |
+| WIFI_LOSS | Switch the access point off mid-run, then stop the broker | Bit set without stopping the car; will payload `0` on the broker; bit clears after SUBACK | B1 | Not done on the car |
+| NO_ECHO | Unplug ECHO; then an open corridor | Bit follows the first silent ping; FOLLOW holds in RANGE_WAIT, SUPERVISOR after 1 s | B5 | Done on the stand, 26 Oct (S5-U05, PASS) |
+| Fault injection | Hold a wheel, unplug an encoder channel, pull the IMU I2C lines | Expected mask bit, first cause and stop behaviour in the diagnostic frame | B2 + B4 | Not done on the car |
 
 Other limits:
 
-- Encoder counts per revolution are still the 360-count hypothesis; the
-  narrow-bar margin (about 5.3 counts per 3.0 mm bar) depends on it.
-- The barcode symbology is inferred (Code 39); the codebook stays authored
-  in metres, in flash. A narrow/wide encoding waits for confirmation.
+- Encoder counts per revolution were measured on the car: 2,533 per wheel
+  turn with x4 quadrature (S2-U05, 27 Oct), replacing the 360-count
+  hypothesis; a half-count is about 0.04 mm of travel.
+- The mission decodes Code 39 from the bar widths at run time (Decoder 1,
+  Decoder 2 and D0) and takes the letter-to-move map over MQTT. The
+  codebook authored in metres (`course_cfg.c`) is used only by the build
+  without the mission (`ROBOT_APP_MISSION 0`), and it is empty.
 - The lwIP MQTT buffers (1,024 B out, 256 B in, now set under
   `ROBOT_MQTT` in `lib/liblwip/sysdepend/pico_rp2040/lwipopts.h`) are
   unchanged: CONNECT uses them. They are the next RAM candidate.
-- Laptop tools must use `scripts/telemetry_codec.py`. Text commands are
-  rejected and counted in `ign`, not acted on.
+- Laptop tools must use `firmware/scripts/telemetry_codec.py` or the
+  dashboard (`tools/dashboard/`). Text commands are rejected and counted in
+  `ign`, not acted on.
 - Timestamps stay 32-bit by team decision (Tribunal 1).
 - GP0/GP1 now belong to the HC-SR04 after `board_init()`, so kernel fault
   messages printed after start-up (hard fault, NMI) reach no UART pin; read

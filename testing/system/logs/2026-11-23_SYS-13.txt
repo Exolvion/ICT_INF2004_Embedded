@@ -1,0 +1,58 @@
+SYS-13 mission in the robot app, host sim, 2026-11-23 (final tree, image n source)
+$ bash firmware/robot/sim/make.sh
+built <repo>/firmware/robot/sim/robot_sim
+
+$ firmware/robot/sim/robot_sim junction
+===== ROBOT JUNCTION: *A* card, crossing at 500 mm
+ NAV: junction 1 at 361 mm: card (Decoder 1 A, Decoder 2 A, D0 ?) code A, no map yet, straight on
+## 14.003 fault mask 0x0000 first REMOTE_STOP stop 2
+MISSION aborted: dt max 5.0 ms
+ CAR *A* (Decoder 1 *A*, Decoder 2 *A*, D0 none) at 99-242 mm
+## 14.341 fault mask 0x0000 first NONE stop 0
+$ python3 tools/dashboard/bench_codec.py check <output>
+frames: 255 match, 1 match a line the text buffer cut, 0 differ; seq gaps 0
+
+$ firmware/robot/sim/robot_sim corner
+===== ROBOT CORNER: *A* card, 90 deg right turn at 600 mm, crossing 500 mm down; map forward Q, U-turn Z, left A, right F
+ NAV: junction 1 at 988 mm: card (Decoder 1 A, Decoder 2 A, D0 ?) code A -> LEFT, advancing 136 mm to turn on the crossing
+ NAV: turned +89 deg on the crossing, following the line
+MISSION stopped: line lost after 19.1 s: dt max 5.0 ms
+ CAR *A* (Decoder 1 *A*, Decoder 2 *A*, D0 none) at 99-242 mm
+## 25.003 fault mask 0x0000 first REMOTE_STOP stop 2
+## 25.011 fault mask 0x0000 first NONE stop 0
+$ python3 tools/dashboard/bench_codec.py check <output>
+frames: 280 match, 1 match a line the text buffer cut, 0 differ; seq gaps 0
+
+$ firmware/robot/sim/robot_sim long 22
+===== ROBOT LONG: *A* card at 22.0 m, crossing at 22.4 m
+ NAV: junction 1 at 22262 mm: card (Decoder 1 A, Decoder 2 A, D0 ?) code A, no map yet, straight on
+MISSION stopped: line lost after 254.3 s: dt max 5.0 ms
+ CAR *A* (Decoder 1 *A*, Decoder 2 *A*, D0 none) at 21930-22072 mm
+$ python3 tools/dashboard/bench_codec.py check <output>
+frames: 993 match, 1 match a line the text buffer cut, 0 differ; seq gaps 0
+
+$ SIM_FROM=0.05 firmware/robot/sim/robot_sim ramp 10 100 50 4
+===== ROBOT RAMP: 10 mm up over 100 mm, top 50 mm, roll +4.0 deg, from 50 mm
+ SIDE 1: left wheel up 7 mm (30 mm mean, roll +3.9 deg; peak 7 mm, roll +4.0 deg, pitch +3.6) at 172 mm, t 1.6 s, over 249 mm
+## 16.003 fault mask 0x0000 first REMOTE_STOP stop 2
+MISSION aborted: dt max 5.0 ms
+## 16.296 fault mask 0x0000 first NONE stop 0
+$ python3 tools/dashboard/bench_codec.py check <output>
+frames: 246 match, 1 match a line the text buffer cut, 0 differ; seq gaps 0
+
+$ firmware/robot/sim/robot_sim obstacle
+===== ROBOT OBSTACLE: 100 x 100 mm box on the line at 900 mm
+## 11.054 fault mask 0x4000 first NONE stop 0
+## 11.150 fault mask 0x0000 first NONE stop 0
+## 12.290 fault mask 0x4000 first NONE stop 0
+## 12.310 fault mask 0x0000 first NONE stop 0
+## 16.340 fault mask 0x4000 first NONE stop 0
+## 17.950 fault mask 0x0000 first NONE stop 0
+## 27.100 fault mask 0x4000 first NONE stop 0
+ AVOID: WIDTH 170 mm by the creeps (left 86, right 84; raw 202, less 16 an edge)
+ AVOID: back on course, driving straight
+## 70.003 fault mask 0x4000 first REMOTE_STOP stop 2
+MISSION aborted: dt max 5.0 ms
+## 70.301 fault mask 0x4000 first NONE stop 0
+$ python3 tools/dashboard/bench_codec.py check <output>
+frames: 499 match, 1 match a line the text buffer cut, 0 differ; seq gaps 0

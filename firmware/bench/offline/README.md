@@ -9,7 +9,8 @@ check a decoder change before building and flashing an image.
 | `recordings/2026-10-30_cuts/` | Card readings cut from the 30 Oct end-of-run dumps (one file per card pass). |
 | `recordings/2026-10-31_cuts/` | Cuts from the 31 Oct live RAW lines; only 2 have samples (the car was stopped before the rest were sent). |
 | `traces/` | 1 mm traces of whole runs from 29-30 Oct. |
-| `scripts/` | `evalcuts.sh` (replay every cut), `raw2dump.py` (live RAW lines to a cut), `splitdumps.py` (an end-of-run dump to one file per cut), `rawplot.py`, `uf2grep.py`. |
+| `scripts/` | `evalcuts.sh` (replay every cut), `raw2dump.py` (live RAW lines to a cut), `splitdumps.py` (an end-of-run dump to one file per cut), `rawplot.py`, `uf2grep.py`, `fullcheck.sh`. |
+| `barcode_research_2026-10-31.md` | How other projects and patents read barcodes with blurred sensors. |
 
 ## Build and run (WSL, from this folder)
 
@@ -24,3 +25,4 @@ Expected with source `f63947b6` (image `3414a534`): the traces read `*Z*` end to
 order; the cuts give 6 `*Z*` and 2 `*F*` (all end to start); the batch gives 28 right, 0 wrong.
 
 `make.sh` copies the repo into `sim/proj/` and writes `sim/sim`; both are build products (ignored).
+`fullcheck.sh <broker IPv4>` is the full pre-flash check set; it copies this repository to a WSL-native tree first.

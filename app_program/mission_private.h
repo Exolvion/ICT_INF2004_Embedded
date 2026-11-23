@@ -358,6 +358,7 @@ typedef enum
     BK_TASKS,        /* " tasks, longest step ..." (robot app, end report) */
     BK_IMU,          /* " IMU since START: ..." (robot app, end report) */
     BK_OWNERS,       /* " owner health ..." (robot app, end report) */
+    BK_CPU,          /* " tasks, own CPU ..." (robot app, end report) */
     BK_KINDS
 } bench_kind_t;
 #define BENCH_SEND_TRIES (25U)        /* about 0.17 s per frame while idle */
@@ -1441,6 +1442,7 @@ typedef struct
 } bench_fit_bin_t;
 extern bench_fit_bin_t g_fit_bin;
 extern bool        gb_fit_force;
+extern bool        gb_fit_boost;
 #if defined(PICO_ON_DEVICE) && (1 == PICO_ON_DEVICE)
 #undef CLOCKS_BASE
 #undef RESETS_BASE

@@ -1,0 +1,88 @@
+Validation UTC: 2026-11-23T14:39:33Z
+gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+Copyright (C) 2025 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+
+Strict host build flags: -std=c99 -Wall -Wextra -Wpedantic -Werror -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Wformat=2 -Wundef -Wcast-qual -Wwrite-strings -Wswitch-enum -Wnull-dereference -I<repo>/app_program/ -I<repo>/app_program/subsystem1 -I<repo>/app_program/subsystem2 -I<repo>/app_program/subsystem3 -I<repo>/app_program/subsystem4 -I<repo>/app_program/subsystem5 
+Selected test pattern: test_*_main
+Compiled portable sources:
+  <repo>/app_program/bitpack.c
+  <repo>/app_program/core.c
+  <repo>/app_program/subsystem1/mqttcmd.c
+  <repo>/app_program/subsystem1/navmap.c
+  <repo>/app_program/subsystem1/telemetry.c
+  <repo>/app_program/subsystem2/motion.c
+  <repo>/app_program/subsystem3/barcode.c
+  <repo>/app_program/subsystem3/line_ctrl.c
+  <repo>/app_program/subsystem4/terrain.c
+  <repo>/app_program/subsystem5/scanner.c
+  <repo>/app_program/subsystem5/vehicle.c
+
+test_bitpack_main: release build (-O2 -DNDEBUG)
+bitpack: 61 checks, 0 failures
+
+test_bitpack_main: ASan + UBSan build (-O1 -g)
+LeakSanitizer disabled by project choice pending a CI trial; ROBOT_LSAN=1 enables it.
+bitpack: 61 checks, 0 failures
+
+test_core_main: release build (-O2 -DNDEBUG)
+Checks: 488; failures: 0
+PASS: numerical core; no hardware/RTOS validation.
+
+test_core_main: ASan + UBSan build (-O1 -g)
+LeakSanitizer disabled by project choice pending a CI trial; ROBOT_LSAN=1 enables it.
+Checks: 488; failures: 0
+PASS: numerical core; no hardware/RTOS validation.
+
+test_line_main: release build (-O2 -DNDEBUG)
+Line/barcode: 364977 checks, 0 failures
+
+test_line_main: ASan + UBSan build (-O1 -g)
+LeakSanitizer disabled by project choice pending a CI trial; ROBOT_LSAN=1 enables it.
+Line/barcode: 364977 checks, 0 failures
+
+test_motion_main: release build (-O2 -DNDEBUG)
+Checks: 2463; failures: 0
+PASS: motion/supervisor synthetic host scenarios.
+
+test_motion_main: ASan + UBSan build (-O1 -g)
+LeakSanitizer disabled by project choice pending a CI trial; ROBOT_LSAN=1 enables it.
+Checks: 2463; failures: 0
+PASS: motion/supervisor synthetic host scenarios.
+
+test_mqtt_main: release build (-O2 -DNDEBUG)
+mqttcmd: 311 checks, 0 failures
+
+test_mqtt_main: ASan + UBSan build (-O1 -g)
+LeakSanitizer disabled by project choice pending a CI trial; ROBOT_LSAN=1 enables it.
+mqttcmd: 311 checks, 0 failures
+
+test_navmap_main: release build (-O2 -DNDEBUG)
+navmap: 29 checks, 0 failures
+
+test_navmap_main: ASan + UBSan build (-O1 -g)
+LeakSanitizer disabled by project choice pending a CI trial; ROBOT_LSAN=1 enables it.
+navmap: 29 checks, 0 failures
+
+test_sensor_main: release build (-O2 -DNDEBUG)
+Sensor checks: 356; failures: 0
+
+test_sensor_main: ASan + UBSan build (-O1 -g)
+LeakSanitizer disabled by project choice pending a CI trial; ROBOT_LSAN=1 enables it.
+Sensor checks: 356; failures: 0
+
+test_telemetry_main: release build (-O2 -DNDEBUG)
+telemetry: 81 checks, 0 failures
+
+test_telemetry_main: ASan + UBSan build (-O1 -g)
+LeakSanitizer disabled by project choice pending a CI trial; ROBOT_LSAN=1 enables it.
+telemetry: 81 checks, 0 failures
+
+Passed 8 executable(s) in both host configurations.
+Hardware, timing, and RTOS behavior remain untested here.
+----------------------------------------------------------------------
+Ran 8 tests in 0.027s
+
+OK

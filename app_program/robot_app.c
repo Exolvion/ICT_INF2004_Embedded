@@ -49,11 +49,20 @@ typedef struct
 {
     uint32_t worst_us;
     uint32_t skipped;
+    uint32_t own_us;
+    uint32_t steps;
     uint32_t window;
 } robot_app_timing_t;
 
 static robot_app_timing_t g_timing[ROBOT_APP_TASKS];
 uint32_t g_timing_window;
+/* Own time of every finished step, all tasks (us, wraps): a step's growth
+ * of it is the time of the steps that ran inside it. Changed only under
+ * app_main_lock().
+ */
+static uint32_t g_timing_nested_us;
+/* When the window began (robot_app_timing_restart, the Vehicle task). */
+static uint64_t g_timing_start_us;
 
 /* Safety task: the owners' longest health gaps, and their window. */
 static robot_app_owner_evidence_t g_owner_evidence;
@@ -813,7 +822,10 @@ void robot_app_health (robot_app_health_t index, uint32_t now_ms)
 
 /** @brief Absolute releases skip missed periods instead of a catch-up loop.
  * Each step's run time and each skipped period go to the task's own timing
- * record (index), cleared at the first step of a new window.
+ * record (index), cleared at the first step of a new window. So does its
+ * own time: the run time less the own time of the steps that finished
+ * inside it (they preempted it), which g_timing_nested_us collects; this
+ * step then adds its own for any step it preempted.
  */
 void robot_app_periodic (void (* p_step)(uint32_t), uint32_t period_ms,
                                 uint32_t index)
@@ -823,6 +835,9 @@ void robot_app_periodic (void (* p_step)(uint32_t), uint32_t period_ms,
     uint32_t remaining_ms = 0U;
     uint64_t start_us = 0U;
     uint32_t used_us = 0U;
+    uint32_t nested_us = 0U;
+    uint32_t own_us = 0U;
+    uint32_t saved = 0U;
     robot_app_timing_t * p_timing = &g_timing[index % ROBOT_APP_TASKS];
 
     for (;;)
@@ -831,16 +846,32 @@ void robot_app_periodic (void (* p_step)(uint32_t), uint32_t period_ms,
         {
             p_timing->worst_us = 0U;
             p_timing->skipped = 0U;
+            p_timing->own_us = 0U;
+            p_timing->steps = 0U;
             p_timing->window = g_timing_window;
         }
+        /* The start and the nested total read together: a step that
+         * preempts between them is counted once.
+         */
+        saved = app_main_lock();
         start_us = board_time_us();
+        nested_us = g_timing_nested_us;
+        app_main_unlock(saved);
         p_step(now_ms);
+        saved = app_main_lock();
         /* A step is far below 2^32 us, so the difference fits. */
         used_us = (uint32_t)(board_time_us() - start_us);
+        nested_us = g_timing_nested_us - nested_us;   /* wraps: modulo */
+        own_us = (nested_us < used_us) ? (used_us - nested_us) : 0U;
+        g_timing_nested_us += own_us;
+        app_main_unlock(saved);
         if (used_us > p_timing->worst_us)
         {
             p_timing->worst_us = used_us;
         }
+        p_timing->own_us = (p_timing->own_us > (UINT32_MAX - own_us)) ?
+                           UINT32_MAX : (p_timing->own_us + own_us);
+        ++p_timing->steps;
         next_ms += period_ms;
         now_ms = robot_app_now();
         remaining_ms = next_ms - now_ms;
@@ -875,6 +906,8 @@ void robot_app_timing (robot_app_task_time_t p_output[ROBOT_APP_TASKS])
     {
         p_output[index].worst_us = g_timing[index].worst_us;
         p_output[index].skipped = g_timing[index].skipped;
+        p_output[index].own_us = g_timing[index].own_us;
+        p_output[index].steps = g_timing[index].steps;
     }
 }
 
@@ -882,6 +915,15 @@ void robot_app_timing (robot_app_task_time_t p_output[ROBOT_APP_TASKS])
 void robot_app_timing_restart (void)
 {
     ++g_timing_window;
+    g_timing_start_us = board_time_us();
+}
+
+/** @brief The window's length so far; the Vehicle task writes and reads
+ * g_timing_start_us, so the 64-bit value is never torn.
+ */
+uint32_t robot_app_timing_window_ms (void)
+{
+    return (uint32_t)((board_time_us() - g_timing_start_us) / 1000U);
 }
 
 /** @brief Millisecond serial clock deliberately wraps every 2^32 ms. */

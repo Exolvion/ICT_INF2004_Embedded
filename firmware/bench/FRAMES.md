@@ -158,9 +158,12 @@ Image (bench, MQTT, motion), before and after:
   2 KB under the linker's 64 KiB heap reserve (256 KiB RAM): the next
   RAM must come from somewhere else.
 
-The robot app's telemetry slots are back to the Post-Tribunal sizes (4 x 20 B,
-one frame per 100 ms). Only the bench build gets 8 x 64 B and bursts
-(`net_mqtt_ipc.h`, `NET_MQTT_IPC_BENCH`, set by `build.sh`).
+Since the mission moved into the robot app (22 Nov), the robot app sends
+these frames too, so its telemetry slots are 8 x 64 B with bursts of up to
+16 frames per 100 ms, as the bench build's were (`net_mqtt_ipc.h`). Until
+then the robot app alone had the Post-Tribunal sizes (4 x 20 B, one frame
+per 100 ms). `build.sh` still defines `NET_MQTT_IPC_BENCH`; it changes
+nothing now.
 
 ## Frame table
 

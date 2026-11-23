@@ -67,9 +67,9 @@
  * digital D0 on GP6/GP14/GP7) and servo port 1 (GP12) = scan servo. Grove 5
  * and Grove 6 both carry GP26, so the right sensor's D0 is rewired from
  * Grove 6 to GP14 (servo port 3): it was on GP13 (servo port 2) until that
- * header pin broke off on 28 Oct 2026. The robot firmware reads only the
+ * header pin broke off on 28 Oct 2026. Line following reads only the
  * analogue outputs. board_init sets the barcode D0 (GP7) as an input with
- * no interrupt, and only the bench image polls it (board_barcode_d0); the
+ * no interrupt; the mission's D0 decoder polls it (board_barcode_d0); the
  * other D0 pins stay inputs from reset.
  * GP15 is kept for servos. GP0/GP1 are also the UART0
  * console pins: the console owns them until board_init() hands them to the
@@ -187,8 +187,11 @@
  * Reads then took up to 19.8 ms of wall time in a run (the end report's
  * "slowest read", 22:33), and the mission's slowest step reaches 40 ms, so
  * 50 ms. A stuck bus fails the IMU step's first call after 50 ms.
+ * 400 kHz (fast mode, which the GY-511 supports; was 100 kHz): the IMU task
+ * busy-waits on the bus, and on 23 Nov it took 3.0 ms a 10 ms step, 15 % of
+ * the CPU. The bench image keeps 100 kHz (firmware/bench/build.sh).
  */
-#define ROBOT_I2C_HZ 100000U
+#define ROBOT_I2C_HZ 400000U
 #define ROBOT_I2C_TIMEOUT_US 50000U
 #define ROBOT_ECHO_TIMEOUT_US 30000U
 #define ROBOT_TRIGGER_INTERVAL_US 65000U

@@ -104,6 +104,13 @@ static inline board_accel_status_t board_accel_classify (uint8_t status)
  */
 void board_boot_timebase (void);
 
+/** The reset handler calls once, after .data and .bss are set and before
+ * any floating point: points the float and double routines at the RP2040
+ * boot ROM's (ROBOT_ROM_MATHS builds, build_make/robot_project.mk); else
+ * nothing (libgcc and libm stay).
+ */
+void board_boot_maths (void);
+
 /** Configure motor pins and PWM LOW after C runtime initialization.
  * Safe before board_init(); used if radio task startup prevents usermain.
  * Actual electrical braking and power/reset behavior require bench proof.

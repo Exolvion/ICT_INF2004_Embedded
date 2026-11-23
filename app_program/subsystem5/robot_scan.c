@@ -166,7 +166,7 @@ void robot_app_scan_step (uint32_t now_ms)
         ((now_ms - copy.range_ms) < 150U))
     {
         /* One event per request: a 2-bit counter bumped every 2 ms could
-         * alias back to the value Vehicle last saw between its 10 ms reads.
+         * alias back to the value Vehicle last saw between its 5-10 ms reads.
          */
         g_scan_flags.b_fine_reported = true;
         saved = app_main_lock();

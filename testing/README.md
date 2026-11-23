@@ -62,11 +62,15 @@ Test IDs never change and are never reused, even if a test is dropped.
 
 4. **Save the evidence** in that folder's `logs/`, named
    `YYYY-MM-DD_<ID>.txt` (or `.jsonl` for telemetry). Photos and scope
-   screenshots go there too (keep each file under a few MB). Videos go in
-   [`videos/`](../videos/README.md) instead.
+   screenshots go there too (keep each file under a few MB). Videos are
+   not stored in the repository (see below).
 5. **Record the result.** Add a row to the *Results* table: date, test ID,
    the commit you tested (`git rev-parse --short HEAD`), who ran it,
    PASS/FAIL, and the log file. Commit the log and the table together.
+6. **Refresh the case files.** `python3 tools/test_case_evidence.py` writes
+   `testing/subsystemN/cases/<ID>.md` for every subsystem test case: the case
+   as defined, its result rows, and the log lines that bear on it, each with
+   the file it comes from. A case with no log says so.
 
 ## Day logs split per subsystem
 
@@ -94,9 +98,8 @@ after new logs.
 
 A manual test (a motor, a sensor reacting, the car on the track) is best
 shown with a short video. Record 15–60 s showing the test ID and the
-hardware, share it as an **unlisted YouTube** link, list it in
-[`videos/README.md`](../videos/README.md), and put the link in the
-*Log / evidence* column of the test's result row.
+hardware, share it as an **unlisted YouTube** link, and put the link in
+the *Log / evidence* column of the test's result row.
 
 ## Rules
 

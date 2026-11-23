@@ -6,6 +6,9 @@
  */
 #include "mission_private.h"
 #include "mission_barcode.h"
+#if defined(MISSION_SIM)
+#include <stdlib.h>   /* getenv: the sim's SIM_FIT_SLICE_US */
+#endif
 
 /* BARCODE read. A sample per robot decoder unit, 8 half-counts (robot_app.c
  * ROBOT_APP_BARCODE_UNIT_HC, 0.32 mm): 2560 units cover the 0.8 m limit.
@@ -2932,6 +2935,14 @@ void bench_code (uint32_t value, uint32_t bits)
 #define BENCH_FIT_HUMPS (48U)
 #define BENCH_FIT_LSQ_SLICE (26U)   /* stage-1 candidates per slice */
 #define BENCH_FIT_BUDGET_US (1500U)
+/* Standing at a junction with only the fit left to decode the card, and
+ * neither Decoder 1 nor D0 with a letter (23 Nov: most of the CPU goes to
+ * Decoder 2 then). The wheels are halted (no motion lease), so a step may
+ * run long: 20 ms of fit, then the Vehicle task's 5 ms sleep, in which the
+ * lower tasks (IMU, Scan, Comm, the radio) run; their 100 ms owner gates
+ * see gaps near 30 ms. About three quarters of the time goes to the fit.
+ */
+#define BENCH_FIT_BOOST_US (20000U)
 #define BENCH_FIT_MARGIN (1.3f)
 #define BENCH_FIT_MISFIT (0.35f)    /* stage-1 rms limit, in modules */
 #define BENCH_FIT_REL_PCT (15)      /* turning-point swing: % of the level */
@@ -2992,6 +3003,7 @@ static float       g_fit_wide_inv[BENCH_FIT_CANDS];
     /* 1 / sum dev^2 */
 static bool        gb_fit_tables;
 bool        gb_fit_force;
+bool        gb_fit_boost;   /* bench_nav_wait: BENCH_FIT_BOOST_US a step */
 
   /* stopped at a junction for the decode
                                    * (bench_nav_wait): the binned card goes
@@ -4076,7 +4088,9 @@ static bool bench_fit_slice (void)
 /** @brief MISSION, every line step: the binned card to the fit once
  * BENCH_FIT_JOIN_MM of white has followed its last dark with no group open
  * and the fit is free; then slices of the fit until
- * BENCH_FIT_BUDGET_US has gone in this step (at least one slice).
+ * BENCH_FIT_BUDGET_US has gone in this step (at least one slice), or
+ * BENCH_FIT_BOOST_US while the car stands at a junction for this fit alone
+ * (gb_fit_boost, bench_nav_wait).
  */
 void bench_fit_run (void)
 {
@@ -4084,9 +4098,19 @@ void bench_fit_run (void)
                                             g_code.unit_m);
     uint32_t newest = (0U != g_code.count) ?
                       g_code.sample[g_code.count - 1U].unit : 0U;
+    uint32_t budget = gb_fit_boost ? BENCH_FIT_BOOST_US : BENCH_FIT_BUDGET_US;
     uint64_t t0;
     uint32_t used = 0U;
     bool     b_more;
+#if defined(MISSION_SIM)
+    /* Sim only: its clock stands still within a step, so no budget runs out
+     * and a fit ends in one step. SIM_FIT_SLICE_US n counts n us a slice,
+     * so the fit spans steps as on the car (the junction wait's test).
+     */
+    const char * p_slice = getenv("SIM_FIT_SLICE_US");
+    uint32_t sim_slice_us = (NULL != p_slice) ?
+                            (uint32_t)strtoul(p_slice, NULL, 10) : 0U;
+#endif
 
     if (!gb_fit_tables)
     {
@@ -4114,7 +4138,10 @@ void bench_fit_run (void)
         t0 = board_time_us();
         b_more = bench_fit_slice();
         used += (uint32_t)(board_time_us() - t0);
-    } while (b_more && (used < BENCH_FIT_BUDGET_US));
+#if defined(MISSION_SIM)
+        used += sim_slice_us;
+#endif
+    } while (b_more && (used < budget));
     g_fit.cpu_us += used;
     if ((!b_more) && (NULL != gp_fit_line_new))
     {

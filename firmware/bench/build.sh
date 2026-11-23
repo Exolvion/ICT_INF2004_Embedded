@@ -98,6 +98,7 @@ for name in ("ROBOT_SERVO_MIN_US", "ROBOT_SERVO_MAX_US"):
     robot_servo[name] = found[0]
 for name, value in (("ROBOT_CALIBRATION_CONFIRMED", "1"),
                     ("ROBOT_SERVO_CONFIRMED", "1"),
+                    ("ROBOT_I2C_HZ", "100000U"),  # as hump4 was tested
                     ("ROBOT_MAX_DUTY", "0.60"),
                     ("ROBOT_SERVO_MIN_US", "500U"),
                     ("ROBOT_SERVO_MAX_US", "2500U")):
@@ -127,8 +128,10 @@ if [[ "$profile" == mqtt ]]; then
     fi
 fi
 
+# ROBOT_ROM_MATHS=0: the frozen bench keeps libgcc/libm, as hump4 was tested
+# (the robot app uses the boot ROM's maths since 23 Nov, robot_project.mk).
 make -C "$project/build_make" -j4 SMP=0 CONSOLE=uart \
-    PICO_SDK_PATH="$ROBOT_SDK" "${net[@]}" all
+    PICO_SDK_PATH="$ROBOT_SDK" "${net[@]}" ROBOT_ROM_MATHS=0 all
 
 out="$repo/build-target/bench"
 name=bench_$profile.uf2

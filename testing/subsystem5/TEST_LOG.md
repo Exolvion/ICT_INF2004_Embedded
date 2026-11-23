@@ -32,3 +32,6 @@ Add a new row for every run. Never edit or delete old rows.
 |---|---|---|---|---|---|---|
 | YYYY-MM-DD | S5-U01 | `abc1234` | | PASS / FAIL | `logs/YYYY-MM-DD_S5-U01.txt` | |
 | 2026-10-26 | S5-U05 | `2d121bc` + uncommitted | Siang Hong | PASS | `logs/2026-10-26_S5-U05_summary.txt`, `logs/2026-10-26_S5-U05.jsonl` | Car on the stand in INIT. ECHO unplugged about 12 s: `NO_ECHO` in faults 0.8 s after the range went invalid, no stop source, no fault latched; cleared with the first valid range. A moving car was not tested. Written up 2026-11-23 from the recording |
+| 2026-10-26 | S5-U04 | not recorded | Siang Hong | PASS | `logs/2026-10-26_S5-U04_summary.txt` | Functional: range valid, stable and tracks the distance. Accuracy not measured that day (see the 27 Oct row) |
+| 2026-10-27 | S5-U04 | not recorded | Siang Hong | PASS | `logs/2026-10-27_S5-U04_tape_summary.txt` | Against a tape at 200–1000 mm: range valid in every frame, largest error 7 mm, spread at most 9 mm |
+| 2026-10-28 | S5-U08 | `2d121bc` + uncommitted | Siang Hong | PASS | `logs/2026-10-28_S5-U08_summary.txt`, `logs/2026-10-28_S5-U08_line_stop.txt` | 2 of 2 runs: bottle on the line detected, stopped within 10 cm, no contact. The test case asks for 10 runs |

@@ -42,8 +42,9 @@ A web page that shows the car live over MQTT and sends it commands.
   The panel beside it gives the obstacle's size, face distance, left/right edges, way round and echo
   count. Pose lines may carry the compass's ` C x y z` (6 Nov images on).
 - **Theme:** follows the system light/dark setting; the half-moon button in the header switches it.
-- **Control:** START (0xAA), STOP (0xA9, or press Space), Reset distance (0xAB), Next test (0xAF),
-  Next gains (0xAD, sets 0 to 5). The car answers with a `MODE` line, which can take several seconds.
+- **Control:** START (0xAA), STOP (0xA9, or press Space), RESET (0xAB), and **Send map to car**:
+  the four letters for forward, U-turn, left and right, sent as the 3-byte junction map
+  (`app_program/subsystem1/navmap.h`); the car answers `MAP set: ...`. Send the map before START.
 - **Live sensors:** IR left, right and barcode raw (0 to 4095, with min and max of the last second),
   wheel distance and encoder counts, accelerometer, and a 60 s chart of the three IR raws.
 - **Run results:** the end-of-run report (result, test, gains, distance, mean speed, time per phase,
@@ -61,12 +62,12 @@ It works on the hotspot without internet. A phone on the same hotspot can open i
 pip install paho-mqtt
 ```
 
-The broker is the Docker container `mqtt` (eclipse-mosquitto) on port 1883. The dashboard never
-starts a broker.
+The broker is the contained Node broker in `tools/broker/` (`npm start`, see its README) or the
+Docker container `mqtt` (eclipse-mosquitto), on port 1883. The dashboard never starts a broker.
 
 ## Launch
 
-1. Start Docker Desktop and the broker if it is not running: `docker start mqtt`.
+1. Start the broker if it is not running: `npm start` in `tools/broker`, or `docker start mqtt`.
 2. Double-click **`start_dashboard.bat`**. It checks port 1883, starts the server (log in
    `testing\system\logs\<date>_dashboard.txt`) and opens http://localhost:8080.
 3. Power on the car. Within a few seconds the header shows **Car online** and the IR values move.
@@ -89,11 +90,12 @@ python server.py --log ..\..\testing\system\logs\2026-10-29_dashboard.txt
 
 | Topic | Direction | Content |
 |---|---|---|
-| `inf2004/is29/telemetry` | car to laptop | Bench image: one minimum-bit frame per line (first byte 0xBD, `firmware/bench/FRAMES.md`), decoded back to the line by `tools/dashboard/bench_codec.py`; the old text image sent text lines. Robot image: binary frames. |
+| `inf2004/is29/telemetry` | car to laptop | The mission's lines, one minimum-bit frame per line (first byte 0xBD, `firmware/bench/FRAMES.md`), decoded back to the line by `tools/dashboard/bench_codec.py`; and the robot's binary status, perception and diagnostic frames. |
 | `inf2004/is29/status` | car to laptop | `1` when the car connects, `0` as its last will. |
-| `inf2004/is29/command` | laptop to car | One byte: 0xAA START, 0xA9 STOP, 0xAB RESET, 0xAF next test, 0xAD next gains. |
+| `inf2004/is29/command` | laptop to car | One byte: 0xAA START, 0xA9 STOP, 0xAB RESET; or the 3-byte junction map. |
 
-The bench image (`app_program/subsystem5/mission.c`) prints:
+The mission (`app_program/subsystem5/mission.c` and its `mission_*.c` parts, in the robot image;
+the bench image ran the same mission until 22 Nov) prints:
 
 | Line | Shown as |
 |---|---|
@@ -110,9 +112,10 @@ A message the car could not queue is lost, which cuts one line and glues the nex
 server splits such lines at the known line starts, keeps the complete part and counts the cut part
 (shown under the event log).
 
-The robot image (`app_program`) sends binary status, perception and diagnostic frames; the server
-decodes them with `firmware/scripts/telemetry_codec.py` and shows state, wheel speed, sonar range
-and faults. The robot image acts on STOP only and ignores the other command bytes.
+The robot image (`app_program`) also sends binary status, perception and diagnostic frames; the
+server decodes them with `firmware/scripts/telemetry_codec.py` and shows state, wheel speed, sonar
+range and faults. The robot image acts on START, STOP, RESET and the junction map (README "Known
+deviations"); a START waits until no stop or fault blocks it.
 
 ## Files
 

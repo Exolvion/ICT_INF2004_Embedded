@@ -227,6 +227,13 @@ static void board_apply_motor_locked (uint32_t slice, int32_t direction,
                                       uint16_t level, uint32_t shift);
 static void board_store_direction_locked (uint32_t shift, int32_t direction);
 static uint16_t board_duty_level (core_real_t duty);
+#if defined(ROBOT_ROM_MATHS) && (1 == ROBOT_ROM_MATHS)
+/* BARR-ABI-01: the SDK's own names (pico_float/pico_double init sources),
+ * which no SDK header declares.
+ */
+void __aeabi_float_init (void);
+void __aeabi_double_init (void);
+#endif
 static uint32_t board_echo_word (board_echo_state_t state, uint32_t pulse_us);
 static board_echo_state_t board_echo_state (uint32_t echo);
 
@@ -237,6 +244,18 @@ void board_boot_timebase (void)
      */
     watchdog_hw->tick = 12U | WATCHDOG_TICK_ENABLE_BITS;
     unreset_block_num_wait_blocking(RESET_TIMER);
+}
+
+void board_boot_maths (void)
+{
+#if defined(ROBOT_ROM_MATHS) && (1 == ROBOT_ROM_MATHS)
+    /* The SDK's pico_float/pico_double tables, as its runtime would fill
+     * them (PICO_RUNTIME_INIT_AEABI_FLOAT/DOUBLE); this kernel's linker
+     * script runs no .preinit_array.
+     */
+    __aeabi_float_init();
+    __aeabi_double_init();
+#endif
 }
 
 bool board_watchdog_start (uint32_t timeout_ms)

@@ -744,6 +744,15 @@ KINDS: list = [
     ("OWNERS", (" owner health, longest gap since START: Motion ", U(16),
                 " ms, Line ", U(16), " ms, Vehicle ", U(16), " ms, IMU ",
                 U(16), " ms, Scan ", U(16), " ms, Comm ", U(16), " ms")),
+    # Robot app (23 Nov): each task's own CPU since START (its steps' time
+    # with other tasks' steps inside them taken out), per mille of the window,
+    # and its mean step in us; then the window.
+    ("CPU", (" tasks, own CPU per mille/mean step us: Safety ", U(10), "/",
+             U(16), ", Motion ", U(10), "/", U(16), ", Line ", U(10), "/",
+             U(16), ", Vehicle ", U(10), "/", U(16), ", IMU ", U(10), "/",
+             U(16), ", Scan ", U(10), "/", U(16), ", Comm ", U(10), "/",
+             U(16), ", Telemetry ", U(10), "/", U(16), "; over ", U(20),
+             " ms")),
 ]
 
 

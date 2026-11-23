@@ -796,6 +796,9 @@ void bench_tasks_text (void)
     robot_app_imu_evidence_t   imu;
     robot_app_owner_evidence_t owners;
     uint32_t                   index;
+    uint32_t                   window_ms;
+    uint32_t                   share;
+    uint32_t                   mean_us;
 
     /* Each owner's longest health gap: over its gate is OWNER_TIMEOUT. */
     robot_app_owner_evidence(&owners);
@@ -838,6 +841,28 @@ void bench_tasks_text (void)
         bench_u((timing[index].skipped > 4095U) ? 4095U :
                 timing[index].skipped, 12U);
     }
+    bench_flush();
+    /* Where the CPU went (23 Nov): each task's own time (other tasks' steps
+     * inside its steps taken out) as a share of the window, and its mean
+     * step. What the eight leave is the Wi-Fi task, interrupts outside the
+     * steps, the kernel and idle.
+     */
+    window_ms = robot_app_timing_window_ms();
+    bench_line(BK_CPU);
+    bench_text(" tasks, own CPU per mille/mean step us: ");
+    for (index = 0U; index < ROBOT_APP_TASKS; ++index)
+    {
+        share = (0U != window_ms) ? (timing[index].own_us / window_ms) : 0U;
+        mean_us = (0U != timing[index].steps) ?
+                  (timing[index].own_us / timing[index].steps) : 0U;
+        bench_text(p_names[index]);
+        bench_u((share > 1023U) ? 1023U : share, 10U);
+        bench_text("/");
+        bench_u((mean_us > 65535U) ? 65535U : mean_us, 16U);
+    }
+    bench_text("; over ");
+    bench_u((window_ms > 1048575U) ? 1048575U : window_ms, 20U);
+    bench_text(" ms");
     bench_flush();
 }
 

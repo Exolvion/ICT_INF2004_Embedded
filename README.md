@@ -1,30 +1,13 @@
 # INF2004 Embedded Systems Project — IS29
 
-This repository contains the robot firmware, its tests and test logs, the
-Week 6 design report and the Tribunal 1 documents for Team IS29.
+This repository contains the robot firmware, its tests, test logs, laptop
+tools and the Change Requirement 1 evidence for Team IS29.
 
 The project is an autonomous robot built around the Raspberry Pi Pico W and
-Robo Pico board. Its intended mission is to follow a line, read navigation
-barcodes, make controlled turns, estimate hump height, detect and bypass
-obstacles, recover the track and report its state over Wi-Fi/MQTT. The firmware
-is written in C using the Pico SDK and the supplied micro T-Kernel RP2040 port.
-
-## Project documents
-
-| Material | File |
-|---|---|
-| Week 6 design report | [Word document](Week6_Report/INF2004_Week6_Design_Review.docx) · [PDF](Week6_Report/INF2004_Week6_Design_Review.pdf) |
-| Tribunal 1 | [Pre-Tribunal](Tribunal1/IS29_Pre-Tribunal1.docx) · [Immediately after](Tribunal1/IS29_Imm-Tribunal1.docx) · [Post-Tribunal](Tribunal1/IS29_Post-Tribunal1.docx) |
-| Change requirement 1 | [Minimum-bit data representation: Week 13 evidence](ChangeRequirement/README.md) |
-| Week 6 report feedback | [Original lecturer feedback](<Tribunal1/Sources/IS29_feedback for our week 6 report.txt>) |
-| Tribunal briefing | [Notice](Tribunal1/Sources/tribunal.txt) · [Portal screenshot](<Tribunal1/Sources/Screenshot 2026-10-15 221220.png>) |
-| Official tribunal template | [Week8_Tribunal1_Template.docx](Tribunal1/Sources/Week8_Tribunal1_Template.docx) |
-
-The official tribunal template includes the assessment stages. Tribunal 1
-has three submissions: the Pre-Tribunal (Version A), the document written
-immediately after the live session (Version B), and the Post-Tribunal, which
-repeats A and B and adds the AI-vetted gap check (Version C), the final
-summary and the implementation evidence.
+Robo Pico board. Its mission is to follow a line, read navigation barcodes,
+make controlled turns, estimate hump height, detect and bypass obstacles,
+recover the track and report its state over Wi-Fi/MQTT. The firmware is
+written in C using the Pico SDK and the supplied micro T-Kernel RP2040 port.
 
 ## Repository layout
 
@@ -42,15 +25,14 @@ here, and the robot application is in `app_program/`.
 | [app_program/subsystem4/](app_program/subsystem4/) | Buddy 4, terrain: tilt, motion class, hump height (`terrain.c`). |
 | [app_program/subsystem5/](app_program/subsystem5/) | Buddy 5, obstacles: scanner and Vehicle mission state machine. |
 | [build_make/](build_make/), [config/](config/), [kernel/](kernel/), [lib/](lib/), [device/](device/), [include/](include/), [etc/](etc/), [tools/](tools/) | The project template: kernel, drivers, build files and kernel configuration. `build_make/robot_project.mk` adds the robot's include paths and SDK drivers. |
-| [testing/](testing/) and [videos/](videos/) | Test logs per subsystem, integration and system tests, and the video index, in the template's format. |
+| [testing/](testing/) | Test logs per subsystem, integration and system tests, in the template's format. `testing/barcode_lab/` holds the barcode decoder's offline experiments. |
+| [ChangeRequirement/](ChangeRequirement/README.md) | Change Requirement 1, minimum-bit data representation: the Week 13 evidence (data table, RAM before and after, message sizes, correctness and performance). |
 | [TESTING.md](TESTING.md) | Steps to test the code, set up the car and run each buddy's test cases. |
 | [TEAM.md](TEAM.md) | Team, owners, pins, tasks and interfaces. |
 | [firmware/tests/](firmware/tests/) and [firmware/scripts/](firmware/scripts/) | Host tests, application scenarios, integration fixtures, build and measurement scripts. |
 | [firmware/bench/](firmware/bench/) and [firmware/robot/sim/](firmware/robot/sim/) | The bench program used to develop and test the mission on the car before it moved into `app_program/`, its frame format (`FRAMES.md`) and the host simulator of the robot's mission. |
 | [scripts/](scripts/) | Dependency setup and the development command runner. |
-| [tools/](tools/) | The template's UF2 converter, the laptop dashboard and MQTT broker, the barcode sampling-budget tool, the log splitter (`split_logs.py`) and the subsystem split script (`reorg/split_c.py`). |
-| [Week6_Report/](Week6_Report/) | Current report in Word and PDF. |
-| [Tribunal1/](Tribunal1/) | Pre-Tribunal, original briefing materials, template and feedback. |
+| [tools/](tools/) | The template's UF2 converter, the laptop dashboard and MQTT broker, the barcode sampling-budget tool, the log splitter (`split_logs.py`), the test-case evidence writer (`test_case_evidence.py`) and the subsystem split script (`reorg/split_c.py`). |
 | [firmware/third_party_notices/](firmware/third_party_notices/) | Dependency licence notices. |
 
 ### Changes to the template
@@ -66,6 +48,7 @@ changes below. Each change is marked `INF2004` in its file; changes that say
 | `include/sys/inittask.h` | Initial task stack 4 KiB (was 1 KiB) | Robot start-up and the start-up refusal path |
 | `etc/linker/pico_rp2040/tkernel_map.ld` | Link fails unless 64 KiB of heap fits below the reset stack | Memory budget check |
 | `kernel/sysdepend/pico_rp2040/hw_setting.c` | Calls `board_boot_timebase()` after the clocks start | Starts the 1 µs timer before the radio or any task |
+| `kernel/sysdepend/cpu/core/armv6m/reset_hdl.c` | Calls `board_boot_maths()` once `.bss` is zeroed | Points float and double maths at the RP2040 boot ROM (`robot_project.mk`, `ROBOT_ROM_MATHS`); the template linked libgcc's generic soft-float and newlib's libm, which made Motion take 34 % of the CPU (23 Nov) |
 | `kernel/sysdepend/pico_rp2040/devinit.c` | `ROBOT_MQTT=1`: brakes the motors before the radio starts; refuses start-up if the radio fails | `usermain()` is skipped after that error, so the motors must already be safe |
 | `lib/libwifi/sysdepend/pico_rp2040/cyw43_utk.c` | `ROBOT_MQTT=1`: up to 3 radio start attempts; the robot client joins Wi-Fi itself; `net_mqtt_poll()` after `sys_check_timeouts()`; no console prints | The MQTT client runs in the Wi-Fi task ([TEAM.md](TEAM.md) section 3); GP0/GP1 belong to the sonar after start-up |
 | `lib/libwifi/sysdepend/pico_rp2040/cyw43_utk_kernel.c` | `ROBOT_MQTT=1`: Wi-Fi task priority 9 (was 4); deletes the task if it fails to start | Radio work must never delay STOP or the motor loop ([TEAM.md](TEAM.md) section 4) |
@@ -76,8 +59,8 @@ changes below. Each change is marked `INF2004` in its file; changes that say
 Added files: `build_make/robot_project.mk` (robot include paths and Pico SDK
 drivers), `build_make/robot_sdk_headers/pico/version.h` (replaces the BSP's
 out-of-date SDK version header), the two `config/*.example.h` network
-settings, and the laptop tools in `tools/` (dashboard, broker, barcode sampling
-budget, log splitter and subsystem split script).
+settings, and the laptop tools in `tools/` (dashboard, broker, barcode
+sampling budget, log splitter, test-case evidence writer and subsystem split script).
 
 ## Development setup
 
@@ -126,8 +109,14 @@ Run these commands after setup, from the repository root:
 | `bash scripts/dev.sh build offline` | Build the offline firmware profile. |
 | `bash scripts/dev.sh build mqtt --compile-only` | Build the MQTT profile with placeholder network settings. |
 
-Telemetry and commands on MQTT are compact binary frames (see
-[ChangeRequirement/README.md](ChangeRequirement/README.md)). Decode them on the
+Telemetry and commands on MQTT are compact binary frames whose fields use
+only the bits their range needs
+([Change Requirement 1](ChangeRequirement/README.md)). The status,
+perception and diagnostic frames are laid out in
+[telemetry.h](app_program/subsystem1/telemetry.h), the mission's report frames
+in [FRAMES.md](firmware/bench/FRAMES.md). The laptop dashboard
+([tools/dashboard/](tools/dashboard/README.md)) decodes both, sends START,
+STOP and the junction map, and logs every run. Decode the status frames on the
 laptop with `mosquitto_sub -t <telemetry topic> -F %x | python3
 firmware/scripts/telemetry_codec.py decode -`, and send a command byte with
 `python3 firmware/scripts/telemetry_codec.py command STOP --raw |
@@ -153,9 +142,11 @@ uses (`ROBOT_APP_MISSION=0`: the Vehicle state machine in `vehicle.c` and its
 codebook decoder). That build's barcode codebook is empty; the mission instead
 takes the letter-to-move map over MQTT before a run.
 
-Host tests use simulated inputs. A successful target build establishes
-compilation and linking; it does not establish physical robot operation,
-calibration, live network performance or course completion.
+Host tests use simulated inputs, and a successful target build establishes
+compilation and linking only. What the car itself did is in the test logs:
+[testing/system/TEST_LOG.md](testing/system/TEST_LOG.md) has the course runs
+of 23 Nov 2026 with the final firmware (the MQTT build of this tree), taken
+from that day's dashboard log.
 
 `config/wifi_credentials.example.h` and `config/net_mqtt_config.example.h` are
 configuration examples. For a real MQTT build, copy them to
@@ -166,8 +157,8 @@ and firmware images built with them out of the repository.
 
 ## Known deviations
 
-Departures from the Week 6 design and from BARR-C that the team chose to keep
-for the final demo.
+Departures from the Week 6 design that the team chose to keep for the final
+demo.
 
 **Remote START and RESET.** Week 6 FR10 allowed remote STOP only. The final
 firmware also accepts the START (`0xAA`) and RESET (`0xAB`) command bytes over
@@ -181,23 +172,3 @@ channel.
 The letter-to-move junction map (3 bytes, `navmap.h`) is also sent over MQTT,
 because the brief's barcode table is only an example. It is sent before the
 run; a map that arrives during a run replaces the current one.
-
-**Function length (BARR-C 6.2.a).** `bash scripts/dev.sh style` reports 21
-functions over 100 lines, all in the mission files (`mission_*.c`), the longest
-being `bench_line_step` (450 lines) and `bench_avoid_drive` (427 lines). They
-are the line follower and the obstacle go-around tested on the car, moved over
-from the bench program. They were left whole rather than split this close to
-the demo without another full run on the car.
-
-**`continue` (BARR-C 1.7).** The same check lists 16 `continue` statements for
-review, also in the mission files. Fifteen are in the barcode decoder
-(`mission_barcode.c`) and skip a sample or candidate it cannot use; one skips
-an empty reader slot in the junction logic (`mission_line.c`). They were left
-as they are for the same reason. The checker labels them
-"BARR-C 8.5".
-
-## Working with the report
-
-The current editable report is
-[Week6_Report/INF2004_Week6_Design_Review.docx](Week6_Report/INF2004_Week6_Design_Review.docx).
-Its PDF is included for reading.

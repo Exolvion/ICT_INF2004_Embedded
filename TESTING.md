@@ -239,9 +239,10 @@ does not work yet, so power-cycle the car to clear a STOP.
 
 ## 5. Calibrate and set the flags
 
-The car leaves `INIT` only when `CALIBRATION`, `SERVO`, `WIRING`,
-`IMU_MOUNT` and `COURSE` are `1` and `BARCODE` is `1` with a non-empty
-codebook. Bypass also needs `CORRIDOR`.
+In the mission build (the default), the motors run only when
+`CALIBRATION`, `SERVO`, `WIRING` and `IMU_MOUNT` are `1`. The build without
+the mission (`ROBOT_APP_MISSION 0`) also needs `COURSE`, and `BARCODE` with
+a non-empty codebook, to leave `INIT`, and `CORRIDOR` for a bypass.
 
 The mission firmware cannot measure these values (raw IR, raw accelerometer
 and encoder counts are not in telemetry, and the motors only spin during a
@@ -395,6 +396,28 @@ Keep a hand near STOP.
 6. The full course
 
 Then run the **P4** tests in section 7.
+
+### 6.4 Run the mission (a full run)
+
+1. Start the broker: `npm start` in `tools/broker` (it lists the laptop's
+   IPv4 addresses for `config/net_mqtt_config.h`), or the Docker broker of
+   section 3.2.
+2. Start the dashboard: `python3 tools/dashboard/server.py --broker <broker IP>
+   --log testing/system/logs/$(date +%F)_dashboard.txt` (or
+   `start_dashboard.bat`), and open http://localhost:8080. The header shows
+   **Car online** once the car connects.
+3. Set the car on the line. Under **Send map to car**, enter the letters for
+   forward, U-turn, left and right and send them; the car answers
+   `MAP set: ...`.
+4. Press **START**. The car centres itself on the line (AUTO-CENTRE), then
+   follows it, reads each card, makes the card's move at the next junction,
+   measures the hump, and measures any obstacle, goes round it and rejoins
+   the line.
+5. End the run by lifting the car (the IMU lift stop at 150 mm), with
+   **STOP**, or with the GP20 button. The end report follows in the
+   dashboard and its log.
+6. After the session, `python3 tools/split_logs.py <date>` copies each
+   subsystem's lines into its `testing/subsystemN/logs/`.
 
 ## 7. Test cases for each buddy
 

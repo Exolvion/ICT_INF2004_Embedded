@@ -40,6 +40,9 @@ IMPORT	const void *__noinit_end;
 
 IMPORT const void (*vector_tbl[])();
 
+/* INF2004: the boot ROM's float/double routines (app_program/board.c). */
+IMPORT void board_boot_maths(void);
+
 #if BOARD_DIAG_GPIO_SCAN
 /* Bring-up diagnostic (hw_setting.c).  Declared locally so the temporary
    diagnostic does not perturb the shared sysdepend headers. */
@@ -84,6 +87,10 @@ EXPORT void Reset_Handler(void)
 	for(i = ((INT)&__bss_end - (INT)&__bss_start)/sizeof(UW); i > 0 ; i--) {
 		*top++ = 0;
 	}
+
+	/* INF2004: fill the ROM maths tables (in .bss, so only now), before
+	   the kernel, the radio or any task uses floating point. */
+	board_boot_maths();
 
 #if USE_IMALLOC
 	/* Set System memory area */

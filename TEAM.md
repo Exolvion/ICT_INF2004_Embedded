@@ -22,13 +22,19 @@ subsystem, ask its owner or open a pull request for them to review.
 | 4 | Terrain: accelerometer tilt, motion class, hump height (Dian Ze) | 2500916 | | `app_program/subsystem4/` | `testing/subsystem4/` |
 | 5 | Obstacles: sonar scan, bypass, line recovery; Safety and Vehicle supervision, integration (Siang Hong) | 2503147 | | `app_program/subsystem5/` | `testing/subsystem5/` |
 
+Each subsystem folder holds its portable module (for example `motion.c`),
+its task step file (`robot_*.c`) and its part of the mission (`mission_*.c`).
+The mission (line following, barcodes, junction moves, humps, go-around) runs
+in the Vehicle task; its core is `subsystem5/mission.c`.
+
 Shared files are changed only by agreement of the team; Buddy 5 (integration)
 coordinates them. They are this file and, in `app_program/`:
 
 | File | What it is |
 |---|---|
 | `app_main.c/.h` | `usermain()`: creates the eight application tasks; the interrupt and lock helpers |
-| `robot_app.c/.h` | One step function per task and the shared record they exchange data through |
+| `robot_app.c/.h` | The Safety step, each task's periodic loop and the shared record the tasks exchange data through |
+| `robot_app_private.h`, `mission_private.h` | What the task step files share, and what the mission's parts share |
 | `board.c/.h` | Every hardware register access: motors, encoders, sonar, servo, ADC, I2C, buttons, watchdog |
 | `robot_config.h` | Pins, calibration values and the confirmation flags |
 | `app_cfg.c/.h`, `core.c/.h`, `bitpack.c/.h` | Configuration mapping, shared types, bit packing |
@@ -55,7 +61,7 @@ clash is spotted when someone edits this table, not hours later on the bench.
 | GP4 | S4 | Accelerometer SDA, I2C0 (Grove 3) |
 | GP5 | S4 | Accelerometer SCL, I2C0 (Grove 3) |
 | GP6 | S3 | IR left D0 (Grove 5); wired, not read |
-| GP7 | S3 | IR barcode D0 (Grove 7); wired, not read |
+| GP7 | S3 | IR barcode D0 (Grove 7); polled by the mission's D0 barcode decoder (Vehicle task) |
 | GP8 | S2 | Left motor M1A, PWM slice 4 |
 | GP9 | S2 | Left motor M1B, PWM slice 4 |
 | GP10 | S2 | Right motor M2A, PWM slice 5 |
@@ -101,8 +107,9 @@ call each part of it.
 | SPI1 | | | |
 | ADC | S3 | Line task | GP26–GP28 |
 | PWM slices 4, 5 | S2 | Motion task (any fault latch may only brake) | GP8–GP11 |
-| PWM slice 6 | S5 | Scan task | GP12 |
+| PWM slice 6 | S5 | Scan task (in the mission, Vehicle asks Scan for each servo angle and sonar trigger) | GP12 |
 | GPIO interrupt (IO_BANK0) | S2 + S5 | GPIO ISR in `board.c`: counts encoder edges (S2), times ECHO (S5) | GP2, GP3, GP16, GP17, GP1 |
+| GPIO input GP7 | S3 | Vehicle task (the mission's D0 barcode decoder polls it) | GP7 |
 | Watchdog | S5 | Safety task | |
 | WiFi radio, TCP/IP, MQTT | *kernel* + S1 | `cyw43_utk_task` (built in), which also runs the robot MQTT client `net_mqtt_poll()` | GP23–25, GP29 |
 
@@ -115,7 +122,7 @@ application task calls `cyw43_...`, lwIP or MQTT functions.**
 Subsystem 1's MQTT client (`app_program/subsystem1/net_mqtt.c`) is code that
 *runs inside the service task*, as section 3 of the template describes: the
 service task calls `net_mqtt_poll()` after `sys_check_timeouts()`, and
-application tasks exchange data with it only through three message buffers
+application tasks exchange data with it only through four message buffers
 read with `TMO_POL` (interface IF-08). It replaces the template's
 `mqtt_utk.c` heartbeat demo: build with `NET=lwip ROBOT_MQTT=1` (not
 `MQTT=1`); `build_make/pico_rp2040.mk` refuses both together. The hook is
@@ -139,7 +146,7 @@ therefore best effort; the GP20 button is the guaranteed stop.
 | 5 | Safety – 1 – 2 ms – core 0 |
 | 2 | Motion – 2 – 5 ms – core 0 |
 | 3 | Line – 3 – 2 ms – core 0 |
-| 5 | Vehicle – 4 – 10 ms – core 0 |
+| 5 | Vehicle – 4 – 5 ms (10 ms in the build without the mission, `ROBOT_APP_MISSION=0`) – core 0 |
 | 4 | IMU – 5 – 10 ms – core 0 |
 | 5 | Scan – 6 – 2 ms – core 0 |
 | 1 | Comm – 7 – 5 ms – core 0 |
@@ -147,8 +154,8 @@ therefore best effort; the GP20 button is the guaranteed stop.
 | *kernel* + 1 | `cyw43_utk_task` – 9 – 2 ms poll – core 0 |
 
 Single core: the robot builds with `SMP=0` (core 0 only); the shared record
-relies on core-0 interrupt masking. Every task has a 4 KiB stack; the radio
-task has 8 KiB.
+relies on core-0 interrupt masking. Every task has a 4 KiB stack except
+Vehicle, which has 8 KiB for the mission; the radio task has 8 KiB.
 
 ## 5. Interfaces between subsystems
 
@@ -167,7 +174,8 @@ buffers.
 | IF-05 | S5 Scan → S5 Vehicle | shared record | `g_shared.front`, `g_shared.scan` | front range, scan profile, completion counters | Week 6 design |
 | IF-06 | GPIO ISR → S2 Motion, S5 Scan | packed words under `app_main_lock()` | encoder word, echo word in `board.c` | encoder deltas and totals; ECHO pulse times | Tribunal 1 |
 | IF-07 | all tasks → S5 Safety | locked helpers | `g_shared.faults`, `g_shared.health` | 16-bit fault mask, first cause, stop source; liveness stamps for the watchdog | Tribunal 1 |
-| IF-08 | S1 Comm, Telemetry ↔ `cyw43_utk_task` | 3 message buffers, `TMO_POL` | RX, STOP and TX buffers in `net_mqtt_ipc.c` | 1-byte commands in, STOP first; telemetry frames of at most 20 bytes out | Tribunal 1 |
+| IF-08 | S1 Comm, Telemetry, S5 Vehicle ↔ `cyw43_utk_task` | 4 message buffers, `TMO_POL` | RX, STOP, MAP and TX buffers in `net_mqtt_ipc.c` | 1-byte commands in, STOP first; the 3-byte letter-to-move map in; telemetry and mission frames of at most 64 bytes out | Tribunal 1, Change Requirement 1 |
+| IF-09 | S3 Line, S4 IMU → S5 Vehicle (mission) | sample rings, written by their owner tasks | `mission_ir_push`, `mission_accel_push` in `mission.h` | each IR reading and each fresh accelerometer sample, with its time | 22 Nov (mission in the robot app) |
 
 Each interface is tested by at least one integration test
 (`testing/integration/TEST_LOG.md`).
@@ -183,11 +191,19 @@ Limits are set in `config/config.h`.
 | Event flag | 16 | | | | | | |
 | Mailbox | 12 | | | | | | |
 | Mutex | 12 | | | | | | |
-| Message buffer | 12 | 3 | | | | | |
+| Message buffer | 12 | 4 | | | | | |
 | Fixed memory pool | 12 | | | | | | |
 | Variable memory pool | 12 | | | | | | |
-| Cyclic handler | 12 | | | | | | |
+| Cyclic handler | 12 | | | 1 | | | |
 | Alarm handler | 12 | | | | | | |
 | Interrupt handler | | | | | | | 1 (GPIO) |
 
 (The kernel's WiFi service task and initial task also use a task each.)
+
+The cyclic handler is the barcode decoder's 1 ms wake-up, which came over
+from the bench program (`bench_code_start` in `mission_barcode.c`). The
+mission creates it when a run starts but never starts it, so it never runs:
+in the robot app the decoders run in the Vehicle task's steps. The bench
+program's own RTOS start-up (`bench_rtos_start` in `mission.c`: an event
+flag, a message buffer, a cyclic handler and two tasks) is not linked into
+the robot image.

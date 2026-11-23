@@ -1,0 +1,19 @@
+Selected project style checks: FINDINGS
+Checker version: 1.0.1
+UTC: 2026-11-23T14:40:28.977894+00:00
+Files: 89; mechanical findings: 21; manual-review findings: 16
+Scope: app_program/**/*.[ch], firmware/tests/**/*.[ch]
+Lexical scanner regression fixture: passed.
+
+
+$ python3 firmware/scripts/check_locks.py
+Lock checker self-test with seeded violations: passed.
+app_program/robot_app.c: 35 functions, 0 unlocked shared writes; locked helpers: robot_app_latch_locked
+app_program/robot_app_private.h: 0 functions, 0 unlocked shared writes; locked helpers: -
+app_program/subsystem1/robot_comm.c: 6 functions, 0 unlocked shared writes; locked helpers: -
+app_program/subsystem2/robot_motion.c: 9 functions, 0 unlocked shared writes; locked helpers: -
+app_program/subsystem3/robot_line.c: 6 functions, 0 unlocked shared writes; locked helpers: -
+app_program/subsystem4/robot_imu.c: 10 functions, 0 unlocked shared writes; locked helpers: -
+app_program/subsystem5/robot_scan.c: 6 functions, 0 unlocked shared writes; locked helpers: -
+app_program/board.c: 39 functions, 0 unlocked shared writes; locked helpers: board_apply_motor_locked, board_store_direction_locked
+Lock discipline: PASS

@@ -5,6 +5,9 @@
  */
 #include "mission_private.h"
 #include "mission_line.h"
+#if defined(MISSION_SIM)
+#include <stdlib.h>   /* getenv: the sim's SIM_ONLY_D2 */
+#endif
 
 /* Which build (see the file comment). The bench copy of robot_config.h
  * (build.sh) defines BENCH_IMAGE and the BENCH_* settings below; the robot
@@ -305,12 +308,17 @@ static uint32_t      g_raw_sd;
 /* A junction met while the card's decode is not finished (14 Nov:
  * the fit, Decoder 2, was "?" at every junction that day; it takes ~1.1 s a
  * card):
- * the car stops on it, has what is stored decoded at once (bench_nav_force:
- * no more white will come while it stands), and decides once nothing is
- * left to decode, or after BENCH_NAV_WAIT_MS with what is in. Not when two
- * decoders already agree: the third cannot change a majority of three.
+ * the car stops on it (wheels halted), has what is stored decoded at once
+ * (bench_nav_force: no more white will come while it stands), and decides
+ * once every decoder has finished (23 Nov: never cross a junction
+ * before all the decoders are done, even when two already agree; the 3 s
+ * limit made it cross with Decoder 2 still on the card, 13 s behind).
+ * While only the fit is left and neither Decoder 1 nor D0 has a letter, the
+ * fit gets most of the CPU (gb_fit_boost, BENCH_FIT_BOOST_US).
+ * BENCH_NAV_WAIT_MS only guards against a decoder that never finishes (a
+ * fault): a card's fit takes about 3 s of CPU.
  */
-#define BENCH_NAV_WAIT_MS (3000U)
+#define BENCH_NAV_WAIT_MS (30000U)
 
 /* A turn is not a junction (22 Nov: the sharp right turn ~0.5 m after
  * card 1 was taken for a junction, and card Y's U-turn was made there; the
@@ -2129,6 +2137,7 @@ void bench_nav_start (void)
     g_nav.turns = 0U;
     g_nav.guard_to_mm = INT32_MIN;
     gb_fit_force = false;
+    gb_fit_boost = false;
 }
 
 /** @brief Main loop: a new letter -> move map from MQTT (navmap.h, already
@@ -2319,6 +2328,15 @@ void bench_nav_report (uint32_t who, int32_t from_mm, int32_t to_mm,
     {
         letter = p_code[1];
     }
+#if defined(MISSION_SIM)
+    /* Sim only, SIM_ONLY_D2: Decoder 1 and D0 read nothing, to test the
+     * junction's boost for Decoder 2 (bench_nav_wait).
+     */
+    if ((1U != who) && (NULL != getenv("SIM_ONLY_D2")))
+    {
+        letter = '\0';
+    }
+#endif
     if (g_nav.b_card && ('\0' == letter) && ('\0' != g_nav.letter) &&
         (from_mm > g_nav.card_to))
     {
@@ -2743,25 +2761,50 @@ void bench_nav_force (void)
     bench_d0_close();
 }
 
+/** @brief MISSION, standing at a junction: true while the fit (Decoder 2)
+ * is the only decoder with work left on the card and neither Decoder 1 nor
+ * D0 has a letter for it (finished with no read, or never given it): then
+ * the fit gets most of the CPU (23 Nov; BENCH_FIT_BOOST_US).
+ */
+static bool bench_nav_fit_only (void)
+{
+    uint32_t index;
+
+    if (('\0' != g_nav.read[0]) || ('\0' != g_nav.read[2]) ||
+        g_code.b_trying || (0U != g_d0.queued) ||
+        ((!g_fit_bin.b_used) && (BENCH_FIT_IDLE == g_fit.phase)))
+    {
+        return false;
+    }
+    for (index = 0U; index < g_code.founds; ++index)
+    {
+        if (!g_code.found[index].b_sent)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 /** @brief MISSION, a junction under both front sensors, before its move is
  * chosen (bench_nav_junction): true while the car is to stand on it for the
- * card's decode (*p_request a stop). It starts only while a decoder still
- * has work (bench_nav_pending) and no two decoders agree yet; it ends when
- * none has, or after BENCH_NAV_WAIT_MS; then false, and the move is chosen
- * from what is in. The line step goes on meanwhile: the decode steps and the
- * live lines that hand each decoder's result to the vote.
+ * card's decode (*p_request a HALT). It starts while any decoder still has
+ * work (bench_nav_pending), and ends only when none has (23 Nov: not
+ * across a junction before all the decoders are done), or after the
+ * BENCH_NAV_WAIT_MS guard; then false, and the move is chosen from what is
+ * in. The line step goes on meanwhile: the decode steps and the live lines
+ * that hand each decoder's result to the vote; while only the fit is left
+ * and the other two have no letter, the fit is boosted (gb_fit_boost).
  */
 bool bench_nav_wait (uint64_t now_us, int32_t centre,
                             motion_request_t * p_request)
 {
-    uint32_t votes = 0U;
-    uint32_t readers = 0U;
     uint32_t waited_ms;
+    bool     b_still;
 
     if (!g_nav.b_waiting)
     {
-        (void)bench_nav_decide(&votes, &readers);
-        if ((votes >= 2U) || (!bench_nav_pending(true)))
+        if (!bench_nav_pending(true))
         {
             return false;
         }
@@ -2784,25 +2827,32 @@ bool bench_nav_wait (uint64_t now_us, int32_t centre,
         bench_nav_force();
     }
     waited_ms = (uint32_t)((now_us - g_nav.wait_us) / 1000U);
-    (void)bench_nav_decide(&votes, &readers);
-    if ((votes < 2U) && bench_nav_pending(false) &&
-        (waited_ms < BENCH_NAV_WAIT_MS))
+    b_still = bench_nav_pending(false);
+    if (b_still && (waited_ms < BENCH_NAV_WAIT_MS))
     {
+        /* A HALT, not a zero-speed drive: it holds no 50 ms motion lease,
+         * so a boosted step (BENCH_FIT_BOOST_US) cannot expire one.
+         */
+        gb_fit_boost = bench_nav_fit_only();
         (void)memset(p_request, 0, sizeof(*p_request));
-        p_request->kind = MOTION_VELOCITY;
+        p_request->kind = MOTION_HALT;
         p_request->command_id = g_drive.request.command_id;
-        g_drive.request = *p_request;
         return true;
     }
     g_nav.b_waiting = false;
     gb_fit_force = false;
+    gb_fit_boost = false;
+    /* The HALT ended the line's velocity primitive: driving on is a new one
+     * (motion_submit refuses a renewal of an ID that is no longer running).
+     */
+    g_drive.request.command_id = (uint8_t)
+        (((uint32_t)g_drive.request.command_id % BENCH_ID_LAST) + 1U);
     bench_line(BK_NAV_WAITED);   /* 0-65535 ms, why 2 bits, the reads */
     bench_text("NAV: waited ");
-    bench_u(waited_ms, 16U);
-    bench_code((votes >= 2U) ? 0U : bench_nav_pending(false) ? 1U : 2U, 2U);
-    bench_text((votes >= 2U) ? " ms, two decoders agree (" :
-               bench_nav_pending(false) ?
-               " ms, still decoding: deciding on (" : " ms, decoding done (");
+    bench_u((waited_ms > 65535U) ? 65535U : waited_ms, 16U);
+    bench_code(b_still ? 1U : 2U, 2U);
+    bench_text(b_still ? " ms, still decoding: deciding on (" :
+               " ms, decoding done (");
     bench_nav_reads();
     bench_text(")");
     bench_avoid_say();

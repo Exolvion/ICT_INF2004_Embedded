@@ -1,0 +1,1500 @@
+--- a/firmware/bench/bench_main.c
++++ b/firmware/bench/bench_main.c
+@@ -1316,6 +1316,13 @@
+ static void bench_signed (int32_t value);
+ static void bench_fixed (int32_t value, uint32_t places);
+ static void bench_flush (void);
++/* TRIAL (barcode_lab): the model-fit decoder, at the end of the file. */
++static void bench_fit_reset (void);
++static void bench_fit_begin (void);
++static void bench_fit_run (void);
++static bool bench_fit_complete (bool b_bin);
++static bool bench_fit_text (void);
++static void bench_fit_totals (void);
+ 
+ void bench_loop (void)
+ {
+@@ -4183,6 +4190,7 @@
+ 
+     (void)memset(&g_code, 0, sizeof(g_code));
+     (void)memset(g_code_levels, 0, sizeof(g_code_levels));
++    bench_fit_reset();  /* TRIAL */
+     g_code.b_stream = (BENCH_MODE_MISSION == g_mode);
+     g_live_length = 0U;
+     g_live_sent = 0U;
+@@ -4818,7 +4826,8 @@
+     {
+         return;
+     }
+-    if (bench_code_found_text() || bench_ramp_text() || bench_cal_text())
++    if (bench_code_found_text() || bench_fit_text() || bench_ramp_text() ||
++        bench_cal_text())
+     {
+         bench_live_take();
+         return;
+@@ -4870,14 +4879,32 @@
+     uint32_t gap_us = 0U;
+ 
+     bench_code_store();
++    /* TRIAL: the fit under way finished first, then the last cut, then
++     * the card the fit was binning (the last cut may have joined it).
++     */
++    while (bench_fit_complete(false))
++    {
++        if (bench_fit_text())
++        {
++            bench_flush();
++        }
++    }
+     if (g_code.b_trying || (g_code.b_open && (0U != g_code.count)))
+     {
+         bench_code_dark_tries();
+     }
++    while (bench_fit_complete(true))
++    {
++        if (bench_fit_text())
++        {
++            bench_flush();
++        }
++    }
+     while (bench_code_found_text())
+     {
+         bench_flush();
+     }
++    bench_fit_totals();
+     for (index = 0U; index < g_code.founds; ++index)
+     {
+         if (g_code.found[index].b_framed)
+@@ -6345,6 +6372,7 @@
+     uint32_t framed = 0U;
+     uint32_t index;
+ 
++    bench_fit_run();   /* TRIAL: the fit, a slice of each step */
+     if (!g_code.b_trying)
+     {
+         return;
+@@ -6411,6 +6439,7 @@
+         bench_raw_keep();
+     }
+     g_code.count = count;
++    bench_fit_begin(); /* TRIAL: the cut binned for the fit, before the keep */
+     bench_code_keep(g_code.cut_gap);
+     g_code.b_open = false;
+     g_code.b_trying = false;
+@@ -7529,4 +7558,1416 @@
+     g_text[0] = '\0';
+ }
+ 
++/* ==== TRIAL 2 Nov 2026: model-fit barcode decoder ("NEW" lines) ==========
++ * Offline work in testing/barcode_lab (README.md and TRIAL_DECODER.md
++ * there). Each cut the darkness tries finish is copied here as 1 mm bins
++ * (bench_fit_begin), so the store and the tries go on at once. Cuts whose
++ * dark is less than BENCH_FIT_JOIN_MM apart are joined first (the stream
++ * cuts at 30 mm of white, and a blurred small card whose narrow bars vanish
++ * has up to 45 mm between wide bars); the fit then runs over the next line
++ * steps, at most BENCH_FIT_BUDGET_US of each, and sends its own reading as
++ * one NEW line. It changes nothing the darkness tries do or report (CODE /
++ * GROUP lines), nor the driving.
++ *
++ * Stage 1: every Code 39 symbol *X* has six wide bars (X any character
++ * with two wide bars: all but $ / + %). Six of the BENCH_FIT_TOP humps with
++ * the most darkness area are taken as them, every choice tried (a line or a
++ * sheet's edge beside the card can be large too); their centres are fitted
++ * (start and module, least squares) to each candidate's six wide-bar
++ * centres, both directions; the BENCH_FIT_SHORT closest candidates (rms per
++ * module) go on.
++ * Stage 2: each short-listed candidate's bars are blurred by a Gaussian
++ * spot (sd sigma), a dead zone c0 applied (the reading moves only once c0
++ * of the spot is dark) and the result scaled to the cut's white and black
++ * by least squares; the misfit is the sum of squares left. Spot and dead
++ * zone are the sensor's, one for the pass: fitted over the candidates of
++ * the closest wide-bar class (SHAPE), then every candidate fitted near its
++ * stage-1 module and start with them a little either way (CANDS), then
++ * module and start refined (FINE).
++ * The best fit is reported when the best other character's misfit is at
++ * least BENCH_FIT_MARGIN times larger, else "no read" with both.
++ * Constants: the Code 39 table (g_code39_patterns) and its 1:3 ratio, the
++ * spec's 3 mm narrow width for the join, and search ranges wide enough for
++ * the sensor's spot and dead zone (the 30 Oct big-card fit gave sigma
++ * 3.3-3.8 mm, c0 0.45-0.55). No letter, card size or track position.
++ */
++#define BENCH_FIT_JOIN_MM (54.0)    /* 15 modules between wide bars + 3, at 3 mm */
++#define BENCH_FIT_BINS (640U)       /* 1 mm bins: at most 640 mm decoded */
++#define BENCH_FIT_PAD_MM (30.0)     /* white kept either side of the dark */
++#define BENCH_FIT_LONGEST_MM (420.0) /* longer dark: not one card */
++#define BENCH_FIT_TPL_Q (4)         /* template points per mm */
++#define BENCH_FIT_TPL (1800U)       /* template points: 450 mm */
++#define BENCH_FIT_TPL_PAD_MM (20.0) /* template white before the first edge */
++#define BENCH_FIT_PHI_N (1024U)     /* normal CDF table over -4..+4 sd */
++#define BENCH_FIT_ONE (4096)        /* coverage 1.0 */
++#define BENCH_FIT_S_ONE (1024)      /* response 1.0 */
++#define BENCH_FIT_CANDS (78U)       /* 39 characters, both directions */
++#define BENCH_FIT_EDGES (30U)       /* 15 bars of *X* */
++#define BENCH_FIT_MODULES (47.0f)   /* modules of *X* */
++#define BENCH_FIT_SHORT (10U)
++#define BENCH_FIT_HUMPS (48U)
++#define BENCH_FIT_LSQ_SLICE (26U)   /* stage-1 candidates per slice */
++#define BENCH_FIT_TOP (6U)          /* largest humps, six of them tried (8
++                                     * tried offline: more wrong reads) */
++#define BENCH_FIT_BUDGET_US (1500U)
++#define BENCH_FIT_MARGIN (1.3f)
++#define BENCH_FIT_MISFIT (0.35f)    /* stage-1 rms limit, in modules */
++#define BENCH_FIT_REL_PCT (15)      /* turning-point swing: % of the level */
++#define BENCH_FIT_SDS (6)           /* ... or this many white noise sds */
++#define BENCH_FIT_C0S (6U)
++#define BENCH_FIT_X0S (13U)         /* start: -3..+3 mm by 0.5 */
++#define BENCH_FIT_SHAPE_X0S (7U)    /* start: -1.5..+1.5 mm by 0.5 */
++#define BENCH_FIT_FINE_X0S (7U)     /* start: -0.75..+0.75 mm by 0.25 */
++#define BENCH_FIT_SHAPE_TPLS (18U)  /* 3 modules x 6 spots */
++#define BENCH_FIT_CANDS_TPLS (21U)  /* 7 modules x 3 spots */
++#define BENCH_FIT_FINE_TPLS (5U)
++#define BENCH_FIT_LINES (4U)        /* NEW lines waiting for the link */
++
++typedef enum
++{
++    BENCH_FIT_IDLE = 0,
++    BENCH_FIT_HUMPS_PHASE,
++    BENCH_FIT_LSQ,
++    BENCH_FIT_SHAPE,
++    BENCH_FIT_CANDS_PHASE,
++    BENCH_FIT_FINE
++} bench_fit_phase_t;
++
++typedef enum
++{
++    BENCH_FIT_WHY_FIT = 0,
++    BENCH_FIT_WHY_MISFIT,  /* six humps, no character's wide bars */
++    BENCH_FIT_WHY_LONG,    /* dark longer than a card */
++    BENCH_FIT_WHY_BUSY     /* two cards already waiting or being fitted */
++} bench_fit_why_t;
++
++typedef struct
++{
++    float    sse;
++    float    m;
++    float    sigma;
++    float    x0;
++    float    c0;
++} bench_fit_best_t;
++
++typedef struct
++{
++    bench_fit_phase_t phase;
++    /* the run's counts */
++    uint32_t reads;
++    uint32_t no_reads;
++    uint32_t skipped;
++    /* the card being fitted, from the bins */
++    uint32_t joins;
++    uint32_t bins;                 /* bins in the window */
++    uint32_t valid;                /* bins with readings */
++    float    x_first;              /* mm since the start at bin 0 */
++    int32_t  white;
++    int32_t  sd;
++    float    dark_from;            /* mm, first and last dark reading */
++    float    dark_to;
++    int16_t  vf[BENCH_FIT_BINS];   /* every bin, gaps filled */
++    uint16_t valid_bin[BENCH_FIT_BINS];
++    int16_t  valid_v[BENCH_FIT_BINS];   /* reading - white */
++    double   sv;                   /* sums over the valid bins */
++    double   svv;
++    /* stage 1 */
++    uint32_t humps;
++    float    top_pos[BENCH_FIT_TOP]; /* the largest humps' centres, mm */
++    uint32_t top_n;
++    uint32_t mask;                 /* six of them: bits of top_pos */
++    float    pos[6];
++    float    pos_mean;
++    uint32_t c;                    /* next candidate */
++    float    rel[BENCH_FIT_CANDS]; /* rms / module, the best choice */
++    float    rms[BENCH_FIT_CANDS];
++    float    x0s[BENCH_FIT_CANDS];
++    float    ms[BENCH_FIT_CANDS];
++    uint8_t  short_n;
++    uint8_t  short_cand[BENCH_FIT_SHORT];
++    float    s1_rms;
++    float    s1_rel;
++    /* stage 2 */
++    uint32_t k;                    /* short-list index */
++    uint32_t tpl;                  /* template index in the phase */
++    uint32_t xi;                   /* start index */
++    bool     b_rendered;
++    float    tpl_m;
++    float    tpl_sigma;
++    uint32_t tpl_points;
++    bench_fit_best_t best[BENCH_FIT_SHORT];
++    bench_fit_best_t shape;        /* the pass's spot and dead zone */
++    uint32_t shape_n;              /* candidates of the closest class */
++    bench_fit_best_t centre;       /* FINE's centre */
++    /* cost */
++    uint32_t cpu_us;
++    uint32_t steps;
++    uint32_t work;                 /* bin tests, all dead zones */
++    /* the result, for its NEW line */
++    bench_fit_why_t why;
++    bool     b_read;
++    char     text_char;
++    bool     b_text_rev;
++    char     text_other;
++    bool     b_text_other_rev;
++    float    text_margin;
++    float    text_m;
++    float    text_sigma;
++    float    text_c0;
++} bench_fit_t;
++
++static bench_fit_t g_fit;
++/* A NEW line waiting to go out: the fit goes on whatever the link does. */
++typedef struct
++{
++    bench_fit_why_t why;
++    bool     b_read;
++    bool     b_rev;
++    bool     b_other_rev;
++    char     ch;
++    char     other;
++    float    margin;
++    float    m;
++    float    sigma;
++    float    c0;
++    float    rms;
++    float    from;
++    float    to;
++    uint32_t cpu_us;
++    uint32_t steps;
++    uint32_t work;
++    uint32_t joins;
++} bench_fit_line_t;
++static bench_fit_line_t g_fit_lines[BENCH_FIT_LINES];
++static uint32_t    g_fit_line_first;   /* oldest waiting */
++static uint32_t    g_fit_line_count;
++static uint32_t    g_fit_lines_lost;   /* none free: the line dropped */
++static bench_fit_line_t * gp_fit_line_new; /* pushed in this step's run */
++/* The card being binned (g_fit_sum, g_fit_cnt) while the last is fitted. */
++typedef struct
++{
++    bool     b_used;
++    uint32_t u0;                   /* decoder units at bin 0 */
++    uint32_t k16;                  /* bins per unit, 16.16 */
++    uint32_t first_u;              /* first and last dark reading, units */
++    uint32_t last_u;
++    uint32_t binned_u;             /* last sample binned, units */
++    uint32_t joins;
++    int32_t  white;
++    int32_t  sd;
++} bench_fit_bin_t;
++static bench_fit_bin_t g_fit_bin;
++static int32_t     g_fit_sum[BENCH_FIT_BINS];
++static uint16_t    g_fit_cnt[BENCH_FIT_BINS];
++static int16_t     g_fit_tpl[BENCH_FIT_TPL];
++static uint16_t    g_fit_phi[BENCH_FIT_PHI_N + 1U];
++static char        g_fit_char[BENCH_FIT_CANDS];
++static bool        gb_fit_rev[BENCH_FIT_CANDS];
++static uint8_t     g_fit_edge[BENCH_FIT_CANDS][BENCH_FIT_EDGES]; /* modules */
++static float       g_fit_wide_dev[BENCH_FIT_CANDS][6]; /* centre - mean */
++static float       g_fit_wide_mean[BENCH_FIT_CANDS];
++static float       g_fit_wide_inv[BENCH_FIT_CANDS];    /* 1 / sum dev^2 */
++static bool        gb_fit_tables;
++
++static const float g_fit_shape_m[3] = { 0.985f, 1.0f, 1.015f };
++static const float g_fit_shape_sigma[6] = { 1.5f, 2.1f, 2.7f, 3.3f, 3.9f, 4.5f };
++static const float g_fit_shape_c0[BENCH_FIT_C0S] =
++{
++    0.15f, 0.25f, 0.35f, 0.45f, 0.55f, 0.65f
++};
++
++/** @brief The candidates from the Code 39 table: each character with two
++ * wide bars inside *s, as read and reversed; bar edges in modules (narrow
++ * 1, wide 3, 1 between characters) and the six wide bars' centres; the
++ * normal CDF table for the templates.
++ */
++static void bench_fit_tables (void)
++{
++    uint32_t c;
++    uint32_t n = 0U;
++    uint32_t i;
++    uint32_t star = 0U;
++    uint32_t r;
++    double   z;
++
++    for (i = 0U; i <= BENCH_FIT_PHI_N; ++i)
++    {
++        z = -4.0 + (8.0 * (double)i / (double)BENCH_FIT_PHI_N);
++        g_fit_phi[i] = (uint16_t)bench_round(
++            (double)BENCH_FIT_ONE * 0.5 * (1.0 + erf(z / sqrt(2.0))));
++    }
++    for (c = 0U; c < BENCH_CODE_CHARS; ++c)
++    {
++        if ('*' == g_code39_chars[c])
++        {
++            star = c;
++        }
++    }
++    for (c = 0U; (c < BENCH_CODE_CHARS) && ((n + 1U) < BENCH_FIT_CANDS); ++c)
++    {
++        uint16_t pat[3];
++        uint8_t  width[29];
++        uint8_t  bar[29];
++        uint32_t e = 0U;
++        uint32_t ch;
++
++        if (NULL != strchr("*$/+%", g_code39_chars[c]))
++        {
++            continue;
++        }
++        pat[0] = g_code39_patterns[star];
++        pat[1] = g_code39_patterns[c];
++        pat[2] = g_code39_patterns[star];
++        for (ch = 0U; ch < 3U; ++ch)
++        {
++            for (i = 0U; i < 9U; ++i)
++            {
++                width[e] = (0U != ((pat[ch] >> (8U - i)) & 1U)) ? 3U : 1U;
++                bar[e] = (0U == (i % 2U)) ? 1U : 0U;
++                ++e;
++            }
++            if (ch < 2U)
++            {
++                width[e] = 1U;
++                bar[e] = 0U;
++                ++e;
++            }
++        }
++        for (r = 0U; r < 2U; ++r)
++        {
++            uint32_t pos = 0U;
++            uint32_t edge = 0U;
++            uint32_t wide = 0U;
++            float    centre[6] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
++            float    sum = 0.0f;
++            float    sq = 0.0f;
++
++            g_fit_char[n] = g_code39_chars[c];
++            gb_fit_rev[n] = (1U == r);
++            for (i = 0U; i < e; ++i)
++            {
++                uint32_t k = (0U == r) ? i : (e - 1U - i);
++
++                if ((0U != bar[k]) && (edge < BENCH_FIT_EDGES))
++                {
++                    g_fit_edge[n][edge] = (uint8_t)pos;
++                    g_fit_edge[n][edge + 1U] = (uint8_t)(pos + width[k]);
++                    edge += 2U;
++                    if ((3U == width[k]) && (wide < 6U))
++                    {
++                        centre[wide] = (float)pos + 1.5f;
++                        sum += centre[wide];
++                        ++wide;
++                    }
++                }
++                pos += width[k];
++            }
++            g_fit_wide_mean[n] = sum / 6.0f;
++            for (i = 0U; i < 6U; ++i)
++            {
++                g_fit_wide_dev[n][i] = centre[i] - g_fit_wide_mean[n];
++                sq += g_fit_wide_dev[n][i] * g_fit_wide_dev[n][i];
++            }
++            g_fit_wide_inv[n] = (sq > 0.0f) ? (1.0f / sq) : 0.0f;
++            ++n;
++        }
++    }
++    gb_fit_tables = true;
++}
++
++/** @brief One template: candidate cand's bars at module m mm, blurred by a
++ * Gaussian of sd sigma mm, as coverage 0..BENCH_FIT_ONE every 1/TPL_Q mm
++ * from BENCH_FIT_TPL_PAD_MM before the first edge. Bars are filled, then
++ * each edge's blur added over +-4 sd: for a bar lo..hi the exact coverage is
++ * the fill plus g(u - lo) - g(u - hi), g(d) = Phi(d / sigma) - [d >= 0].
++ */
++static bool bench_fit_render (uint32_t cand, float m, float sigma)
++{
++    uint32_t points = (uint32_t)(((BENCH_FIT_MODULES * m) +
++                                  (2.0f * (float)BENCH_FIT_TPL_PAD_MM)) *
++                                 (float)BENCH_FIT_TPL_Q) + 1U;
++    uint32_t b;
++    int32_t  p;
++    int32_t  reach = (int32_t)(4.0f * sigma * (float)BENCH_FIT_TPL_Q) + 1;
++    int32_t  step_q = (int32_t)((((float)BENCH_FIT_PHI_N / 8.0f) /
++                                 (sigma * (float)BENCH_FIT_TPL_Q)) * 65536.0f);
++    int32_t  pe[BENCH_FIT_EDGES];
++
++    if (points > BENCH_FIT_TPL)
++    {
++        return false;
++    }
++    for (b = 0U; b < BENCH_FIT_EDGES; ++b)
++    {
++        pe[b] = (int32_t)ceilf((((float)g_fit_edge[cand][b] * m) +
++                                (float)BENCH_FIT_TPL_PAD_MM) *
++                               (float)BENCH_FIT_TPL_Q);
++    }
++    (void)memset(g_fit_tpl, 0, (size_t)points * sizeof(g_fit_tpl[0]));
++    for (b = 0U; b < BENCH_FIT_EDGES; b += 2U)
++    {
++        for (p = pe[b]; (p < pe[b + 1U]) && (p < (int32_t)points); ++p)
++        {
++            g_fit_tpl[p] = (int16_t)(g_fit_tpl[p] + BENCH_FIT_ONE);
++        }
++    }
++    for (b = 0U; b < BENCH_FIT_EDGES; ++b)
++    {
++        float   edge = ((float)g_fit_edge[cand][b] * m) + (float)BENCH_FIT_TPL_PAD_MM;
++        int32_t sign = (0U == (b % 2U)) ? 1 : -1;
++        int32_t p0 = pe[b] - reach;
++        int32_t p1 = pe[b] + reach;
++        /* table index at p: ((p / Q - edge) / sigma + 4) * N / 8, 16.16 */
++        int32_t kq = (int32_t)((((((float)p0 / (float)BENCH_FIT_TPL_Q) - edge) /
++                                  sigma) + 4.0f) *
++                                ((float)BENCH_FIT_PHI_N / 8.0f) * 65536.0f);
++
++        for (p = p0; p <= p1; ++p, kq += step_q)
++        {
++            int32_t k = (kq + 32768) / 65536;
++            int32_t g;
++
++            if ((p < 0) || (p >= (int32_t)points))
++            {
++                continue;
++            }
++            if (k < 0)
++            {
++                k = 0;
++            }
++            if (k > (int32_t)BENCH_FIT_PHI_N)
++            {
++                k = (int32_t)BENCH_FIT_PHI_N;
++            }
++            g = (int32_t)g_fit_phi[k] - ((p >= pe[b]) ? BENCH_FIT_ONE : 0);
++            g_fit_tpl[p] = (int16_t)(g_fit_tpl[p] + (sign * g));
++        }
++    }
++    for (p = 0; p < (int32_t)points; ++p)
++    {
++        if (g_fit_tpl[p] < 0)
++        {
++            g_fit_tpl[p] = 0;
++        }
++        if (g_fit_tpl[p] > BENCH_FIT_ONE)
++        {
++            g_fit_tpl[p] = BENCH_FIT_ONE;
++        }
++    }
++    g_fit.tpl_points = points;
++    g_fit.tpl_m = m;
++    g_fit.tpl_sigma = sigma;
++    return true;
++}
++
++/** @brief The rendered template placed with its first edge at x0 mm, each
++ * dead zone in p_c0 tried: the least-squares misfit (white and black free)
++ * of the binned cut; the best into *p_best when lower. The template is
++ * looked up once per bin, keeping the bins it covers past the smallest dead
++ * zone (the rest add nothing), then one tight pass per dead zone: on the
++ * M0+ the sums stay in registers.
++ */
++static void bench_fit_eval (float x0, const float * p_c0, uint32_t c0s,
++                            bench_fit_best_t * p_best)
++{
++    static int16_t cov[BENCH_FIT_BINS];   /* template at the kept bins */
++    static int16_t val[BENCH_FIT_BINS];   /* their readings - white */
++    uint32_t j;
++    uint32_t i;
++    uint32_t kept = 0U;
++    uint32_t ss[BENCH_FIT_C0S];
++    uint32_t sss[BENCH_FIT_C0S];
++    int64_t  ssv[BENCH_FIT_C0S];
++    int32_t  c0q[BENCH_FIT_C0S];
++    int32_t  inv[BENCH_FIT_C0S];
++    int32_t  c0_min = BENCH_FIT_ONE;
++    /* template index of bin i's centre: idx0 + Q * i */
++    int32_t  idx0 = (int32_t)floorf(((((g_fit.x_first + 0.5f) - x0) +
++                                      (float)BENCH_FIT_TPL_PAD_MM) *
++                                     (float)BENCH_FIT_TPL_Q) + 0.5f);
++    double   n = (double)g_fit.valid;
++    double   svv_c = g_fit.svv - ((g_fit.sv * g_fit.sv) / n);
++
++    for (j = 0U; j < c0s; ++j)
++    {
++        ss[j] = 0U;
++        sss[j] = 0U;
++        ssv[j] = 0;
++        c0q[j] = (int32_t)(p_c0[j] * (float)BENCH_FIT_ONE);
++        inv[j] = ((int32_t)BENCH_FIT_S_ONE * 4096) / (BENCH_FIT_ONE - c0q[j]);
++        c0_min = (c0q[j] < c0_min) ? c0q[j] : c0_min;
++    }
++    for (i = 0U; i < g_fit.valid; ++i)
++    {
++        int32_t idx = idx0 + ((int32_t)BENCH_FIT_TPL_Q * (int32_t)g_fit.valid_bin[i]);
++
++        if ((idx >= 0) && (idx < (int32_t)g_fit.tpl_points) &&
++            ((int32_t)g_fit_tpl[idx] > c0_min))
++        {
++            cov[kept] = g_fit_tpl[idx];
++            val[kept] = g_fit.valid_v[i];
++            ++kept;
++        }
++    }
++    for (j = 0U; j < c0s; ++j)
++    {
++        const int32_t c0 = c0q[j];
++        const uint32_t k = (uint32_t)inv[j];
++        uint32_t a = 0U;
++        uint32_t b = 0U;
++        int64_t  d = 0;
++        uint32_t i0;
++
++        /* s * v is at most 1024 * 4095: 256 of them fit an int32 */
++        for (i0 = 0U; i0 < kept; i0 += 256U)
++        {
++            uint32_t i1 = ((i0 + 256U) < kept) ? (i0 + 256U) : kept;
++            int32_t  d32 = 0;
++
++            for (i = i0; i < i1; ++i)
++            {
++                int32_t c = (int32_t)cov[i];
++
++                if (c > c0)
++                {
++                    int32_t s = (int32_t)(((uint32_t)(c - c0) * k) >> 12);
++
++                    if (s > BENCH_FIT_S_ONE)
++                    {
++                        s = BENCH_FIT_S_ONE;
++                    }
++                    a += (uint32_t)s;
++                    b += (uint32_t)(s * s);
++                    d32 += s * (int32_t)val[i];
++                }
++            }
++            d += (int64_t)d32;
++        }
++        ss[j] = a;
++        sss[j] = b;
++        ssv[j] = d;
++    }
++    g_fit.work += g_fit.valid + (kept * c0s);
++    for (j = 0U; j < c0s; ++j)
++    {
++        double sss_c = (double)sss[j] - (((double)ss[j] * (double)ss[j]) / n);
++        double ssv_c = (double)ssv[j] - (((double)ss[j] * g_fit.sv) / n);
++        double sse = svv_c;
++
++        if ((sss_c > 1.0) && (ssv_c > 0.0))
++        {
++            sse = svv_c - ((ssv_c * ssv_c) / sss_c);
++        }
++        if ((float)sse < p_best->sse)
++        {
++            p_best->sse = (float)sse;
++            p_best->m = g_fit.tpl_m;
++            p_best->sigma = g_fit.tpl_sigma;
++            p_best->x0 = x0;
++            p_best->c0 = p_c0[j];
++        }
++    }
++}
++
++/** @brief Stage 1's humps, on the bins (gaps filled): turning points with a
++ * swing of BENCH_FIT_SDS white sds or BENCH_FIT_REL_PCT of the level above
++ * white, whichever is more (dark readings are noisier, and a fixed swing
++ * splits a wide bar's flat top); each hump's centre (above half its
++ * height) and darkness area; the six largest areas' centres, by position.
++ */
++static void bench_fit_humps (void)
++{
++    const int16_t * p_v = g_fit.vf;
++    uint32_t bins = g_fit.bins;
++    /* static: the bench task's stack is 4 KB (APP_MAIN_STACK_BYTES) */
++    static uint16_t ext[(BENCH_FIT_HUMPS * 2U) + 2U];
++    static bool     b_peak[(BENCH_FIT_HUMPS * 2U) + 2U];
++    static float    hc[BENCH_FIT_HUMPS];
++    static int32_t  ha[BENCH_FIT_HUMPS];
++    static bool     b_used[BENCH_FIT_HUMPS];
++    uint32_t exts = 0U;
++    uint32_t i;
++    uint32_t hi = 0U;
++    uint32_t lo = 0U;
++    int32_t  mode = 0;
++    uint32_t humps = 0U;
++    int32_t  sw = BENCH_FIT_SDS * g_fit.sd;
++    int32_t  white = g_fit.white;
++
++#define BENCH_FIT_NEED(level) \
++    ((((((int32_t)(level) - white) * BENCH_FIT_REL_PCT) / 100) > sw) ? \
++     ((((int32_t)(level) - white) * BENCH_FIT_REL_PCT) / 100) : sw)
++    for (i = 1U; (i < bins) && ((exts + 2U) < (BENCH_FIT_HUMPS * 2U)); ++i)
++    {
++        int32_t v = (int32_t)p_v[i];
++
++        if (1 == mode)
++        {
++            if (v > (int32_t)p_v[hi])
++            {
++                hi = i;
++            }
++            else if (((int32_t)p_v[hi] - v) >= BENCH_FIT_NEED(p_v[hi]))
++            {
++                ext[exts] = (uint16_t)hi;
++                b_peak[exts] = true;
++                ++exts;
++                mode = -1;
++                lo = i;
++            }
++            else
++            {
++                /* Still at the top. */
++            }
++        }
++        else
++        {
++            if (v < (int32_t)p_v[lo])
++            {
++                lo = i;
++            }
++            else if ((v - (int32_t)p_v[lo]) >= BENCH_FIT_NEED(v))
++            {
++                ext[exts] = (uint16_t)lo;
++                b_peak[exts] = false;
++                ++exts;
++                mode = 1;
++                hi = i;
++            }
++            else
++            {
++                /* Still at the bottom. */
++            }
++        }
++    }
++#undef BENCH_FIT_NEED
++    if (1 == mode)
++    {
++        ext[exts] = (uint16_t)hi;
++        b_peak[exts] = true;
++        ++exts;
++    }
++    ext[exts] = (uint16_t)(bins - 1U);
++    b_peak[exts] = false;
++    ++exts;
++    for (i = 0U; (i < exts) && (humps < BENCH_FIT_HUMPS); ++i)
++    {
++        uint32_t a;
++        uint32_t b;
++        uint32_t p;
++        int32_t  base;
++        int32_t  half;
++        int32_t  w_sum = 0;
++        int64_t  wx_sum = 0;      /* weights x (2 bin + 1) */
++        int32_t  area = 0;
++
++        if ((!b_peak[i]) || ((int32_t)p_v[ext[i]] < (white + sw)))
++        {
++            continue;
++        }
++        a = (i > 0U) ? ext[i - 1U] : 0U;
++        b = ((i + 1U) < exts) ? ext[i + 1U] : (bins - 1U);
++        base = ((int32_t)p_v[a] > (int32_t)p_v[b]) ? (int32_t)p_v[a] : (int32_t)p_v[b];
++        half = base + (((int32_t)p_v[ext[i]] - base) / 2);
++        for (p = a; p <= b; ++p)
++        {
++            int32_t w = (int32_t)p_v[p] - half;
++
++            if (w > 0)
++            {
++                w_sum += w;
++                wx_sum += (int64_t)w * (int64_t)((2U * p) + 1U);
++            }
++            if ((int32_t)p_v[p] > white)
++            {
++                area += (int32_t)p_v[p] - white;
++            }
++        }
++        if (w_sum <= 0)
++        {
++            continue;
++        }
++        hc[humps] = g_fit.x_first + (0.5f * (float)wx_sum / (float)w_sum);
++        ha[humps] = area;
++        ++humps;
++    }
++    g_fit.humps = humps;
++    if (humps < 6U)
++    {
++        return;
++    }
++    {
++        uint32_t t;
++        uint32_t top = (humps < BENCH_FIT_TOP) ? humps : BENCH_FIT_TOP;
++
++        (void)memset(b_used, 0, sizeof(b_used));
++        for (t = 0U; t < top; ++t)
++        {
++            uint32_t best = BENCH_FIT_HUMPS;
++
++            for (i = 0U; i < humps; ++i)
++            {
++                if ((!b_used[i]) && ((BENCH_FIT_HUMPS == best) || (ha[i] > ha[best])))
++                {
++                    best = i;
++                }
++            }
++            b_used[best] = true;
++            g_fit.top_pos[t] = hc[best];
++        }
++        for (t = 1U; t < top; ++t)
++        {
++            float    v = g_fit.top_pos[t];
++            uint32_t u = t;
++
++            while ((u > 0U) && (g_fit.top_pos[u - 1U] > v))
++            {
++                g_fit.top_pos[u] = g_fit.top_pos[u - 1U];
++                --u;
++            }
++            g_fit.top_pos[u] = v;
++        }
++        g_fit.top_n = top;
++    }
++}
++
++/** @brief Stage 1's next choice of six of the largest humps (a bit mask of
++ * top_n bits, six set), their centres in pos[]. False when all are done.
++ */
++static bool bench_fit_subset (void)
++{
++    uint32_t t;
++    uint32_t n = 0U;
++
++    do
++    {
++        ++g_fit.mask;
++        n = 0U;
++        for (t = 0U; t < g_fit.top_n; ++t)
++        {
++            n += (g_fit.mask >> t) & 1U;
++        }
++    } while ((6U != n) && (g_fit.mask < (1UL << g_fit.top_n)));
++    if (g_fit.mask >= (1UL << g_fit.top_n))
++    {
++        return false;
++    }
++    n = 0U;
++    g_fit.pos_mean = 0.0f;
++    for (t = 0U; t < g_fit.top_n; ++t)
++    {
++        if (0U != ((g_fit.mask >> t) & 1U))
++        {
++            g_fit.pos[n] = g_fit.top_pos[t];
++            g_fit.pos_mean += g_fit.top_pos[t] / 6.0f;
++            ++n;
++        }
++    }
++    return true;
++}
++
++/** @brief Stage 1's fit of the six centres to candidate c's: module and
++ * start by least squares; kept when its rms per module is the candidate's
++ * lowest yet (choices of humps compared fairly whatever their module).
++ */
++static void bench_fit_lsq (uint32_t c)
++{
++    float    scp = 0.0f;
++    float    r2 = 0.0f;
++    float    m;
++    float    rms;
++    uint32_t i;
++
++    for (i = 0U; i < 6U; ++i)
++    {
++        scp += g_fit_wide_dev[c][i] * (g_fit.pos[i] - g_fit.pos_mean);
++    }
++    m = scp * g_fit_wide_inv[c];
++    if (m <= 0.0f)
++    {
++        return;
++    }
++    for (i = 0U; i < 6U; ++i)
++    {
++        float d = (g_fit.pos[i] - g_fit.pos_mean) - (m * g_fit_wide_dev[c][i]);
++
++        r2 += d * d;
++    }
++    rms = sqrtf(r2 / 6.0f);
++    if ((rms / m) < g_fit.rel[c])
++    {
++        g_fit.rel[c] = rms / m;
++        g_fit.rms[c] = rms;
++        g_fit.ms[c] = m;
++        g_fit.x0s[c] = g_fit.pos_mean - (m * g_fit_wide_mean[c]);
++    }
++}
++
++/** @brief Stage 1's short list: the BENCH_FIT_SHORT closest candidates
++ * (stage 2 then fits the whole binned window: narrowing it to where they
++ * can lie was tried offline and changed nothing).
++ */
++static void bench_fit_short (void)
++{
++    bool     b_used[BENCH_FIT_CANDS];
++    uint32_t t;
++    uint32_t c;
++
++    (void)memset(b_used, 0, sizeof(b_used));
++    g_fit.short_n = 0U;
++    for (t = 0U; t < BENCH_FIT_SHORT; ++t)
++    {
++        uint32_t best = BENCH_FIT_CANDS;
++
++        for (c = 0U; c < BENCH_FIT_CANDS; ++c)
++        {
++            if ((!b_used[c]) &&
++                ((BENCH_FIT_CANDS == best) || (g_fit.rel[c] < g_fit.rel[best])))
++            {
++                best = c;
++            }
++        }
++        b_used[best] = true;
++        g_fit.short_cand[t] = (uint8_t)best;
++        ++g_fit.short_n;
++    }
++    g_fit.s1_rel = g_fit.rel[g_fit.short_cand[0]];
++    g_fit.s1_rms = g_fit.rms[g_fit.short_cand[0]];
++}
++
++/** @brief A NEW line for the cut, with its position and cost, queued. */
++static void bench_fit_say (bench_fit_why_t why, float from, float to)
++{
++    bench_fit_line_t * p_line;
++
++    if (g_fit_line_count >= BENCH_FIT_LINES)
++    {
++        ++g_fit_lines_lost;
++        return;
++    }
++    p_line = &g_fit_lines[(g_fit_line_first + g_fit_line_count) % BENCH_FIT_LINES];
++    ++g_fit_line_count;
++    p_line->why = why;
++    p_line->b_read = g_fit.b_read;
++    p_line->ch = g_fit.text_char;
++    p_line->b_rev = g_fit.b_text_rev;
++    p_line->other = g_fit.text_other;
++    p_line->b_other_rev = g_fit.b_text_other_rev;
++    p_line->margin = g_fit.text_margin;
++    p_line->m = g_fit.text_m;
++    p_line->sigma = g_fit.text_sigma;
++    p_line->c0 = g_fit.text_c0;
++    p_line->rms = g_fit.s1_rms;
++    p_line->from = from;
++    p_line->to = to;
++    p_line->cpu_us = g_fit.cpu_us;
++    p_line->steps = g_fit.steps;
++    p_line->work = g_fit.work;
++    p_line->joins = g_fit.joins;
++    gp_fit_line_new = p_line;
++}
++
++/** @brief The samples of the cut just decoded (0..cut_count) after
++ * binned_u, tape-dark lines left out, added to the binning slot.
++ */
++static void bench_fit_add (void)
++{
++    uint32_t index;
++    uint32_t i;
++
++    for (index = 0U; index < g_code.cut_count; ++index)
++    {
++        uint32_t unit = g_code.sample[index].unit;
++
++        if ((unit < g_fit_bin.u0) ||
++            ((0U != g_fit_bin.binned_u) && (unit <= g_fit_bin.binned_u)) ||
++            bench_code_in_line(index))
++        {
++            continue;
++        }
++        i = ((unit - g_fit_bin.u0) * g_fit_bin.k16) >> 16;
++        if (i < BENCH_FIT_BINS)
++        {
++            g_fit_sum[i] += (int32_t)g_code.sample[index].raw;
++            ++g_fit_cnt[i];
++        }
++    }
++    if (0U != g_code.cut_count)
++    {
++        uint32_t last = g_code.sample[g_code.cut_count - 1U].unit;
++
++        if (last > g_fit_bin.binned_u)
++        {
++            g_fit_bin.binned_u = last;
++        }
++    }
++}
++
++/** @brief The binning slot moved to the fit: the window (the dark +-
++ * BENCH_FIT_PAD_MM) as bin means, with their sums; the slot is free again.
++ * False when there is nothing to fit.
++ */
++static bool bench_fit_prepare (void)
++{
++    float    unit_mm = (float)(g_code.unit_m * 1000.0);
++    uint32_t pad_u = (uint32_t)bench_round((BENCH_FIT_PAD_MM / 1000.0) / g_code.unit_m);
++    uint32_t i;
++    int64_t  svv = 0;
++    int32_t  sv = 0;
++
++    g_fit_bin.b_used = false;
++    g_fit.white = g_fit_bin.white;
++    g_fit.sd = g_fit_bin.sd;
++    g_fit.joins = g_fit_bin.joins;
++    g_fit.cpu_us = 0U;
++    g_fit.steps = 0U;
++    g_fit.work = 0U;
++    g_fit.s1_rms = 0.0f;
++    g_fit.dark_from = (float)g_fit_bin.first_u * unit_mm;
++    g_fit.dark_to = (float)g_fit_bin.last_u * unit_mm;
++    if ((g_fit.dark_to - g_fit.dark_from) > (float)BENCH_FIT_LONGEST_MM)
++    {
++        ++g_fit.no_reads;
++        bench_fit_say(BENCH_FIT_WHY_LONG, g_fit.dark_from, g_fit.dark_to);
++        return false;
++    }
++    g_fit.x_first = (float)g_fit_bin.u0 * unit_mm;
++    g_fit.bins = (((g_fit_bin.last_u + pad_u - g_fit_bin.u0) * g_fit_bin.k16) >> 16) + 1U;
++    if (g_fit.bins > BENCH_FIT_BINS)
++    {
++        g_fit.bins = BENCH_FIT_BINS;
++    }
++    g_fit.valid = 0U;
++    for (i = 0U; i < g_fit.bins; ++i)
++    {
++        if (0U != g_fit_cnt[i])
++        {
++            int32_t v = (g_fit_sum[i] + ((int32_t)g_fit_cnt[i] / 2)) /
++                        (int32_t)g_fit_cnt[i];
++            int32_t d = v - g_fit.white;
++
++            g_fit.vf[i] = (int16_t)v;
++            g_fit.valid_bin[g_fit.valid] = (uint16_t)i;
++            g_fit.valid_v[g_fit.valid] = (int16_t)d;
++            sv += d;
++            svv += (int64_t)d * (int64_t)d;
++            ++g_fit.valid;
++        }
++        else
++        {
++            g_fit.vf[i] = (i > 0U) ? g_fit.vf[i - 1U] : (int16_t)g_fit.white;
++        }
++    }
++    g_fit.sv = (double)sv;
++    g_fit.svv = (double)svv;
++    if (g_fit.valid < 50U)
++    {
++        return false;
++    }
++    g_fit.phase = BENCH_FIT_HUMPS_PHASE;
++    return true;
++}
++
++/** @brief MISSION, a cut the darkness tries have just finished (samples
++ * 0..cut_count, before bench_code_keep): its readings (tape-dark lines left
++ * out) added to 1 mm bins, so the fit can run while the store goes on. A
++ * cut whose dark starts within BENCH_FIT_JOIN_MM of the last one's joins
++ * it; a binned card goes to the fit once that much white has followed
++ * (bench_fit_run), or at once when the next card comes and the fit is
++ * free. Integer work only; the fit itself is sliced.
++ */
++static void bench_fit_begin (void)
++{
++    float    unit_mm = (float)(g_code.unit_m * 1000.0);
++    uint32_t join_u = (uint32_t)bench_round((BENCH_FIT_JOIN_MM / 1000.0) / g_code.unit_m);
++    uint32_t pad_u = (uint32_t)bench_round((BENCH_FIT_PAD_MM / 1000.0) / g_code.unit_m);
++    uint32_t floor_adc;
++    uint32_t first_u = 0U;
++    uint32_t last_u = 0U;
++    uint32_t index;
++    bool     b_dark = false;
++    int32_t  white = (int32_t)g_code.cut_white;
++    int32_t  sd = (0U != g_code.cut_sd) ? (int32_t)g_code.cut_sd : 1;
++
++    if (!gb_fit_tables)
++    {
++        bench_fit_tables();
++    }
++    floor_adc = (uint32_t)(white + (BENCH_FIT_SDS * sd));
++    for (index = 0U; index < g_code.cut_count; ++index)
++    {
++        if (((uint32_t)g_code.sample[index].raw < floor_adc) ||
++            bench_code_in_line(index))
++        {
++            continue;
++        }
++        if (!b_dark)
++        {
++            first_u = g_code.sample[index].unit;
++            b_dark = true;
++        }
++        last_u = g_code.sample[index].unit;
++    }
++    if (!b_dark)
++    {
++        return;
++    }
++    if (g_fit_bin.b_used && (first_u <= (g_fit_bin.last_u + join_u)))
++    {
++        /* The same card, cut at the stream's 30 mm of white: joined. */
++        if (last_u > g_fit_bin.last_u)
++        {
++            g_fit_bin.last_u = last_u;
++        }
++        ++g_fit_bin.joins;
++        bench_fit_add();
++        return;
++    }
++    if (g_fit_bin.b_used && (BENCH_FIT_IDLE == g_fit.phase))
++    {
++        (void)bench_fit_prepare();   /* a new card: the binned one is whole */
++    }
++    if (g_fit_bin.b_used)
++    {
++        ++g_fit.skipped;
++        bench_fit_say(BENCH_FIT_WHY_BUSY, (float)first_u * unit_mm,
++                      (float)last_u * unit_mm);
++        return;
++    }
++    g_fit_bin.b_used = true;
++    g_fit_bin.white = white;
++    g_fit_bin.sd = sd;
++    g_fit_bin.first_u = first_u;
++    g_fit_bin.last_u = last_u;
++    g_fit_bin.binned_u = 0U;
++    g_fit_bin.joins = 0U;
++    g_fit_bin.u0 = (first_u > pad_u) ? (first_u - pad_u) : 0U;
++    g_fit_bin.k16 = (uint32_t)bench_round((double)unit_mm * 65536.0);
++    (void)memset(g_fit_sum, 0, sizeof(g_fit_sum));
++    (void)memset(g_fit_cnt, 0, sizeof(g_fit_cnt));
++    bench_fit_add();
++}
++
++/** @brief The result: best short-listed candidate, the best other character
++ * and their misfit ratio, into the NEW line.
++ */
++static void bench_fit_finish (void)
++{
++    uint32_t k;
++    uint32_t best = 0U;
++    uint32_t other = BENCH_FIT_SHORT;
++
++    for (k = 1U; k < g_fit.short_n; ++k)
++    {
++        if (g_fit.best[k].sse < g_fit.best[best].sse)
++        {
++            best = k;
++        }
++    }
++    for (k = 0U; k < g_fit.short_n; ++k)
++    {
++        if ((g_fit_char[g_fit.short_cand[k]] != g_fit_char[g_fit.short_cand[best]]) &&
++            ((BENCH_FIT_SHORT == other) || (g_fit.best[k].sse < g_fit.best[other].sse)))
++        {
++            other = k;
++        }
++    }
++    g_fit.text_char = g_fit_char[g_fit.short_cand[best]];
++    g_fit.b_text_rev = gb_fit_rev[g_fit.short_cand[best]];
++    g_fit.text_m = g_fit.best[best].m;
++    g_fit.text_sigma = g_fit.best[best].sigma;
++    g_fit.text_c0 = g_fit.best[best].c0;
++    if (BENCH_FIT_SHORT == other)
++    {
++        g_fit.text_other = '?';
++        g_fit.b_text_other_rev = false;
++        g_fit.text_margin = 99.0f;
++    }
++    else
++    {
++        g_fit.text_other = g_fit_char[g_fit.short_cand[other]];
++        g_fit.b_text_other_rev = gb_fit_rev[g_fit.short_cand[other]];
++        g_fit.text_margin = g_fit.best[other].sse / fmaxf(g_fit.best[best].sse, 1.0f);
++    }
++    g_fit.b_read = (g_fit.text_margin >= BENCH_FIT_MARGIN);
++    if (g_fit.b_read)
++    {
++        ++g_fit.reads;
++    }
++    else
++    {
++        ++g_fit.no_reads;
++    }
++    bench_fit_say(BENCH_FIT_WHY_FIT, g_fit.best[best].x0,
++                  g_fit.best[best].x0 + (BENCH_FIT_MODULES * g_fit.best[best].m));
++    g_fit.phase = BENCH_FIT_IDLE;
++}
++
++/** @brief One slice of the fit: the humps, BENCH_FIT_LSQ_SLICE stage-1
++ * candidates, or one template rendered, or one start position of it (all
++ * its dead zones). Returns false once the fit is over.
++ */
++static bool bench_fit_slice (void)
++{
++    float    c0s[3] = { 0.0f, 0.0f, 0.0f };
++    const float * p_c0 = c0s;
++    uint32_t c0n;
++    uint32_t cand;
++    float    m;
++    float    sigma;
++    float    x0;
++    uint32_t tpls;
++    uint32_t x0n;
++    uint32_t t;
++    bench_fit_best_t * p_best;
++
++    switch (g_fit.phase)
++    {
++        case BENCH_FIT_HUMPS_PHASE:
++            bench_fit_humps();
++            if (g_fit.humps < 6U)
++            {
++                /* Not a card at this blur: the GROUP lines show it. */
++                g_fit.phase = BENCH_FIT_IDLE;
++                return false;
++            }
++            for (t = 0U; t < BENCH_FIT_CANDS; ++t)
++            {
++                g_fit.rel[t] = 1.0e9f;
++                g_fit.rms[t] = 1.0e9f;
++                g_fit.ms[t] = 0.0f;
++                g_fit.x0s[t] = 0.0f;
++            }
++            g_fit.mask = 0U;
++            (void)bench_fit_subset();
++            g_fit.c = 0U;
++            g_fit.phase = BENCH_FIT_LSQ;
++            return true;
++        case BENCH_FIT_LSQ:
++            /* Every choice of six of the largest humps, every candidate. */
++            for (t = 0U; (t < BENCH_FIT_LSQ_SLICE) && (g_fit.c < BENCH_FIT_CANDS); ++t)
++            {
++                bench_fit_lsq(g_fit.c);
++                ++g_fit.c;
++            }
++            if (g_fit.c < BENCH_FIT_CANDS)
++            {
++                return true;
++            }
++            g_fit.c = 0U;
++            if (bench_fit_subset())
++            {
++                return true;
++            }
++            bench_fit_short();
++            if (g_fit.s1_rel > BENCH_FIT_MISFIT)
++            {
++                ++g_fit.no_reads;
++                bench_fit_say(BENCH_FIT_WHY_MISFIT, g_fit.dark_from, g_fit.dark_to);
++                g_fit.phase = BENCH_FIT_IDLE;
++                return false;
++            }
++            g_fit.k = 0U;
++            g_fit.tpl = 0U;
++            g_fit.xi = 0U;
++            g_fit.b_rendered = false;
++            g_fit.shape.sse = 3.0e38f;
++            for (t = 0U; t < BENCH_FIT_SHORT; ++t)
++            {
++                g_fit.best[t].sse = 3.0e38f;
++            }
++            /* The closest wide-bar class: candidates whose wide bars lie
++             * where the closest one's do (the same fit to the humps).
++             */
++            g_fit.shape_n = 1U;
++            while ((g_fit.shape_n < g_fit.short_n) &&
++                   (g_fit.rel[g_fit.short_cand[g_fit.shape_n]] <=
++                    (g_fit.s1_rel * 1.0001f)))
++            {
++                ++g_fit.shape_n;
++            }
++            g_fit.phase = BENCH_FIT_SHAPE;
++            return true;
++        case BENCH_FIT_SHAPE:
++            /* One spot and dead zone for the pass (the sensor's, the same
++             * whatever the card says), fitted over every candidate of the
++             * closest class: the stage-1 order inside a class is arbitrary,
++             * and a wrong character's best spot blurs away the bars it
++             * lacks.
++             */
++            cand = g_fit.short_cand[g_fit.k];
++            tpls = BENCH_FIT_SHAPE_TPLS;
++            m = g_fit.ms[cand] * g_fit_shape_m[g_fit.tpl % 3U];
++            sigma = g_fit_shape_sigma[g_fit.tpl / 3U];
++            x0n = BENCH_FIT_SHAPE_X0S;
++            x0 = g_fit.x0s[cand] - 1.5f + (0.5f * (float)g_fit.xi);
++            p_c0 = g_fit_shape_c0;
++            c0n = BENCH_FIT_C0S;
++            p_best = &g_fit.shape;
++            break;
++        case BENCH_FIT_CANDS_PHASE:
++            /* Every candidate near its stage-1 module and start, the
++             * pass's spot and dead zone a little either way.
++             */
++            cand = g_fit.short_cand[g_fit.k];
++            tpls = BENCH_FIT_CANDS_TPLS;
++            m = g_fit.ms[cand] * (0.97f + (0.01f * (float)(g_fit.tpl % 7U)));
++            sigma = g_fit.shape.sigma * ((0U == (g_fit.tpl / 7U)) ? 0.85f :
++                                         ((1U == (g_fit.tpl / 7U)) ? 1.0f : 1.15f));
++            x0n = BENCH_FIT_X0S;
++            x0 = g_fit.x0s[cand] - 3.0f + (0.5f * (float)g_fit.xi);
++            c0s[0] = fmaxf(0.0f, g_fit.shape.c0 - 0.07f);
++            c0s[1] = g_fit.shape.c0;
++            c0s[2] = fminf(0.8f, g_fit.shape.c0 + 0.07f);
++            c0n = 3U;
++            p_best = &g_fit.best[g_fit.k];
++            break;
++        case BENCH_FIT_FINE:
++            /* Around the candidate's best so far, fixed when it starts. */
++            if ((0U == g_fit.tpl) && (0U == g_fit.xi) && (!g_fit.b_rendered))
++            {
++                g_fit.centre = g_fit.best[g_fit.k];
++            }
++            cand = g_fit.short_cand[g_fit.k];
++            tpls = BENCH_FIT_FINE_TPLS;
++            m = g_fit.centre.m * (0.99f + (0.005f * (float)g_fit.tpl));
++            sigma = g_fit.centre.sigma;
++            x0n = BENCH_FIT_FINE_X0S;
++            x0 = g_fit.centre.x0 - 0.75f + (0.25f * (float)g_fit.xi);
++            c0s[0] = g_fit.centre.c0;
++            c0n = 1U;
++            p_best = &g_fit.best[g_fit.k];
++            if (g_fit.centre.sse >= 3.0e38f)
++            {
++                g_fit.xi = x0n;  /* nothing fitted for it: skipped */
++                g_fit.b_rendered = true;
++            }
++            break;
++        default:
++            g_fit.phase = BENCH_FIT_IDLE;
++            return false;
++    }
++    if (!g_fit.b_rendered)
++    {
++        if (!bench_fit_render(cand, m, sigma))
++        {
++            g_fit.xi = x0n;      /* longer than the template store: skipped */
++        }
++        g_fit.b_rendered = true;
++    }
++    else if (g_fit.xi < x0n)
++    {
++        bench_fit_eval(x0, p_c0, c0n, p_best);
++        ++g_fit.xi;
++    }
++    else
++    {
++        /* Skipped. */
++    }
++    if (g_fit.xi < x0n)
++    {
++        return true;
++    }
++    g_fit.xi = 0U;
++    g_fit.b_rendered = false;
++    ++g_fit.tpl;
++    if (g_fit.tpl < tpls)
++    {
++        return true;
++    }
++    g_fit.tpl = 0U;
++    ++g_fit.k;
++    if (BENCH_FIT_SHAPE == g_fit.phase)
++    {
++        if (g_fit.k < g_fit.shape_n)
++        {
++            return true;
++        }
++        g_fit.k = 0U;
++        if (g_fit.shape.sse >= 3.0e38f)
++        {
++            /* Every template longer than the store: no spot to go on. */
++            ++g_fit.no_reads;
++            bench_fit_say(BENCH_FIT_WHY_MISFIT, g_fit.dark_from, g_fit.dark_to);
++            g_fit.phase = BENCH_FIT_IDLE;
++            return false;
++        }
++        g_fit.phase = BENCH_FIT_CANDS_PHASE;
++        return true;
++    }
++    if (g_fit.k < g_fit.short_n)
++    {
++        return true;
++    }
++    g_fit.k = 0U;
++    if (BENCH_FIT_CANDS_PHASE == g_fit.phase)
++    {
++        g_fit.phase = BENCH_FIT_FINE;
++        return true;
++    }
++    bench_fit_finish();
++    return false;
++}
++
++/** @brief MISSION, every line step: the binned card to the fit once
++ * BENCH_FIT_JOIN_MM of white has followed its last dark with no group open
++ * and the fit is free; then slices of the fit until
++ * BENCH_FIT_BUDGET_US has gone in this step (at least one slice).
++ */
++static void bench_fit_run (void)
++{
++    uint32_t join_u = (uint32_t)bench_round((BENCH_FIT_JOIN_MM / 1000.0) / g_code.unit_m);
++    uint32_t newest = (0U != g_code.count) ? g_code.sample[g_code.count - 1U].unit : 0U;
++    uint64_t t0;
++    uint32_t used = 0U;
++    bool     b_more;
++
++    if (g_fit_bin.b_used && (BENCH_FIT_IDLE == g_fit.phase) &&
++        (!g_code.b_open) && (newest >= (g_fit_bin.last_u + join_u)))
++    {
++        (void)bench_fit_prepare();
++    }
++    if (BENCH_FIT_IDLE == g_fit.phase)
++    {
++        return;
++    }
++    ++g_fit.steps;
++    gp_fit_line_new = NULL;
++    do
++    {
++        t0 = board_time_us();
++        b_more = bench_fit_slice();
++        used += (uint32_t)(board_time_us() - t0);
++    } while (b_more && (used < BENCH_FIT_BUDGET_US));
++    g_fit.cpu_us += used;
++    if ((!b_more) && (NULL != gp_fit_line_new))
++    {
++        gp_fit_line_new->cpu_us = g_fit.cpu_us;   /* with the last slice */
++    }
++}
++
++/** @brief MISSION, after the stop: the fit under way, else (b_bin) the
++ * binned card, finished at once. True while there is something to say or
++ * do: called until false, its NEW line sent each time.
++ */
++static bool bench_fit_complete (bool b_bin)
++{
++    if ((BENCH_FIT_IDLE == g_fit.phase) &&
++        ((!b_bin) || (!g_fit_bin.b_used) || (!bench_fit_prepare())))
++    {
++        return (0U != g_fit_line_count);
++    }
++    while ((BENCH_FIT_IDLE != g_fit.phase) && bench_fit_slice())
++    {
++        /* Nothing else runs after the stop. */
++    }
++    return true;
++}
++
++/** @brief One character, as text. */
++static void bench_fit_char (char ch)
++{
++    char text[2];
++
++    text[0] = ch;
++    text[1] = '\0';
++    bench_text(text);
++}
++
++/** @brief The NEW line, once per fitted cut (at most 150 characters:
++ * BENCH_TEXT_BYTES). "rev": read end to start.
++ */
++static bool bench_fit_text (void)
++{
++    const bench_fit_line_t * p_line;
++
++    if (0U == g_fit_line_count)
++    {
++        return false;
++    }
++    p_line = &g_fit_lines[g_fit_line_first];
++    g_fit_line_first = (g_fit_line_first + 1U) % BENCH_FIT_LINES;
++    --g_fit_line_count;
++    switch (p_line->why)
++    {
++        case BENCH_FIT_WHY_LONG:
++            bench_text(" NEW no read: dark for ");
++            bench_dec((int32_t)(p_line->to - p_line->from));
++            bench_text(" mm, longer than a card");
++            break;
++        case BENCH_FIT_WHY_MISFIT:
++            bench_text(" NEW no read: the 6 widest bars fit no character (");
++            bench_fixed((int32_t)(10.0f * p_line->rms), 1U);
++            bench_text(" mm off)");
++            break;
++        case BENCH_FIT_WHY_BUSY:
++            bench_text(" NEW skipped: still fitting the last card");
++            break;
++        default:
++            bench_text(p_line->b_read ? " NEW *" : " NEW no read: best *");
++            bench_fit_char(p_line->ch);
++            bench_text(p_line->b_rev ? "* rev" : "*");
++            bench_text(", margin ");
++            bench_fixed((int32_t)(100.0f * fminf(p_line->margin, 99.0f)), 2U);
++            bench_text(" over *");
++            bench_fit_char(p_line->other);
++            bench_text(p_line->b_other_rev ? "* rev" : "*");
++            bench_text("; module ");
++            bench_fixed((int32_t)(100.0f * p_line->m), 2U);
++            bench_text(" mm, spot ");
++            bench_fixed((int32_t)(10.0f * p_line->sigma), 1U);
++            bench_text(" mm, dead ");
++            bench_fixed((int32_t)(100.0f * p_line->c0), 2U);
++            break;
++    }
++    bench_text("; at ");
++    bench_dec((int32_t)p_line->from);
++    bench_text("-");
++    bench_dec((int32_t)p_line->to);
++    bench_text(" mm");
++    if (BENCH_FIT_WHY_FIT == p_line->why)
++    {
++        bench_text("; ");
++        bench_dec((int32_t)(p_line->cpu_us / 1000U));
++        bench_text(" ms, ");
++        bench_dec((int32_t)p_line->steps);
++        bench_text(" steps, ");
++        bench_dec((int32_t)(p_line->work / 1000U));
++        bench_text("k tests");
++        if (0U != p_line->joins)
++        {
++            bench_text(", cuts joined");
++        }
++    }
++    return true;
++}
++
++/** @brief MISSION, at the start: no fit, no counts (the tables are kept). */
++static void bench_fit_reset (void)
++{
++    (void)memset(&g_fit, 0, sizeof(g_fit));
++    (void)memset(&g_fit_bin, 0, sizeof(g_fit_bin));
++    g_fit_line_first = 0U;
++    g_fit_line_count = 0U;
++    g_fit_lines_lost = 0U;
++    gp_fit_line_new = NULL;
++}
++
++/** @brief MISSION, after the stop: the NEW decoder's counts. */
++static void bench_fit_totals (void)
++{
++    bench_text(" NEW decoder: ");
++    bench_dec((int32_t)g_fit.reads);
++    bench_text(" read, ");
++    bench_dec((int32_t)g_fit.no_reads);
++    bench_text(" no read, ");
++    bench_dec((int32_t)g_fit.skipped);
++    bench_text(" skipped, ");
++    bench_dec((int32_t)g_fit_lines_lost);
++    bench_text(" lines lost (margin needed ");
++    bench_fixed((int32_t)(100.0f * BENCH_FIT_MARGIN), 2U);
++    bench_text(")");
++    bench_flush();
++}
++
+ /* End of file. */

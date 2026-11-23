@@ -97,7 +97,7 @@ void robot_app_line_step (uint32_t now_ms)
     if (((VEHICLE_FOLLOW == copy.vehicle.state) ||
          (VEHICLE_RANGE_WAIT == copy.vehicle.state)) && output.b_junction_edge)
     {
-        /* The 2 ms producer must retain an edge for the 10 ms consumer. */
+        /* The 2 ms producer must retain an edge for the Vehicle task. */
         g_shared.line.b_junction_edge = true;
     }
     if ((BARCODE_EVENT_UNKNOWN == code.event) &&

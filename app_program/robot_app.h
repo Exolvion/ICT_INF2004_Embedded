@@ -80,12 +80,16 @@ typedef struct
 
 /** SYS-12 evidence for one task since the last robot_app_timing_restart():
  * its longest step and how many periods it skipped (a step that ran past
- * its next release).
+ * its next release), and its own CPU time: its steps' run time with the
+ * steps of other tasks that ran inside them (higher priority, preempting)
+ * taken out, and how many steps it ran (23 Nov: where the CPU goes).
  */
 typedef struct
 {
     uint32_t worst_us;
     uint32_t skipped;
+    uint32_t own_us;    /* saturates at UINT32_MAX (71 min) */
+    uint32_t steps;
 } robot_app_task_time_t;
 
 /** Initialize all application state before starting any application task. */
@@ -100,6 +104,11 @@ void robot_app_timing (robot_app_task_time_t p_output[ROBOT_APP_TASKS]);
  * step.
  */
 void robot_app_timing_restart (void);
+
+/** Milliseconds since the last robot_app_timing_restart(); for the task
+ * that calls it (the Vehicle task).
+ */
+uint32_t robot_app_timing_window_ms (void);
 
 /** The IMU task's evidence since the last robot_app_timing_restart(), for
  * the mission's end report. Counts saturate at 255.
