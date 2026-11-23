@@ -21,7 +21,6 @@
  */
 #define BENCH_PIVOT_WHEEL_DEG (314.3)
 #define BENCH_YAW_SCALE (360.0 / BENCH_PIVOT_WHEEL_DEG)
-#define board_motor_duty          mission_motor_duty
 
 /* The motion controller's longest step (wheel_pid.max_dt_s). The robot's
  * 25 ms (app_cfg.c) is for its 5 ms Motion task; this loop runs every ~7 ms
@@ -133,8 +132,8 @@ typedef struct
 {
     double   turned;      /* the wheels' turn this START, rad (+ left) */
     double   last_yaw;    /* pose heading last tick */
-    bool     dark[2];     /* front sensors' class (go-around hysteresis) */
-    bool     known[2];    /* and that dark stretch's start was seen */
+    bool     b_dark[2];     /* front sensors' class (go-around hysteresis) */
+    bool     b_known[2];    /* and that dark stretch's start was seen */
     double   from[2];     /* turned where it went dark */
     uint16_t peak[2];     /* highest reading this spin */
     uint32_t marks[2];
@@ -153,7 +152,7 @@ void bench_sweep_start (void)
         bench_flush();
         return;
     }
-    if ((!gb_watchdog) && board_watchdog_start(BENCH_WATCHDOG_MS))
+    if ((!gb_watchdog) && mission_watchdog_start(BENCH_WATCHDOG_MS))
     {
         gb_watchdog = true;
     }
@@ -188,7 +187,7 @@ void bench_sweep_tick (uint8_t command)
     }
     if (g_sweep.b_rest)
     {
-        board_motor_brake();
+        mission_motor_brake();
         if ((now_us - g_sweep.step_us) >= BENCH_REST_US)
         {
             g_sweep.b_rest = false;
@@ -198,7 +197,7 @@ void bench_sweep_tick (uint8_t command)
     }
     bench_step_place(g_sweep.step, &duty_pct, &b_down);
     duty = (double)duty_pct / 100.0;
-    board_motor_duty(duty, duty);
+    mission_motor_duty(duty, duty);
     if ((!g_sweep.b_counting) &&
         ((now_us - g_sweep.step_us) >= BENCH_SETTLE_US))
     {
@@ -258,8 +257,8 @@ void bench_sweep_finish (const char * p_reason)
     uint32_t wheel;
     int32_t  rate;
 
-    board_motor_brake();
-    board_encoders_discard();
+    mission_motor_brake();
+    mission_encoders_discard();
     g_sweep.b_running = false;
     /* The motors are stopped: wait for the queue rather than lose rows. */
     g_send_tries = BENCH_TABLE_SEND_TRIES;
@@ -420,6 +419,9 @@ static void bench_motion_config (motion_config_t * p_config)
     }
 }
 
+/** @brief Start a run in the selected mode: refused while STOP is pressed;
+ * the scan mode starts the scan, a line mode needs bench_line_start().
+ */
 void bench_drive_start (void)
 {
     motion_config_t config;
@@ -447,7 +449,7 @@ void bench_drive_start (void)
      */
     (void)config;
     (void)status;
-    if ((!gb_watchdog) && board_watchdog_start(BENCH_WATCHDOG_MS))
+    if ((!gb_watchdog) && mission_watchdog_start(BENCH_WATCHDOG_MS))
     {
         gb_watchdog = true;
     }
@@ -457,8 +459,8 @@ void bench_drive_start (void)
     if ((0 != BENCH_PIVOT_TEST) && bench_pivot_mode(g_drive.mode))
     {
         (void)memset(&g_pivot, 0, sizeof(g_pivot));
-        g_pivot.dark[0] = true; /* what is under a sensor now is no mark */
-        g_pivot.dark[1] = true;
+        g_pivot.b_dark[0] = true; /* what is under a sensor now is no mark */
+        g_pivot.b_dark[1] = true;
         bench_avoid_ir_setup();
         bench_text("PIVOT test: axle on a straight stretch of the line; ");
         bench_dec((int32_t)BENCH_PIVOT_TURNS);
@@ -849,8 +851,8 @@ void bench_move_tick (uint64_t now_us,
  */
 void bench_drive_finish (const char * p_reason)
 {
-    board_motor_brake();
-    board_encoders_discard();
+    mission_motor_brake();
+    mission_encoders_discard();
     g_drive.b_running = false;
     /* The robot's tasks see the run over at once: the report below (with
      * the REC rows) takes many seconds of mission_hook_alive calls, which
@@ -1169,9 +1171,9 @@ bool bench_pivot_tick (void)
 
     g_pivot.turned += bench_avoid_wrap(g_drive.heading - g_pivot.last_yaw);
     g_pivot.last_yaw = g_drive.heading;
-    if (board_read_ir(raw))
+    if (mission_read_ir(raw))
     {
-        for (channel = 0U; channel < 2U; ++channel)
+        for (channel = 0U; channel < BENCH_FRONT_IR; ++channel)
         {
             line_ctrl_class_t cls = line_ctrl_classify(
                                         &g_avoid.ir_hyst[channel],
@@ -1181,18 +1183,18 @@ bool bench_pivot_tick (void)
             {
                 g_pivot.peak[channel] = raw[channel];
             }
-            if ((LINE_CTRL_DARK == cls) && (!g_pivot.dark[channel]))
+            if ((LINE_CTRL_DARK == cls) && (!g_pivot.b_dark[channel]))
             {
-                g_pivot.dark[channel] = true;
-                g_pivot.known[channel] = true;
+                g_pivot.b_dark[channel] = true;
+                g_pivot.b_known[channel] = true;
                 g_pivot.from[channel] = g_pivot.turned;
             }
-            else if ((LINE_CTRL_LIGHT == cls) && g_pivot.dark[channel])
+            else if ((LINE_CTRL_LIGHT == cls) && g_pivot.b_dark[channel])
             {
                 double swept = fabs(g_pivot.turned - g_pivot.from[channel]);
 
-                g_pivot.dark[channel] = false;
-                if (g_pivot.known[channel] &&
+                g_pivot.b_dark[channel] = false;
+                if (g_pivot.b_known[channel] &&
                     (swept >= (0.5 * BENCH_TURN_LINE_RAD)) &&
                     (swept <= (2.0 * BENCH_TURN_LINE_RAD)) &&
                     (g_pivot.marks[channel] < BENCH_PIVOT_MARKS))
@@ -1201,7 +1203,7 @@ bool bench_pivot_tick (void)
                         0.5 * (g_pivot.from[channel] + g_pivot.turned);
                     ++g_pivot.marks[channel];
                 }
-                g_pivot.known[channel] = false;
+                g_pivot.b_known[channel] = false;
             }
             else
             {
@@ -1227,7 +1229,7 @@ void bench_pivot_results (void)
     uint32_t channel;
     uint32_t i;
 
-    for (channel = 0U; channel < 2U; ++channel)
+    for (channel = 0U; channel < BENCH_FRONT_IR; ++channel)
     {
         bench_text("PIVOT ");
         bench_text(names[channel]);
@@ -1305,7 +1307,7 @@ bool bench_pose_text (uint64_t now_us)
     if (bench_flag(bench_mag_read(xyz)))
     {
         bench_text(" C");
-        for (axis = 0U; axis < 3U; ++axis)
+        for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
         {
             bench_text(" ");
             bench_s((int32_t)xyz[axis], 13U);

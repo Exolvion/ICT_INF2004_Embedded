@@ -156,7 +156,7 @@ void robot_app_imu_missed (board_accel_status_t status,
         /* board_read_accel writes the axes only once the data read worked,
          * so a bus failure leaves them all zero (inside the range).
          */
-        for (axis = 0U; axis < 3U; ++axis)
+        for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
         {
             b_saturated = b_saturated || (raw[axis] <= -2048) ||
                           (raw[axis] >= 2047);

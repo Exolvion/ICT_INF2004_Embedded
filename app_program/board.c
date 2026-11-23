@@ -34,6 +34,7 @@
 #define BOARD_ACCEL_BDU_HR_2G 0x88U
 #define BOARD_ACCEL_AXES 3U
 #define BOARD_ACCEL_BYTES 6U
+#define BOARD_ENCODER_PINS 4U  /* A and B, left and right */
 #define BOARD_ADC_TIMEOUT_US 100U
 /* RP2040 GPIO 26..29 are ADC inputs 0..3 (GPIO 29 senses VSYS on the Pico
  * W). The IR samples stay left, right, barcode whichever Grove port each
@@ -819,7 +820,7 @@ static void board_init_motor (void)
 /** Initialise passive inputs, trigger low and a disabled-pulse servo. */
 static void board_init_inputs (void)
 {
-    static const uint32_t encoder_pins[4] =
+    static const uint32_t encoder_pins[BOARD_ENCODER_PINS] =
     {
         ROBOT_PIN_ENCODER_LEFT_A, ROBOT_PIN_ENCODER_LEFT_B,
         ROBOT_PIN_ENCODER_RIGHT_A, ROBOT_PIN_ENCODER_RIGHT_B
@@ -828,7 +829,7 @@ static void board_init_inputs (void)
     uint32_t input_levels;
     pwm_config config = pwm_get_default_config();
 
-    for (index = 0U; index < 4U; index++)
+    for (index = 0U; index < BOARD_ENCODER_PINS; index++)
     {
         gpio_init(encoder_pins[index]);
         gpio_set_dir(encoder_pins[index], GPIO_IN);

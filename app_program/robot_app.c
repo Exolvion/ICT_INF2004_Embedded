@@ -257,6 +257,10 @@ void robot_app_safety_step (uint32_t now_ms)
         {
             robot_app_fault_set(false, ROBOT_APP_BIT_TILT_UNAVAILABLE);
         }
+        else
+        {
+            /* Owners fresh and tilt current: nothing to latch. */
+        }
     }
     else
     {
@@ -483,6 +487,10 @@ void robot_app_vehicle_step (uint32_t now_ms)
                 (UINT32_C(1) << (uint32_t)ROBOT_APP_BIT_SUPERVISOR), 0U);
         }
         app_main_unlock(saved);
+    }
+    else
+    {
+        /* Stepped, and FAULT was not newly entered: nothing to latch. */
     }
     if (((VEHICLE_SCAN == output.state) &&
          (VEHICLE_SCAN != copy.vehicle.state)) ||

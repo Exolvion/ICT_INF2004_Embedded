@@ -30,6 +30,10 @@
 #define BENCH_CODE_OWN_OFF (0.40)
 #define BENCH_CODE_ELEMENTS (9U)        /* per Code 39 character */
 #define BENCH_CODE_FRAMED (3U)  /* '*', a character, '*': the least framed */
+#define BENCH_CODE_WIDE (3U)        /* wide elements per character */
+#define BENCH_CODE_DIRECTIONS (2U)  /* read forward, then reversed */
+#define BENCH_CODE_KINDS (2U)       /* bars, then spaces */
+#define BENCH_FIT_WIDE (6U)  /* wide bars in '*', X, '*': two each */
 
 /* One-* partial frames (bench_code_found_window), off: replayed on the 30 Oct
  * 21:51 cuts, the big *A* card's second pass read D* end to start, a wrong
@@ -583,7 +587,7 @@ void bench_code_found_chars (bench_code_found_t * p_found,
     uint32_t pass;
     bool     b_reverse;
 
-    for (pass = 0U; pass < 2U; ++pass)
+    for (pass = 0U; pass < BENCH_CODE_DIRECTIONS; ++pass)
     {
         b_reverse = (1U == pass);
         p_out = b_reverse ? p_found->chars_reverse : p_found->chars;
@@ -644,7 +648,7 @@ void bench_code_found_window (bench_code_found_t * p_found,
         span = (length * (BENCH_CODE_ELEMENTS + 1U)) - 2U;
         for (start = 0U; (start + span) <= last; start += 2U)
         {
-            for (pass = 0U; pass < 2U; ++pass)
+            for (pass = 0U; pass < BENCH_CODE_DIRECTIONS; ++pass)
             {
                 b_reverse = (1U == pass);
                 if (bench_code39_text(start, start + span, b_reverse, text) &&
@@ -683,7 +687,7 @@ void bench_code_found_window (bench_code_found_t * p_found,
     span = (2U * (BENCH_CODE_ELEMENTS + 1U)) - 2U;
     for (start = 0U; (start + span) <= last; start += 2U)
     {
-        for (pass = 0U; pass < 2U; ++pass)
+        for (pass = 0U; pass < BENCH_CODE_DIRECTIONS; ++pass)
         {
             b_reverse = (1U == pass);
             if (bench_code39_text(start, start + span, b_reverse, text) &&
@@ -1095,7 +1099,7 @@ bool bench_d0_decode (const bench_d0_group_t * p_group, bool b_reverse,
                              (uint32_t)p_group->edge[index];
         }
         pattern = 0U;
-        for (wide = 0U; wide < 3U; ++wide)
+        for (wide = 0U; wide < BENCH_CODE_WIDE; ++wide)
         {
             widest = BENCH_CODE_ELEMENTS;
             for (element = 0U; element < BENCH_CODE_ELEMENTS; ++element)
@@ -1123,6 +1127,10 @@ bool bench_d0_decode (const bench_d0_group_t * p_group, bool b_reverse,
             else if (units[element] > widest_narrow)
             {
                 widest_narrow = units[element];
+            }
+            else
+            {
+                /* A narrow element no wider than the widest narrow so far. */
             }
         }
         index = 0U;
@@ -2108,7 +2116,7 @@ void bench_code_dark_tries (void)
     while (g_code.b_trying)
     {
         bench_code_tries_step();
-        board_watchdog_feed();
+        mission_watchdog_feed();
     }
 }
 
@@ -2545,7 +2553,7 @@ uint32_t bench_code39_dark (uint32_t first, uint32_t last,
         }
     }
     /* Kind 0: the bars (even elements), 2 wide; kind 1: the spaces, 1. */
-    for (kind = 0U; kind < 2U; ++kind)
+    for (kind = 0U; kind < BENCH_CODE_KINDS; ++kind)
     {
         for (pick = 0U; pick < (2U - kind); ++pick)
         {
@@ -2749,7 +2757,8 @@ bool bench_code39_text (uint32_t first, uint32_t last, bool b_reverse,
                                         character * (BENCH_CODE_ELEMENTS + 1U),
                                         b_reverse);
         }
-        for (pick = 0U; (pick < 3U) && (!g_code.b_dark_rule); ++pick)
+        for (pick = 0U; (pick < BENCH_CODE_WIDE) && (!g_code.b_dark_rule);
+             ++pick)
         {
             widest = BENCH_CODE_ELEMENTS;
             for (element = 0U; element < BENCH_CODE_ELEMENTS; ++element)
@@ -2996,7 +3005,7 @@ static char        g_fit_char[BENCH_FIT_CANDS];
 static bool        gb_fit_rev[BENCH_FIT_CANDS];
 static uint8_t     g_fit_edge[BENCH_FIT_CANDS][BENCH_FIT_EDGES];
  /* modules */
-static float       g_fit_wide_dev[BENCH_FIT_CANDS][6];
+static float       g_fit_wide_dev[BENCH_FIT_CANDS][BENCH_FIT_WIDE];
  /* centre - mean */
 static float       g_fit_wide_mean[BENCH_FIT_CANDS];
 static float       g_fit_wide_inv[BENCH_FIT_CANDS];
@@ -3066,7 +3075,7 @@ static bool bench_fit_tables (void)
          (t < BENCH_FIT_CHAR_SLICE);
          ++c, ++t)
     {
-        uint16_t pat[3];
+        uint16_t pat[BENCH_CODE_FRAMED];
         uint8_t  width[29];
         uint8_t  bar[29];
         uint32_t e = 0U;
@@ -3079,9 +3088,9 @@ static bool bench_fit_tables (void)
         pat[0] = g_code39_patterns[star];
         pat[1] = g_code39_patterns[c];
         pat[2] = g_code39_patterns[star];
-        for (ch = 0U; ch < 3U; ++ch)
+        for (ch = 0U; ch < BENCH_CODE_FRAMED; ++ch)
         {
-            for (i = 0U; i < 9U; ++i)
+            for (i = 0U; i < BENCH_CODE_ELEMENTS; ++i)
             {
                 width[e] = (0U != ((pat[ch] >> (8U - i)) & 1U)) ? 3U : 1U;
                 bar[e] = (0U == (i % 2U)) ? 1U : 0U;
@@ -3094,12 +3103,13 @@ static bool bench_fit_tables (void)
                 ++e;
             }
         }
-        for (r = 0U; r < 2U; ++r)
+        for (r = 0U; r < BENCH_CODE_DIRECTIONS; ++r)
         {
             uint32_t pos = 0U;
             uint32_t edge = 0U;
             uint32_t wide = 0U;
-            float    centre[6] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+            float    centre[BENCH_FIT_WIDE] =
+                { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
             float    sum = 0.0f;
             float    sq = 0.0f;
 
@@ -3114,7 +3124,7 @@ static bool bench_fit_tables (void)
                     g_fit_edge[n][edge] = (uint8_t)pos;
                     g_fit_edge[n][edge + 1U] = (uint8_t)(pos + width[k]);
                     edge += 2U;
-                    if ((3U == width[k]) && (wide < 6U))
+                    if ((3U == width[k]) && (wide < BENCH_FIT_WIDE))
                     {
                         centre[wide] = (float)pos + 1.5f;
                         sum += centre[wide];
@@ -3124,7 +3134,7 @@ static bool bench_fit_tables (void)
                 pos += width[k];
             }
             g_fit_wide_mean[n] = sum / 6.0f;
-            for (i = 0U; i < 6U; ++i)
+            for (i = 0U; i < BENCH_FIT_WIDE; ++i)
             {
                 g_fit_wide_dev[n][i] = centre[i] - g_fit_wide_mean[n];
                 sq += g_fit_wide_dev[n][i] * g_fit_wide_dev[n][i];
@@ -3546,7 +3556,7 @@ static void bench_fit_lsq (uint32_t c)
     float    rms;
     uint32_t i;
 
-    for (i = 0U; i < 6U; ++i)
+    for (i = 0U; i < BENCH_FIT_WIDE; ++i)
     {
         scp += g_fit_wide_dev[c][i] * (g_fit.pos[i] - g_fit.pos_mean);
     }
@@ -3555,7 +3565,7 @@ static void bench_fit_lsq (uint32_t c)
     {
         return;
     }
-    for (i = 0U; i < 6U; ++i)
+    for (i = 0U; i < BENCH_FIT_WIDE; ++i)
     {
         float d = (g_fit.pos[i] - g_fit.pos_mean) - (m * g_fit_wide_dev[c][i]);
 
@@ -4162,7 +4172,7 @@ bool bench_fit_complete (bool b_bin)
     while ((!gb_fit_tables) && (b_bin ? g_fit_bin.b_used : false))
     {
         (void)bench_fit_tables();   /* nothing else runs after the stop */
-        board_watchdog_feed();
+        mission_watchdog_feed();
     }
     if ((BENCH_FIT_IDLE == g_fit.phase) &&
         ((!b_bin) || (!g_fit_bin.b_used) || (!bench_fit_prepare())))
@@ -4171,9 +4181,9 @@ bool bench_fit_complete (bool b_bin)
     }
     while ((BENCH_FIT_IDLE != g_fit.phase) && bench_fit_slice())
     {
-        board_watchdog_feed();      /* nothing else runs after the stop */
+        mission_watchdog_feed();      /* nothing else runs after the stop */
     }
-    board_watchdog_feed();
+    mission_watchdog_feed();
     return true;
 }
 

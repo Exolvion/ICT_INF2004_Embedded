@@ -193,7 +193,7 @@
 #define BENCH_RAMP_WINDOW_US (200000U)  /* robot_app's speed window */
 #define BENCH_MG_TO_MPS2 (0.00980665)
 
-/* Why a SIDE lean was left out (g_ramp.lean_out points into this). */
+/* Why a SIDE lean was left out (g_ramp.p_lean_out points into this). */
 #define BENCH_LEAN_OUTS (5U)
 static const char * const g_lean_out_names[BENCH_LEAN_OUTS] =
 {
@@ -216,7 +216,7 @@ void bench_ramp_start (void)
 
     (void)memset(&g_ramp, 0, sizeof(g_ramp));
     g_ramp.flat = flat;
-    for (axis = 0U; axis < 3U; ++axis)
+    for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
     {
         b_still = b_still && (((int32_t)flat.maximum[axis] -
                                (int32_t)flat.minimum[axis]) <=
@@ -224,7 +224,7 @@ void bench_ramp_start (void)
     }
     if (b_still)
     {
-        for (axis = 0U; axis < 3U; ++axis)
+        for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
         {
             mg[axis] = (double)flat.sum[axis] / (double)flat.count;
         }
@@ -250,7 +250,7 @@ void bench_ramp_start (void)
      */
     if (b_still)
     {
-        for (axis = 0U; axis < 3U; ++axis)
+        for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
         {
             g_ramp.lift_g[axis] = axes[axis];
         }
@@ -337,7 +337,7 @@ void bench_lift_check (uint64_t now_us, const double * p_axes,
     {
         /* No still second before START: a plain mean first, no lift yet. */
         ++g_ramp.lift_gn;
-        for (axis = 0U; axis < 3U; ++axis)
+        for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
         {
             g_ramp.lift_g[axis] += (p_axes[axis] - g_ramp.lift_g[axis]) /
                                    (double)g_ramp.lift_gn;
@@ -347,7 +347,7 @@ void bench_lift_check (uint64_t now_us, const double * p_axes,
         return;
     }
     share = dt / (BENCH_LIFT_GRAVITY_S + dt);
-    for (axis = 0U; axis < 3U; ++axis)
+    for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
     {
         g_ramp.lift_g[axis] += share * (p_axes[axis] - g_ramp.lift_g[axis]);
     }
@@ -374,7 +374,7 @@ void bench_lift_check (uint64_t now_us, const double * p_axes,
     /* A motor changing direction (or starting) jolts the car: hold the
      * integration at 0 until that has passed.
      */
-    for (wheel = 0U; wheel < 2U; ++wheel)
+    for (wheel = 0U; wheel < BENCH_WHEELS; ++wheel)
     {
         dir = (duty[wheel] > BENCH_LIFT_DUTY_ZERO) ? (int8_t)1 :
               ((duty[wheel] < -BENCH_LIFT_DUTY_ZERO) ? (int8_t)-1 :
@@ -406,7 +406,7 @@ void bench_lift_check (uint64_t now_us, const double * p_axes,
         return;
     }
     g_ramp.b_lifted = true;
-    board_motor_brake();
+    mission_motor_brake();
     bench_line(BK_LIFT_STOP);   /* 0-4095 mm */
     bench_text("LIFT: raised ");
     bench_u((uint32_t)bench_round(g_ramp.lift_height * 1000.0), 12U);
@@ -453,12 +453,12 @@ void bench_ramp_step (uint64_t now_us,
     uint32_t        axis;
 
     if ((!g_ramp.b_ready) ||
-        (BOARD_ACCEL_FRESH != board_read_accel(milligravity)))
+        (BOARD_ACCEL_FRESH != mission_read_accel(milligravity)))
     {
         return;
     }
     now_us = bench_ramp_time(now_us);
-    for (axis = 0U; axis < 3U; ++axis)
+    for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
     {
         mg[axis] = (double)milligravity[axis];
     }
@@ -616,7 +616,7 @@ void bench_ramp_lean (uint64_t now_us, double ds, int32_t centre_mm)
     {
         ++g_ramp.lean_turns;       /* At a turn: no hump is there */
         g_ramp.lean_sent = g_ramp.lean;
-        g_ramp.lean_out = g_lean_out_names[g_ramp.lean.b_straight ? 0U : 1U];
+        g_ramp.p_lean_out = g_lean_out_names[g_ramp.lean.b_straight ? 0U : 1U];
         g_ramp.b_lean_send = true; /* Out, but shown */
         return;
     }
@@ -624,7 +624,7 @@ void bench_ramp_lean (uint64_t now_us, double ds, int32_t centre_mm)
     {
         ++g_ramp.lean_steep;       /* Not one wheel on a hump */
         g_ramp.lean_sent = g_ramp.lean;
-        g_ramp.lean_out = g_lean_out_names[2];
+        g_ramp.p_lean_out = g_lean_out_names[2];
         g_ramp.b_lean_send = true;
         return;
     }
@@ -632,7 +632,7 @@ void bench_ramp_lean (uint64_t now_us, double ds, int32_t centre_mm)
     {
         ++g_ramp.lean_wild;        /* Far beyond any hump on the track */
         g_ramp.lean_sent = g_ramp.lean;
-        g_ramp.lean_out = g_lean_out_names[3];
+        g_ramp.p_lean_out = g_lean_out_names[3];
         g_ramp.b_lean_send = true;
         return;
     }
@@ -640,12 +640,12 @@ void bench_ramp_lean (uint64_t now_us, double ds, int32_t centre_mm)
     {
         ++g_ramp.lean_level;       /* Level: no wheel on a hump */
         g_ramp.lean_sent = g_ramp.lean;
-        g_ramp.lean_out = g_lean_out_names[4];
+        g_ramp.p_lean_out = g_lean_out_names[4];
         g_ramp.b_lean_send = true;
         return;
     }
     ++g_ramp.leans;
-    g_ramp.lean_out = NULL;
+    g_ramp.p_lean_out = NULL;
     g_ramp.lean_sent = g_ramp.lean;
     g_ramp.b_lean_send = true;
     if (fabs(bench_lean_height(&g_ramp.lean)) >
@@ -897,12 +897,12 @@ bool bench_ramp_text (void)
     {
         g_ramp.b_lean_send = false;
         bench_line(BK_SIDE);
-        if (bench_flag(NULL != g_ramp.lean_out))  /* shown, not counted */
+        if (bench_flag(NULL != g_ramp.p_lean_out))  /* shown, not counted */
         {
             uint32_t why = 0U;
 
             while (((why + 1U) < BENCH_LEAN_OUTS) &&
-                   (g_lean_out_names[why] != g_ramp.lean_out))
+                   (g_lean_out_names[why] != g_ramp.p_lean_out))
             {
                 ++why;
             }

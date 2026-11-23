@@ -5,10 +5,10 @@
  */
 #include "mission_private.h"
 #include "mission_avoid.h"
-#define board_ultrasonic_trigger  mission_sonar_trigger
-#define board_ultrasonic_service  mission_sonar_service
-#define board_ultrasonic_result   mission_sonar_result
-#define board_servo_us            mission_servo_us
+/* The sonar and servo go through mission_board.c (mission_sonar_trigger,
+ * mission_sonar_service, mission_sonar_result, mission_servo_us), which
+ * hands each request to the Scan task.
+ */
 #define BENCH_SERVO_CENTRE_US (1500U)
 #define BENCH_SERVO_FINE_US (10U)
 #define BENCH_SERVO_COARSE_US (100U)
@@ -279,7 +279,7 @@ void bench_servo (uint8_t command)
     }
     if ((BENCH_CMD_UTURN != command) || (0U != g_servo_us))
     {
-        if (board_servo_us((uint16_t)pulse))
+        if (mission_servo_us((uint16_t)pulse))
         {
             g_servo_us = (uint16_t)pulse;
         }
@@ -313,7 +313,7 @@ void bench_front_start (void)
     app_cfg_scanner(&config);
     g_front_range = config.range;
     (void)bench_scan_servo(0);
-    (void)board_ultrasonic_result(&pulse_us, &b_valid);
+    (void)mission_sonar_result(&pulse_us, &b_valid);
     g_front.ready_us = board_time_us() +
                        ((uint64_t)ROBOT_SERVO_SETTLE_MS * 1000U);
 }
@@ -332,8 +332,8 @@ bool bench_front_step (uint64_t now_us)
     bool                b_new = false;
 
     (void)memset(&packed, 0, sizeof(packed));
-    board_ultrasonic_service();
-    if (board_ultrasonic_result(&pulse_us, &b_valid) && g_front.b_pending)
+    mission_sonar_service();
+    if (mission_sonar_result(&pulse_us, &b_valid) && g_front.b_pending)
     {
         g_front.b_pending = false;
         (void)core_ultrasonic_range(&g_front_range, b_valid,
@@ -369,7 +369,7 @@ bool bench_front_step (uint64_t now_us)
         }
     }
     if ((!g_front.b_pending) && (now_us >= g_front.ready_us) &&
-        board_ultrasonic_trigger())
+        mission_sonar_trigger())
     {
         g_front.b_pending = true;
     }
@@ -796,6 +796,10 @@ void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             bench_text("AVOID: past the object, stepping back to the line");
             bench_avoid_say();
         }
+        else
+        {
+            /* Still alongside the object: keep the current request. */
+        }
     }
     else if (BENCH_AVOID_BACKPIVOT == g_avoid.phase)
     {
@@ -830,12 +834,12 @@ void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             g_avoid.ir_peak[1] = 0U;
             g_avoid.b_dark_on = true;
             g_avoid.b_dark_known = false;
-            g_avoid.ir_dark[0] = true;
-            g_avoid.ir_dark[1] = true;
-            g_avoid.sx_known[0] = false;
-            g_avoid.sx_known[1] = false;
-            g_avoid.sx_done[0] = false;
-            g_avoid.sx_done[1] = false;
+            g_avoid.b_ir_dark[0] = true;
+            g_avoid.b_ir_dark[1] = true;
+            g_avoid.b_sx_known[0] = false;
+            g_avoid.b_sx_known[1] = false;
+            g_avoid.b_sx_done[0] = false;
+            g_avoid.b_sx_done[1] = false;
             g_avoid.cross_logs = 0U;
             bench_line(BK_AV_RETURN);
             bench_text("AVOID: returning to the line");
@@ -881,7 +885,7 @@ void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
             bench_avoid_say();
             bench_avoid_turn_begin(g_avoid.yaw_home);
             if ((!g_avoid.b_line_fix) &&
-                (g_avoid.ir_dark[0] || g_avoid.ir_dark[1]))
+                (g_avoid.b_ir_dark[0] || g_avoid.b_ir_dark[1]))
             {
                 /* Came in along a line (a bend's far leg or a junction's
                  * branch): this heading is a candidate. */
@@ -890,8 +894,8 @@ void bench_avoid_drive (uint64_t now_us, bool b_range, int32_t centre,
                 g_avoid.turn_seen_rad = bench_avoid_wrap(g_drive.heading);
                 bench_line(BK_AV_ALONG_LINE);
                 bench_text("AVOID: came in along a line (");
-                bench_text(bench_flag(g_avoid.ir_dark[0]) ? "L" : "");
-                bench_text(bench_flag(g_avoid.ir_dark[1]) ? "R" : "");
+                bench_text(bench_flag(g_avoid.b_ir_dark[0]) ? "L" : "");
+                bench_text(bench_flag(g_avoid.b_ir_dark[1]) ? "R" : "");
                 bench_text(" dark): kept as a candidate");
                 bench_avoid_say();
             }
@@ -960,8 +964,8 @@ void bench_avoid_begin (uint64_t now_us, int32_t centre)
     g_avoid.b_line_fix = false;
     g_avoid.b_dark_on = false;
     g_avoid.b_dark_known = false;
-    g_avoid.ir_dark[0] = false;
-    g_avoid.ir_dark[1] = false;
+    g_avoid.b_ir_dark[0] = false;
+    g_avoid.b_ir_dark[1] = false;
     g_avoid.dark_from = 0.0;
     g_avoid.b_line_err = false;
     g_avoid.line_err_rad = 0.0;
@@ -1074,37 +1078,37 @@ bool bench_avoid_line_fix (void)
     uint32_t channel;
 
     if ((BENCH_MODE_MISSION != g_drive.mode) || g_avoid.b_line_fix ||
-        (!board_read_ir(raw)))
+        (!mission_read_ir(raw)))
     {
         return false;
     }
     bench_avoid_ir_peak(raw);
-    for (channel = 0U; channel < 2U; ++channel)
+    for (channel = 0U; channel < BENCH_FRONT_IR; ++channel)
     {
         line_ctrl_class_t cls = line_ctrl_classify(&g_avoid.ir_hyst[channel],
                                                    raw[channel]);
 
-        if ((LINE_CTRL_DARK == cls) && (!g_avoid.ir_dark[channel]))
+        if ((LINE_CTRL_DARK == cls) && (!g_avoid.b_ir_dark[channel]))
         {
-            g_avoid.ir_dark[channel] = true;
-            g_avoid.sx_known[channel] = true;
+            g_avoid.b_ir_dark[channel] = true;
+            g_avoid.b_sx_known[channel] = true;
             g_avoid.sx_from[channel] = expect;
         }
-        else if ((LINE_CTRL_LIGHT == cls) && g_avoid.ir_dark[channel])
+        else if ((LINE_CTRL_LIGHT == cls) && g_avoid.b_ir_dark[channel])
         {
             double width = g_avoid.sx_from[channel] - expect;
 
-            g_avoid.ir_dark[channel] = false;
-            if (g_avoid.sx_known[channel] &&
+            g_avoid.b_ir_dark[channel] = false;
+            if (g_avoid.b_sx_known[channel] &&
                 (width >= (BENCH_AVOID_LINE_MM / 2.0)) &&
                 (width <= (1.5 * BENCH_AVOID_LINE_MM)))
             {
-                g_avoid.sx_done[channel] = true;
+                g_avoid.b_sx_done[channel] = true;
                 g_avoid.sx_mid[channel] = (g_avoid.sx_from[channel] +
                                            expect) / 2.0;
                 g_avoid.sx_width[channel] = width;
             }
-            else if (g_avoid.sx_known[channel] &&
+            else if (g_avoid.b_sx_known[channel] &&
                      (g_avoid.cross_logs < BENCH_AVOID_CROSS_LOGS))
             {
                 ++g_avoid.cross_logs;
@@ -1124,18 +1128,18 @@ bool bench_avoid_line_fix (void)
             {
                 /* Start unseen, or the log is full. */
             }
-            g_avoid.sx_known[channel] = false;
+            g_avoid.b_sx_known[channel] = false;
         }
         else
         {
             /* No change, in the band, or invalid: keep the class. */
         }
-        if (g_avoid.sx_done[channel] &&
+        if (g_avoid.b_sx_done[channel] &&
             ((g_avoid.sx_mid[channel] - expect) >
              ((1.5 * BENCH_AVOID_LINE_MM) + apart_max)))
         {
             /* The other sensor never crossed it: not the line. */
-            g_avoid.sx_done[channel] = false;
+            g_avoid.b_sx_done[channel] = false;
             if (g_avoid.cross_logs < BENCH_AVOID_CROSS_LOGS)
             {
                 ++g_avoid.cross_logs;
@@ -1153,7 +1157,7 @@ bool bench_avoid_line_fix (void)
             }
         }
     }
-    if (!(g_avoid.sx_done[0] && g_avoid.sx_done[1]))
+    if (!(g_avoid.b_sx_done[0] && g_avoid.b_sx_done[1]))
     {
         return false;
     }
@@ -1161,8 +1165,8 @@ bool bench_avoid_line_fix (void)
     mid_mm = (g_avoid.sx_mid[0] + g_avoid.sx_mid[1]) / 2.0;
     if (fabs(apart) > apart_max)
     {
-        g_avoid.sx_done[0] = false;
-        g_avoid.sx_done[1] = false;
+        g_avoid.b_sx_done[0] = false;
+        g_avoid.b_sx_done[1] = false;
         if (g_avoid.cross_logs < BENCH_AVOID_CROSS_LOGS)
         {
             ++g_avoid.cross_logs;
@@ -1303,10 +1307,10 @@ void bench_avoid_turn_begin (double target)
 {
     uint32_t channel;
 
-    for (channel = 0U; channel < 2U; ++channel)
+    for (channel = 0U; channel < BENCH_FRONT_IR; ++channel)
     {
-        g_avoid.turn_dark[channel] = true;
-        g_avoid.turn_known[channel] = false;
+        g_avoid.b_turn_dark[channel] = true;
+        g_avoid.b_turn_known[channel] = false;
         g_avoid.turn_from[channel] = g_drive.heading;
     }
     g_avoid.turn_dir =
@@ -1343,33 +1347,33 @@ bool bench_avoid_turn_line (double target, double window,
     bool     b_found = false;
     uint32_t channel;
 
-    if ((BENCH_MODE_MISSION != g_drive.mode) || (!board_read_ir(raw)))
+    if ((BENCH_MODE_MISSION != g_drive.mode) || (!mission_read_ir(raw)))
     {
         return false;
     }
     bench_avoid_ir_peak(raw);
-    for (channel = 0U; channel < 2U; ++channel)
+    for (channel = 0U; channel < BENCH_FRONT_IR; ++channel)
     {
         line_ctrl_class_t cls = line_ctrl_classify(&g_avoid.ir_hyst[channel],
                                                    raw[channel]);
         double swept;
         double line_rad;
 
-        if ((LINE_CTRL_DARK == cls) && (!g_avoid.turn_dark[channel]))
+        if ((LINE_CTRL_DARK == cls) && (!g_avoid.b_turn_dark[channel]))
         {
-            g_avoid.turn_dark[channel] = true;
-            g_avoid.turn_known[channel] = true;
+            g_avoid.b_turn_dark[channel] = true;
+            g_avoid.b_turn_known[channel] = true;
             g_avoid.turn_from[channel] = g_drive.heading;
         }
-        else if ((LINE_CTRL_LIGHT == cls) && g_avoid.turn_dark[channel])
+        else if ((LINE_CTRL_LIGHT == cls) && g_avoid.b_turn_dark[channel])
         {
-            g_avoid.turn_dark[channel] = false;
+            g_avoid.b_turn_dark[channel] = false;
             swept = bench_avoid_wrap(g_drive.heading -
                                      g_avoid.turn_from[channel]);
             /* Channel 0 is the left sensor: its bearing is + (left). */
             line_rad = g_avoid.turn_from[channel] + (swept / 2.0) +
                        ((0U == channel) ? bearing : -bearing);
-            if (g_avoid.turn_known[channel] && (!b_found) &&
+            if (g_avoid.b_turn_known[channel] && (!b_found) &&
                 (fabs(swept) >= (0.5 * BENCH_TURN_LINE_RAD)) &&
                 (fabs(swept) <= (2.0 * BENCH_TURN_LINE_RAD)))
             {
@@ -1396,7 +1400,7 @@ bool bench_avoid_turn_line (double target, double window,
                     /* Further from the target than one already kept. */
                 }
             }
-            g_avoid.turn_known[channel] = false;
+            g_avoid.b_turn_known[channel] = false;
         }
         else
         {
@@ -1557,13 +1561,13 @@ void bench_avoid_ir_setup (void)
     line_ctrl_hysteresis_t own;
     uint32_t               channel;
 
-    for (channel = 0U; channel < 2U; ++channel)
+    for (channel = 0U; channel < BENCH_FRONT_IR; ++channel)
     {
         uint32_t span = (black[channel] > white[channel]) ?
                         (uint32_t)(black[channel] - white[channel]) :
                         (uint32_t)(white[channel] - black[channel]);
 
-        g_avoid.ir_own[channel] = false;
+        g_avoid.b_ir_own[channel] = false;
         if (!line_ctrl_hysteresis(white[channel], black[channel],
                                   BENCH_AVOID_IR_ON, BENCH_AVOID_IR_OFF,
                                   &g_avoid.ir_hyst[channel]))
@@ -1579,7 +1583,7 @@ void bench_avoid_ir_setup (void)
                                  BENCH_AVOID_IR_ON, BENCH_AVOID_IR_OFF, &own))
         {
             g_avoid.ir_hyst[channel] = own;
-            g_avoid.ir_own[channel] = true;
+            g_avoid.b_ir_own[channel] = true;
         }
     }
 }
@@ -1596,11 +1600,11 @@ void bench_avoid_ir_say (void)
     }
     bench_line(BK_AV_IR);   /* ADC 0-4095 */
     bench_text("AVOID: line checks: dark from ");
-    for (channel = 0U; channel < 2U; ++channel)
+    for (channel = 0U; channel < BENCH_FRONT_IR; ++channel)
     {
         bench_text(names[channel]);
         bench_u((uint32_t)g_avoid.ir_hyst[channel].on_adc, 12U);
-        bench_text(bench_flag(g_avoid.ir_own[channel]) ? " (run " :
+        bench_text(bench_flag(g_avoid.b_ir_own[channel]) ? " (run " :
                                                          " (configured, run ");
         bench_u((uint32_t)g_cal.low[channel], 12U);
         bench_text("-");
@@ -1615,7 +1619,7 @@ void bench_avoid_ir_peak (const uint16_t * p_raw)
 {
     uint32_t channel;
 
-    for (channel = 0U; channel < 2U; ++channel)
+    for (channel = 0U; channel < BENCH_FRONT_IR; ++channel)
     {
         if (p_raw[channel] > g_avoid.ir_peak[channel])
         {
@@ -2407,6 +2411,10 @@ double bench_avoid_shown (int32_t side)
     return b_creep ? fmax(0.0, edge - BENCH_AVOID_CREEP_OVER_MM) : edge;
 }
 
+/** @brief AVOID: report the obstacle as an OBST line and frame: where it
+ * was seen, the home heading, the face, both edges, the side chosen and the
+ * legs of the way round.
+ */
 void bench_avoid_obst_text (void)
 {
     /* Frame: x, y +-65535 mm (17 bits, as P lines), h +-204.7 deg, the
@@ -2735,7 +2743,7 @@ void bench_scan_start (void)
     uint32_t         pulse_us = 0U;
     bool             b_valid = false;
 
-    board_motor_brake();
+    mission_motor_brake();
     (void)memset(&g_scan, 0, sizeof(g_scan));
     app_cfg_scanner(&config);
     if (!scanner_init(&g_scanner, &config))
@@ -2744,13 +2752,13 @@ void bench_scan_start (void)
         bench_flush();
         return;
     }
-    if ((!gb_watchdog) && board_watchdog_start(BENCH_WATCHDOG_MS))
+    if ((!gb_watchdog) && mission_watchdog_start(BENCH_WATCHDOG_MS))
     {
         gb_watchdog = true;
     }
     bench_text("SCAN start: car still, box ahead; STOP aborts");
     bench_flush();
-    (void)board_ultrasonic_result(&pulse_us, &b_valid);
+    (void)mission_sonar_result(&pulse_us, &b_valid);
     g_scan.start_us = board_time_us();
     g_scan.last_us = g_scan.start_us;
     g_scan.b_running = scanner_start(&g_scanner,
@@ -2788,9 +2796,9 @@ void bench_scan_tick (uint8_t command)
         bench_scan_finish("aborted");
         return;
     }
-    board_ultrasonic_service();
+    mission_sonar_service();
     (void)memset(&echo, 0, sizeof(echo));
-    echo.b_ready = board_ultrasonic_result(&pulse_us, &b_valid);
+    echo.b_ready = mission_sonar_result(&pulse_us, &b_valid);
     echo.pulse_us = b_valid ? pulse_us : 0U;
     b_ok = scanner_step(&g_scanner, (uint32_t)(now_us / 1000U), true, &echo,
                         &output);
@@ -2798,7 +2806,7 @@ void bench_scan_tick (uint8_t command)
     {
         ++g_scan.servo_refused;
     }
-    if (output.b_trigger && (!board_ultrasonic_trigger()))
+    if (output.b_trigger && (!mission_sonar_trigger()))
     {
         ++g_scan.trigger_refused;
     }
@@ -2836,7 +2844,7 @@ bool bench_scan_servo (int32_t angle_deg)
     {
         return false;
     }
-    return board_servo_us((uint16_t)((int32_t)ROBOT_SERVO_CENTRE_US +
+    return mission_servo_us((uint16_t)((int32_t)ROBOT_SERVO_CENTRE_US +
                                      ((physical_deg * span_us) /
                                       ROBOT_SCAN_HALF_ANGLE_DEG)));
 }

@@ -169,7 +169,9 @@
 #define BENCH_ROBOT_SERVO_MIN_US ROBOT_SERVO_MIN_US
 #define BENCH_ROBOT_SERVO_MAX_US ROBOT_SERVO_MAX_US
 #if !defined(MISSION_SIM)
-#define tm_printf mission_no_console
+#define MISSION_PRINTF mission_no_console
+#else
+#define MISSION_PRINTF tm_printf
 #endif
 #if !defined(BENCH_PIVOT_TEST)
 #define BENCH_PIVOT_TEST (0)
@@ -203,15 +205,6 @@ extern uint16_t         g_ir_now_total[2];
 extern mission_input_t  g_in;
 extern mission_output_t g_out;
 extern uint8_t          g_motion_id;
-#if !defined(MISSION_BOARD_OWNER)
-
-#define board_read_ir             mission_read_ir
-#define board_read_accel          mission_read_accel
-#define board_motor_brake         mission_motor_brake
-#define board_encoders_discard    mission_encoders_discard
-#define board_watchdog_start      mission_watchdog_start
-#define board_watchdog_feed       mission_watchdog_feed
-#endif
 #define BENCH_WATCHDOG_MS (1000U)
 #define BENCH_TEXT_BYTES (160U)
 
@@ -364,6 +357,8 @@ typedef enum
 #define BENCH_SEND_TRIES (25U)        /* about 0.17 s per frame while idle */
 #define BENCH_TABLE_SEND_TRIES (450U) /* about 3 s: the motors are stopped */
 #define BENCH_WHEELS (2U)
+#define BENCH_FRONT_IR (2U)     /* the left and right line sensors */
+#define BENCH_NAV_DECODERS (3U) /* Decoder 1, Decoder 2 and D0 */
 #define BENCH_LEFT (0U)
 #define BENCH_RIGHT (1U)
 
@@ -682,7 +677,7 @@ typedef struct
     uint32_t         lift_settles; /* motor direction changes seen */
     double           lift_up_most; /* and most upward speed, m/s */
     bool             b_lifted;     /* the lift stop ended the run */
-    const char *     lean_out;     /* why lean_sent was left out, else NULL */
+    const char *     p_lean_out;     /* why lean_sent was left out, else NULL */
     bool             b_hump_held;  /* steering held over the open hump */
     bool             b_hump_go;    /* that hold let go (a bend) */
     int32_t          hump_held_from; /* centre path where the hold began */
@@ -913,15 +908,15 @@ typedef struct
     bool     b_line_fix;  /* STEPIN: the front sensors found the line */
     bool     b_dark_on;   /* STEPIN: both front sensors dark now */
     bool     b_dark_known; /* and that stretch's start was seen */
-    bool     ir_dark[2];  /* STEPIN: front sensors' class, with hysteresis */
+    bool     b_ir_dark[2];  /* STEPIN: front sensors' class, with hysteresis */
     /* STEPIN: offset toward the line when both went dark */
     double   dark_from;
     uint32_t guard_hits;  /* ALONG/STEPIN: echoes in a row within the guard */
     uint32_t extends;     /* STEPIN: times the path past it was blocked */
     double   extra_mm;    /* ALONG runs this much further (the extends) */
     bool     b_blocked;   /* the way back was blocked at the last look */
-    bool     turn_dark[2]; /* turn check: front sensors' class */
-    bool     turn_known[2]; /* and that dark stretch's start was seen */
+    bool     b_turn_dark[2]; /* turn check: front sensors' class */
+    bool     b_turn_known[2]; /* and that dark stretch's start was seen */
     double   turn_from[2]; /* heading where it went dark */
     double   turn_width_rad; /* the line's dark stretch, last found */
     int32_t  turn_dir;    /* HOMEPIVOT: +1 turning left, -1 right */
@@ -936,10 +931,10 @@ typedef struct
     uint32_t turn_finds;  /* and how many */
     line_ctrl_hysteresis_t ir_hyst[2]; /* line checks: front sensors'
                                         * dark/light, this run's readings */
-    bool     ir_own[2];   /* from this run's readings, else configured */
+    bool     b_ir_own[2];   /* from this run's readings, else configured */
     uint16_t ir_peak[2];  /* highest front reading this phase */
-    bool     sx_known[2]; /* STEPIN: this sensor's dark stretch began here */
-    bool     sx_done[2];  /* and a line-wide one has ended, not yet paired */
+    bool     b_sx_known[2]; /* STEPIN: this sensor's dark stretch began here */
+    bool     b_sx_done[2];  /* and a line-wide one has ended, not yet paired */
     double   sx_from[2];  /* travel left (expect) where it went dark */
     double   sx_mid[2];   /* the ended stretch's middle (expect) */
     double   sx_width[2]; /* and length, mm */
@@ -1270,7 +1265,7 @@ typedef struct
     /* per decoder (Decoder 1, Decoder 2, D0): its letter, '\0' no read
      * or not in yet
      */
-    char     read[3];
+    char     read[BENCH_NAV_DECODERS];
     uint32_t reported;     /* a bit per decoder that reported this card */
     int32_t  junction_mm;  /* encoder centre at the last junction: reports
                             * for cards before it are late, ignored */
@@ -1319,7 +1314,7 @@ void bench_slowest (uint32_t * p_most, uint64_t start_us);
 #define BENCH_VOTE_DECODER1 (0U)
 extern bool gb_rec_keep;
 
-bool bench_rtos_start (const char ** p_what, int32_t * p_err);
+bool bench_rtos_start (const char ** pp_what, int32_t * p_err);
 void bench_control_task (INT stacd, void * exinf);
 void bench_safety_task (INT stacd, void * exinf);
 void bench_safety_cyc (void * exinf);

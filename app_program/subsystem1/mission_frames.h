@@ -35,13 +35,13 @@ void bench_ux (uint32_t value, uint32_t places, uint32_t bits);
                                                        /* as bench_fixed */
 bool bench_flag (bool b_value);
  /* no text */
-void bench_name (const char * const * p_names, uint32_t index,
+void bench_name (const char * const * pp_names, uint32_t index,
                         uint32_t bits);
-                /* p_names[index] */
+                /* pp_names[index] */
 void bench_str (const char * p_text, uint32_t length_bits);
 
                                          /* Code 39 text, 6 bits a char */
-void bench_name_of (const char * const * p_names, uint32_t count,
+void bench_name_of (const char * const * pp_names, uint32_t count,
                            const char * p_text, uint32_t bits);
 void bench_char (char ch, char base, uint32_t bits);
 

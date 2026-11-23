@@ -143,6 +143,9 @@ int32_t bench_signed_delta (uint16_t newer, uint16_t older,
                                                  ROBOT_RIGHT_ENCODER_SIGN);
 }
 
+/** @brief Append p_text to g_text, as much as fits while leaving room for
+ * the terminator; g_text is always terminated.
+ */
 void bench_text (const char * p_text)
 {
     while (('\0' != *p_text) && ((g_length + 2U) < BENCH_TEXT_BYTES))
@@ -280,6 +283,9 @@ static uint32_t bench_frame_signed (int32_t value, uint32_t bits)
     return bitpack_signed(value, bits);
 }
 
+/** @brief value as a bits-bit unsigned frame field (saturated, counted)
+ * and as decimal text.
+ */
 void bench_u (uint32_t value, uint32_t bits)
 {
     bench_frame_put(bench_frame_unsigned(value, bits), bits);
@@ -304,6 +310,9 @@ void bench_x (int32_t value, uint32_t places, uint32_t bits)
     bench_fixed_text(value, places);
 }
 
+/** @brief As bench_u, but the text is value / 10^places with that many
+ * decimals.
+ */
 void bench_ux (uint32_t value, uint32_t places, uint32_t bits)
 {
     bench_frame_put(bench_frame_unsigned(value, bits), bits);
@@ -316,11 +325,11 @@ bool bench_flag (bool b_value)
     return b_value;
 }
 
-void bench_name (const char * const * p_names, uint32_t index,
+void bench_name (const char * const * pp_names, uint32_t index,
                         uint32_t bits)
 {
     bench_frame_put(bench_frame_unsigned(index, bits), bits);
-    bench_text(p_names[index]);
+    bench_text(pp_names[index]);
 }
 
 /** @brief Decoded text: its length (length_bits), then 6 bits a character,
@@ -351,21 +360,21 @@ void bench_str (const char * p_text, uint32_t length_bits)
     bench_text(p_text);
 }
 
-/** @brief p_text as its index in p_names (bits); a text not in the table
+/** @brief p_text as its index in pp_names (bits); a text not in the table
  * has no code, so the line is not sent (bench_untyped).
  */
-void bench_name_of (const char * const * p_names, uint32_t count,
+void bench_name_of (const char * const * pp_names, uint32_t count,
                            const char * p_text, uint32_t bits)
 {
     uint32_t index = 0U;
 
-    while ((index < count) && (0 != strcmp(p_names[index], p_text)))
+    while ((index < count) && (0 != strcmp(pp_names[index], p_text)))
     {
         ++index;
     }
     if (index < count)
     {
-        bench_name(p_names, index, bits);
+        bench_name(pp_names, index, bits);
         return;
     }
     bench_untyped();
@@ -440,7 +449,7 @@ static void bench_frame_print (uint8_t * p_frame, uint32_t size,
 
     if (0U == size)
     {
-        (void)tm_printf((const UB *)"#T %s", p_text);
+        (void)MISSION_PRINTF((const UB *)"#T %s", p_text);
         return;
     }
     p_frame[1] = g_frame_seq;
@@ -456,7 +465,7 @@ static void bench_frame_print (uint8_t * p_frame, uint32_t size,
     }
     line[3U + (2U * size)] = '\n';
     line[4U + (2U * size)] = '\0';
-    (void)tm_printf((const UB *)"%s%s", line, p_text);
+    (void)MISSION_PRINTF((const UB *)"%s%s", line, p_text);
 }
 #endif
 
@@ -554,7 +563,7 @@ void bench_flush (void)
     g_text[g_length] = '\0';
     bench_frame_print(g_frame, size, g_text);
 #endif
-    board_watchdog_feed();
+    mission_watchdog_feed();
     g_length = 0U;
     g_text[0] = '\0';
 }

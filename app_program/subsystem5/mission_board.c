@@ -4,7 +4,6 @@
  * tools/reorg/split_c.py (22 Nov 2026); what the parts share is in
  * mission_private.h.
  */
-#define MISSION_BOARD_OWNER /* the real board calls here */
 #include "mission_private.h"
 #include "mission_board.h"
 #if !defined(MISSION_SIM)
@@ -88,12 +87,12 @@ uint64_t mission_accel_sample_us (uint64_t now_us)
     return now_us - (uint64_t)(uint32_t)((uint32_t)now_us - g_acc_read_us);
 }
 
-/** @brief Ask the Scan task for one trigger; false while one is out (an
- * echo that never came is given up after MISSION_SONAR_LOST_US).
- */
 #define MISSION_SONAR_LOST_US (200000U)
 static uint64_t g_sonar_asked_us;
 
+/** @brief Ask the Scan task for one trigger; false while one is out (an
+ * echo that never came is given up after MISSION_SONAR_LOST_US).
+ */
 bool mission_sonar_trigger (void)
 {
     uint64_t now_us = board_time_us();

@@ -22,9 +22,9 @@
  *   IR          Line task (2 ms) pushes each sample with the wheels' 16-bit
  *               totals (mission_ir_push); a step feeds all but the newest to
  *               the barcode store as the bench's 1 ms polls did, and the
- *               newest is the step's own reading (board_read_ir).
+ *               newest is the step's own reading (mission_read_ir).
  *   accel       IMU task (10 ms) pushes each fresh sample (mission_accel_push);
- *               board_read_accel takes the oldest, FRESH, else PENDING.
+ *               mission_read_accel takes the oldest, FRESH, else PENDING.
  *   sonar/servo Scan task (2 ms) sets the pulse and triggers when asked
  *               (mission_output_t servo_seq/trigger_seq) and hands back the
  *               echo of that trigger (mission_input_t sonar_seq).
@@ -459,7 +459,7 @@ bool bench_line_start (void)
                                         BENCH_LINE_LOST_MS;
     line_ctrl_init(&g_line_state);
     b_valid = line_ctrl_derive(&config, &g_line_runtime) &&
-              board_read_ir(raw) &&
+              mission_read_ir(raw) &&
               line_ctrl_step(&g_line_runtime, &g_line_state, raw,
                              (uint32_t)(board_time_us() / 1000U), &output);
     /* The straight barcode image starts wherever the car is set down. */
@@ -581,7 +581,7 @@ void bench_line_step (uint64_t now_us, motion_request_t * p_request)
         return;
     }
     (void)memset(&output, 0, sizeof(output));
-    b_valid = board_read_ir(raw);
+    b_valid = mission_read_ir(raw);
     if (b_valid && (BENCH_MODE_MISSION == g_drive.mode))
     {
         bench_cal_sample(raw, bench_mm(centre));
@@ -607,7 +607,7 @@ void bench_line_step (uint64_t now_us, motion_request_t * p_request)
     else if (b_centre)
     {
         steering = bench_centre_steer(&output, centre, now_us, &b_lost);
-        for (channel = 0U; channel < 2U; ++channel)
+        for (channel = 0U; channel < BENCH_FRONT_IR; ++channel)
         {
             if (raw[channel] > g_centre.raw_max[channel])
             {
@@ -765,6 +765,10 @@ void bench_line_step (uint64_t now_us, motion_request_t * p_request)
         {
             return;
         }
+    }
+    else
+    {
+        /* No junction probe or wait this step: follow the line below. */
     }
     if (bench_line_cross(&output, (int32_t)sample.centre_mm, p_request))
     {
@@ -1174,7 +1178,7 @@ double bench_centre_steer (const line_ctrl_output_t * p_output,
         g_centre.raw[1] = raw_right;
         g_centre.side_dark = (double)p_output->darkness_q12[2] /
                              (double)LINE_CTRL_DARKNESS_ONE;
-        for (channel = 0U; channel < 2U; ++channel)
+        for (channel = 0U; channel < BENCH_FRONT_IR; ++channel)
         {
             if (((0U == channel) ? raw_left : raw_right) >= BENCH_EDGE_CROSS)
             {
@@ -2384,7 +2388,7 @@ char bench_nav_decide (uint32_t * p_votes, uint32_t * p_readers)
     uint32_t readers = 0U;
     char     best = '\0';
 
-    for (who = 0U; who < 3U; ++who)
+    for (who = 0U; who < BENCH_NAV_DECODERS; ++who)
     {
         if ('\0' == g_nav.read[who])
         {
@@ -2392,7 +2396,7 @@ char bench_nav_decide (uint32_t * p_votes, uint32_t * p_readers)
         }
         ++readers;
         votes = 0U;
-        for (other = 0U; other < 3U; ++other)
+        for (other = 0U; other < BENCH_NAV_DECODERS; ++other)
         {
             if (g_nav.read[other] == g_nav.read[who])
             {
@@ -2433,7 +2437,7 @@ void bench_nav_reads (void)
     /* Frame: each decoder 2 bits (0 not in, 1 no read, 2 a letter, then it
      * as a Code 39 character).
      */
-    for (who = 0U; who < 3U; ++who)
+    for (who = 0U; who < BENCH_NAV_DECODERS; ++who)
     {
         bench_text(p_who[who]);
         if (0U == (g_nav.reported & ((uint32_t)1U << who)))
@@ -2892,7 +2896,7 @@ void mission_ir_push (const uint16_t raw[3], bool b_valid,
 
 /** @brief The IR samples the Line task took since the last step: all but
  * the newest into the barcode store while a run reads cards (the bench's
- * 1 ms polls); the newest is this step's reading (board_read_ir).
+ * 1 ms polls); the newest is this step's reading (mission_read_ir).
  */
 void mission_ir_drain (void)
 {

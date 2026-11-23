@@ -20,7 +20,6 @@ uint16_t         g_ir_now_total[2];
 mission_input_t  g_in;
                /* this step's input */
 mission_output_t g_out;
-#define board_read_encoders       mission_read_encoders
 
 /* A 5 ms delay plus the sensor reads takes about 6.75 ms, so every window
  * is timed with board_time_us(), not counted in ticks.
@@ -169,13 +168,13 @@ void bench_loop (void)
     const char * p_what = "";
     int32_t      error = 0;
 
-    (void)tm_printf((const UB *)"\nBENCH IMAGE: not the robot firmware;"
+    (void)MISSION_PRINTF((const UB *)"\nBENCH IMAGE: not the robot firmware;"
                     " wheels must be off the ground.\n");
     b_board = board_init();
     /* An accelerometer failure still leaves the other measurements. */
-    if ((!b_board) && (!board_read_ir(samples)))
+    if ((!b_board) && (!mission_read_ir(samples)))
     {
-        (void)tm_printf((const UB *)"board_init refused: %s\n",
+        (void)MISSION_PRINTF((const UB *)"board_init refused: %s\n",
                         board_init_diagnostic());
         for (;;)
         {
@@ -191,7 +190,7 @@ void bench_loop (void)
 #endif
     board_encoder_totals(&g_last_total[BENCH_LEFT],
                          &g_last_total[BENCH_RIGHT]);
-    board_encoders_discard();
+    mission_encoders_discard();
     bench_line(BK_BOOT);
     if (bench_flag(0 != BENCH_MOTION))
     {
@@ -215,12 +214,12 @@ void bench_loop (void)
      */
     if (!bench_rtos_start(&p_what, &error))
     {
-        board_motor_brake();
-        (void)tm_printf((const UB *)"BENCH refused: kernel %s failed,"
+        mission_motor_brake();
+        (void)MISSION_PRINTF((const UB *)"BENCH refused: kernel %s failed,"
                         " error %d\n", p_what, (int)error);
         for (;;)
         {
-            board_motor_brake();
+            mission_motor_brake();
             (void)tk_dly_tsk(1000);
         }
     }
@@ -267,9 +266,9 @@ void bench_run_loop (void)
 /** @brief Create the event flag, command buffer and cyclic handler, then
  * create and start the control and safety tasks. The tasks are lower
  * priority than this initial task, so none runs until bench_loop sleeps.
- * False with *p_what / *p_err on the first failure.
+ * False with *pp_what / *p_err on the first failure.
  */
-bool bench_rtos_start (const char ** p_what, int32_t * p_err)
+bool bench_rtos_start (const char ** pp_what, int32_t * p_err)
 {
     T_CFLG flag;
     T_CMBF mbf;
@@ -281,8 +280,12 @@ bool bench_rtos_start (const char ** p_what, int32_t * p_err)
     (void)memset(&flag, 0, sizeof(flag));
     flag.flgatr = TA_TFIFO | TA_WSGL;
     g_stop_flg = tk_cre_flg(&flag);
-    *p_what = "event flag";
-    if (g_stop_flg <= 0) { *p_err = (int32_t)g_stop_flg; return false; }
+    *pp_what = "event flag";
+    if (g_stop_flg <= 0)
+    {
+        *p_err = (int32_t)g_stop_flg;
+        return false;
+    }
 
     (void)memset(&mbf, 0, sizeof(mbf));
     mbf.mbfatr = TA_TFIFO | TA_USERBUF;
@@ -290,16 +293,24 @@ bool bench_rtos_start (const char ** p_what, int32_t * p_err)
     mbf.maxmsz = 1;
     mbf.bufptr = g_cmd_store;
     g_cmd_mbf = tk_cre_mbf(&mbf);
-    *p_what = "command buffer";
-    if (g_cmd_mbf <= 0) { *p_err = (int32_t)g_cmd_mbf; return false; }
+    *pp_what = "command buffer";
+    if (g_cmd_mbf <= 0)
+    {
+        *p_err = (int32_t)g_cmd_mbf;
+        return false;
+    }
 
     (void)memset(&cyc, 0, sizeof(cyc));
     cyc.cycatr = TA_HLNG;
     cyc.cychdr = (FP)bench_safety_cyc;
     cyc.cyctim = (RELTIM)BENCH_SAFETY_MS;
     g_safety_cyc = tk_cre_cyc(&cyc);
-    *p_what = "cyclic handler";
-    if (g_safety_cyc <= 0) { *p_err = (int32_t)g_safety_cyc; return false; }
+    *pp_what = "cyclic handler";
+    if (g_safety_cyc <= 0)
+    {
+        *p_err = (int32_t)g_safety_cyc;
+        return false;
+    }
 
     (void)memset(&ctsk, 0, sizeof(ctsk));
     ctsk.tskatr = TA_HLNG | TA_RNG0 | TA_USERBUF;
@@ -308,8 +319,12 @@ bool bench_rtos_start (const char ** p_what, int32_t * p_err)
     ctsk.stksz  = (SZ)sizeof(g_ctrl_stack);
     ctsk.bufptr = g_ctrl_stack;
     g_ctrl_tid = tk_cre_tsk(&ctsk);
-    *p_what = "control task";
-    if (g_ctrl_tid <= 0) { *p_err = (int32_t)g_ctrl_tid; return false; }
+    *pp_what = "control task";
+    if (g_ctrl_tid <= 0)
+    {
+        *p_err = (int32_t)g_ctrl_tid;
+        return false;
+    }
 
     (void)memset(&ctsk, 0, sizeof(ctsk));
     ctsk.tskatr = TA_HLNG | TA_RNG0 | TA_USERBUF;
@@ -318,14 +333,24 @@ bool bench_rtos_start (const char ** p_what, int32_t * p_err)
     ctsk.stksz  = (SZ)sizeof(g_safety_stack);
     ctsk.bufptr = g_safety_stack;
     g_safety_tid = tk_cre_tsk(&ctsk);
-    *p_what = "safety task";
-    if (g_safety_tid <= 0) { *p_err = (int32_t)g_safety_tid; return false; }
+    *pp_what = "safety task";
+    if (g_safety_tid <= 0)
+    {
+        *p_err = (int32_t)g_safety_tid;
+        return false;
+    }
 
     gb_rtos = true;   /* bench_command now takes commands from safety */
     result = tk_sta_tsk(g_ctrl_tid, 0);
-    if (E_OK == result) { result = tk_sta_tsk(g_safety_tid, 0); }
-    if (E_OK == result) { result = tk_sta_cyc(g_safety_cyc); }
-    *p_what = "task start";
+    if (E_OK == result)
+    {
+        result = tk_sta_tsk(g_safety_tid, 0);
+    }
+    if (E_OK == result)
+    {
+        result = tk_sta_cyc(g_safety_cyc);
+    }
+    *pp_what = "task start";
     if (E_OK != result)
     {
         gb_rtos = false;
@@ -359,7 +384,7 @@ void bench_safety_task (INT stacd, void * exinf)
         command = bench_poll_command();
         if (BENCH_CMD_STOP == command)
         {
-            board_motor_brake();
+            mission_motor_brake();
             (void)tk_set_flg(g_stop_flg, BENCH_FLG_STOP);
         }
         else if (BENCH_CMD_NONE != command)
@@ -474,7 +499,7 @@ void bench_track (void)
     uint32_t errors = 0U;
     uint32_t wheel;
 
-    board_read_encoders(&left, &right, &errors);
+    mission_read_encoders(&left, &right, &errors);
     board_encoder_totals(&total[BENCH_LEFT], &total[BENCH_RIGHT]);
     for (wheel = 0U; wheel < BENCH_WHEELS; ++wheel)
     {
@@ -514,7 +539,7 @@ void bench_idle (uint8_t command)
             }
             return;
         case BENCH_CMD_STOP:
-            board_motor_brake();
+            mission_motor_brake();
         break;
         case BENCH_CMD_RESET:
             g_distance[BENCH_LEFT] = 0;
@@ -597,9 +622,9 @@ void bench_sample (void)
     int16_t  milligravity[3] = {0, 0, 0};
     uint32_t axis;
 
-    if (board_read_ir(samples))
+    if (mission_read_ir(samples))
     {
-        for (axis = 0U; axis < 3U; ++axis)
+        for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
         {
             if ((0U == g_ir.count) || (samples[axis] < g_ir.minimum[axis]))
             {
@@ -614,9 +639,9 @@ void bench_sample (void)
         ++g_ir.count;
     }
     if (gb_accel &&
-        (BOARD_ACCEL_FRESH == board_read_accel(milligravity)))
+        (BOARD_ACCEL_FRESH == mission_read_accel(milligravity)))
     {
-        for (axis = 0U; axis < 3U; ++axis)
+        for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
         {
             if ((0U == g_accel.count) ||
                 (milligravity[axis] < g_accel.minimum[axis]))
@@ -650,7 +675,7 @@ void bench_report (void)
      */
     bench_line(BK_IR);
     (void)bench_flag(0U != g_ir.count);
-    for (axis = 0U; (axis < 3U) && (0U != g_ir.count); ++axis)
+    for (axis = 0U; (axis < ROBOT_IMU_AXES) && (0U != g_ir.count); ++axis)
     {
         bench_text(ir_names[axis]);
         bench_u(g_ir.sum[axis] / g_ir.count, 12U);
@@ -663,7 +688,7 @@ void bench_report (void)
     bench_line(BK_ACC);
     bench_text("ACC mg n ");
     bench_u(g_accel.count, 10U);
-    for (axis = 0U; (axis < 3U) && (0U != g_accel.count); ++axis)
+    for (axis = 0U; (axis < ROBOT_IMU_AXES) && (0U != g_accel.count); ++axis)
     {
         bench_text(axis_names[axis]);
         bench_s(g_accel.sum[axis] / (int32_t)g_accel.count, 13U);
@@ -677,7 +702,7 @@ void bench_report (void)
     {
         bench_line(BK_MAG);
         bench_text("MAG");
-        for (axis = 0U; axis < 3U; ++axis)
+        for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
         {
             bench_text(axis_names[axis]);
             bench_s((int32_t)compass[axis], 13U);

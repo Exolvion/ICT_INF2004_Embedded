@@ -159,6 +159,10 @@ void robot_app_scan_step (uint32_t now_ms)
             g_front_trigger_ms = now_ms;
         }
     }
+    else
+    {
+        /* The servo is still settling after centring: no front trigger yet. */
+    }
     if (g_scan_flags.b_fine_requested && g_scan_flags.b_result_ready &&
         (!g_scan_flags.b_fine_reported) &&
         ((now_ms - g_scan_centred_ms) >= ROBOT_SERVO_SETTLE_MS) &&

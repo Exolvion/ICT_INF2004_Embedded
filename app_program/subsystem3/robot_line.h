@@ -16,10 +16,17 @@ bool robot_app_original_line (const robot_app_shared_t * p_copy,
 #endif
 #if ROBOT_APP_MISSION
 
+/** @brief Line task step: read the IR pair, run the line controller,
+ * publish its status, steering and health, and pass the sample on to the
+ * mission.
+ */
 void robot_app_line_step (uint32_t now_ms);
 #endif
 #if !(ROBOT_APP_MISSION)
 
+/** @brief Line task step: read the IR pair, run the line controller and
+ * barcode decoder, and publish the line status, steering and health.
+ */
 void robot_app_line_step (uint32_t now_ms);
 #endif
 

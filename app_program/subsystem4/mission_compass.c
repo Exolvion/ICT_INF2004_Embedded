@@ -22,6 +22,7 @@
 #define BENCH_MAG_MR_CONT (0x00U)   /* continuous conversion */
 #define BENCH_MAG_OUT_REG (0x03U)   /* OUT_X_H_M: X, Z, Y, high byte first */
 #define BENCH_MAG_OVERFLOW (-4096)  /* an axis out of range */
+#define BENCH_MAG_SETUP_REGS (3U)   /* CRA, CRB and MR, written once */
 #if ((ROBOT_PIN_IMU_SDA % 4U) == 0U) /* board.c's controller for the pins */
 #define BENCH_MAG_I2C i2c0
 #endif
@@ -42,7 +43,7 @@ void bench_mag_say (void)
         return;
     }
     bench_text("; C");
-    for (axis = 0U; axis < 3U; ++axis)
+    for (axis = 0U; axis < ROBOT_IMU_AXES; ++axis)
     {
         bench_text(" ");
         bench_s((int32_t)xyz[axis], 13U);
@@ -58,7 +59,7 @@ void bench_mag_say (void)
 static bool bench_mag_bus (int16_t * p_xyz)
 {
 #if defined(PICO_ON_DEVICE) && (1 == PICO_ON_DEVICE)
-    static const uint8_t setup[3][2] =
+    static const uint8_t setup[BENCH_MAG_SETUP_REGS][2] =
     {
         {BENCH_MAG_CRA_REG, BENCH_MAG_CRA_30HZ},
         {BENCH_MAG_CRB_REG, BENCH_MAG_CRB_1G3},
@@ -77,7 +78,7 @@ static bool bench_mag_bus (int16_t * p_xyz)
     {
         b_tried = true;
         b_ready = true;
-        for (reg_index = 0U; reg_index < 3U; ++reg_index)
+        for (reg_index = 0U; reg_index < BENCH_MAG_SETUP_REGS; ++reg_index)
         {
             if (2 != i2c_write_timeout_us(BENCH_MAG_I2C, BENCH_MAG_ADDRESS,
                                           setup[reg_index], 2U, false,
