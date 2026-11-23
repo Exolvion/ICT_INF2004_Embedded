@@ -35,7 +35,6 @@ Add a new row for every run. Never edit or delete old rows.
 
 | Date | Test ID | Commit | Tester | Result | Log / evidence | Notes |
 |---|---|---|---|---|---|---|
-| YYYY-MM-DD | SYS-01 | `abc1234` | | PASS / FAIL | `logs/YYYY-MM-DD_SYS-01.txt` | |
 | 2026-10-28 | SYS-01 | not recorded | | PASS | `logs/2026-10-28_SYS-01.txt` | Passed 7 executable(s) in both host configurations |
 | 2026-10-28 | SYS-02 | not recorded | | PASS | `logs/2026-10-28_SYS-02.txt` | 55 files: mechanical findings 0, manual-review findings 0; lock discipline PASS |
 | 2026-10-28 | SYS-03 | not recorded | | PASS | `logs/2026-10-28_SYS-03.txt` | Scenario executions 122, failures 0 |

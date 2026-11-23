@@ -1,0 +1,37 @@
+$ bash scripts/dev.sh host-tests test_telemetry_main
+Validation UTC: 2026-11-23T17:44:56Z
+gcc (Debian 15.2.0-17) 15.2.0
+Copyright (C) 2025 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+
+Strict host build flags: -std=c99 -Wall -Wextra -Wpedantic -Werror -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Wformat=2 -Wundef -Wcast-qual -Wwrite-strings -Wswitch-enum -Wnull-dereference -I<repo>/app_program/ -I<repo>/app_program/subsystem1 -I<repo>/app_program/subsystem2 -I<repo>/app_program/subsystem3 -I<repo>/app_program/subsystem4 -I<repo>/app_program/subsystem5 
+Selected test pattern: test_telemetry_main
+Compiled portable sources:
+  <repo>/app_program/bitpack.c
+  <repo>/app_program/core.c
+  <repo>/app_program/subsystem1/mqttcmd.c
+  <repo>/app_program/subsystem1/navmap.c
+  <repo>/app_program/subsystem1/telemetry.c
+  <repo>/app_program/subsystem2/motion.c
+  <repo>/app_program/subsystem3/barcode.c
+  <repo>/app_program/subsystem3/line_ctrl.c
+  <repo>/app_program/subsystem4/terrain.c
+  <repo>/app_program/subsystem5/scanner.c
+  <repo>/app_program/subsystem5/vehicle.c
+
+test_telemetry_main: release build (-O2 -DNDEBUG)
+telemetry: 81 checks, 0 failures
+
+test_telemetry_main: ASan + UBSan build (-O1 -g)
+LeakSanitizer disabled by project choice pending a CI trial; ROBOT_LSAN=1 enables it.
+telemetry: 81 checks, 0 failures
+
+Passed 1 executable(s) in both host configurations.
+Hardware, timing, and RTOS behavior remain untested here.
+----------------------------------------------------------------------
+Ran 8 tests in 0.047s
+
+OK
+exit status: 0

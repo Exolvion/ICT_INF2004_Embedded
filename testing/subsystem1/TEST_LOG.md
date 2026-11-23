@@ -31,4 +31,6 @@ Add a new row for every run. Never edit or delete old rows.
 
 | Date | Test ID | Commit | Tester | Result | Log / evidence | Notes |
 |---|---|---|---|---|---|---|
-| YYYY-MM-DD | S1-U01 | `abc1234` | | PASS / FAIL | `logs/YYYY-MM-DD_S1-U01.txt` | |
+| 2026-11-24 | S1-U01 | `1c2882c` | Siang Hong | PASS | `logs/2026-11-24_S1-U01.txt` | Release and sanitizer builds passed; Python decoder 8 tests OK. Re-run on the final code before hand-in |
+| 2026-11-24 | S1-U02 | `1c2882c` | Siang Hong | PASS | `logs/2026-11-24_S1-U02.txt` | Release and sanitizer builds passed |
+| 2026-11-24 | S1-U03 | `1c2882c` | Siang Hong | PASS | `logs/2026-11-24_S1-U03_S2-U03.txt` | 99 checks, 0 failures (release and sanitize), as in the 23 Nov SYS-04 run; the 100 in the definition predates it. 26 radio/kernel scenarios PASS |

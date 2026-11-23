@@ -29,9 +29,9 @@ Add a new row for every run. Never edit or delete old rows.
 
 | Date | Test ID | Commit | Tester | Result | Log / evidence | Notes |
 |---|---|---|---|---|---|---|
-| YYYY-MM-DD | S3-U01 | `abc1234` | | PASS / FAIL | `logs/YYYY-MM-DD_S3-U01.txt` | |
 | 2026-10-29 | S3-U03 | `166e23f` + uncommitted | Tan Yi Jian Ethan | FAIL | `logs/2026-10-29_S3-U07_summary.txt` | Barcode sensor only, school track: white ~205, line ~1975. Clear separation, but the tape values in `robot_config.h` (137/4043) do not fit this track and were not changed |
 | 2026-10-29 | S3-U07 | `166e23f` + uncommitted | Tan Yi Jian Ethan | FAIL | `logs/2026-10-29_S3-U07_summary.txt` | 3 runs (bench images `a066e62a`, `3e27c236`). Only the 18 mm thick bars show; the 6 mm thin bars and the spec-size card do not resolve with the sensor 2 cm up. Defined after the first run |
 | 2026-10-31 | S3-U07 | `28ff7fc` + uncommitted (bench image `3414a534`) | Tan Yi Jian Ethan | FAIL | `logs/2026-10-31_S3-U07_summary.txt`, `logs/2026-10-31_S3-U07_live.txt` | MISSION at 80 mm/s, sensor 1 cm up on the side mount. 53 runs: 8 confirmed codes (`*Z*` normal x2, `*A*` normal x4, big `*Z*` and big `*A*` once each), all correct, no wrong code. Most misses lost bars (blurred narrow gaps merge bars). Width spec check refused 2 probably-right `*A*` frames and 2 probably-wrong (`*M*`, `*L*`). Sensor white rose to ~1400 for a few runs, then recovered. Only read in order (end-to-start not seen) |
 | 2026-10-26 | S3-U02 | not recorded | Siang Hong | PASS | `logs/2026-10-26_S3-U02.txt` | All three IR sensors respond; the log asks for a repeat over black tape and white paper for the exact method |
 | 2026-11-04 | S3-U07 | not recorded | | PASS | `logs/2026-11-04_S3-U07_10rounds.md` | 10 counted rounds on the tape track (5 small cards, 5 big): the car's decoder 9 of 10 (small 5, big 4), no card read wrong |
+| 2026-11-24 | S3-U01 | `1c2882c` | Siang Hong | PASS | `logs/2026-11-24_S3-U01.txt` | Release and sanitizer builds passed |

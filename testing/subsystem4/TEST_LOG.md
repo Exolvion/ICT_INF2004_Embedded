@@ -28,4 +28,4 @@ Add a new row for every run. Never edit or delete old rows.
 
 | Date | Test ID | Commit | Tester | Result | Log / evidence | Notes |
 |---|---|---|---|---|---|---|
-| YYYY-MM-DD | S4-U01 | `abc1234` | | PASS / FAIL | `logs/YYYY-MM-DD_S4-U01.txt` | |
+| 2026-11-24 | S4-U01 | `1c2882c` | Siang Hong | PASS | `logs/2026-11-24_S4-U01_S5-U01.txt` | Release and sanitizer builds passed |
